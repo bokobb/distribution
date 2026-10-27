@@ -173,11 +173,26 @@ class AdminSecurityTest {
     @Test
     void безCsrfДействиеНеПроходит_выходЗакрываетСессию() throws Exception {
         World w = data.world("Выход");
+        jdbc.update("update outlets set status = 'PENDING' where id = ?", w.outlet().getId());
         MockHttpSession s = login(w.operator());
-        mvc.perform(post("/admin/outlets/" + w.outlet().getId() + "/approve").session(s)).andExpect(status().isForbidden());
+        // форма без ключа (страница устарела): действие не выполняется, человек — на главную с подсказкой
+        mvc.perform(post("/admin/outlets/" + w.outlet().getId() + "/approve").session(s)).andExpect(redirectedUrl("/admin"));
+        assertThat(jdbc.queryForObject("select status from outlets where id = ?", String.class, w.outlet().getId())).isEqualTo("PENDING");
         mvc.perform(post("/admin/outlets/" + w.outlet().getId() + "/approve").with(csrf()).session(s)).andExpect(status().is3xxRedirection());
+        assertThat(jdbc.queryForObject("select status from outlets where id = ?", String.class, w.outlet().getId())).isEqualTo("ACTIVE");
 
         mvc.perform(post("/logout").with(csrf()).session(s)).andExpect(redirectedUrl("/login?logout"));
         mvc.perform(get("/admin/dashboard").session(s)).andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
+    void устаревшаяСтраницаВходаВозвращаетНаВходСПодсказкой() throws Exception {
+        World w = data.world("Устарела");
+        data.password(w.operator(), PASSWORD, false);
+        // страница открыта до перезапуска сервера: ключа формы в новой сессии нет
+        mvc.perform(post("/login").param("username", w.operator().getPhone()).param("password", PASSWORD))
+                .andExpect(redirectedUrl("/login?expired"));
+        mvc.perform(get("/login").param("expired", ""))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Страница входа устарела")));
     }
 }

@@ -1,6 +1,7 @@
 package com.confectionery.distribution.config;
 
 import com.confectionery.distribution.security.AdminUserService;
+import com.confectionery.distribution.security.StalePageHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
@@ -37,13 +38,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain web(HttpSecurity http) throws Exception {
+    public SecurityFilterChain web(HttpSecurity http, StalePageHandler stalePage) throws Exception {
         http.authorizeHttpRequests(a -> a
-                        .requestMatchers("/login", "/admin/assets/**", "/error").permitAll()
+                        .requestMatchers("/login", "/admin/assets/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/**").denyAll()
                         .anyRequest().authenticated())
                 .formLogin(f -> f.loginPage("/login").defaultSuccessUrl("/admin", false).failureUrl("/login?error"))
-                .logout(l -> l.logoutUrl("/logout").logoutSuccessUrl("/login?logout"));
+                .logout(l -> l.logoutUrl("/logout").logoutSuccessUrl("/login?logout"))
+                .exceptionHandling(e -> e.accessDeniedHandler(stalePage));
         return http.build();
     }
 }
