@@ -58,6 +58,7 @@ public class DemoSeeder implements ApplicationRunner {
     private final ProductReturnRepository returns;
     private final StockService stock;
     private final CashService cash;
+    private final DemoTracks tracks;
     private final PasswordEncoder encoder;
     private final TransactionTemplate tx;
     private final Clock clock;
@@ -91,7 +92,9 @@ public class DemoSeeder implements ApplicationRunner {
         TenantContext.run(TenantContext.ROOT, () -> {
             if (companies.count() > 0) {
                 Integer filled = tx.execute(s -> fillCoordinates());
-                log.info("Демо-данные не нужны: в базе уже есть компании" + (filled > 0 ? "; координаты для карты добавлены: " + filled : ""));
+                Integer days = tx.execute(s -> tracks.fill());
+                log.info("Демо-данные не нужны: в базе уже есть компании" + (filled > 0 ? "; координаты для карты добавлены: " + filled : "")
+                        + (days > 0 ? "; треки GPS и журнал приложения добавлены, дней: " + days : ""));
                 return;
             }
             if (demoPassword == null || demoPassword.isBlank())
@@ -153,6 +156,7 @@ public class DemoSeeder implements ApplicationRunner {
                 if ("Ержан Т.".equals(a.getName())) a.setUnsent(3);
             }
         }
+        tracks.fill();
     }
 
     private Co company(String name, String director, String crmClient, boolean own, String prefix) {
