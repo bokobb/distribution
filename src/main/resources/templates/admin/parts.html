@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<!--/* Небольшие общие куски страниц админки. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/* Временный пароль сотрудника — один раз, сразу после выдачи (flash-атрибут issued). */-->
+<p class="note" role="status" th:fragment="issued" th:if="${issued != null}">
+    Пароль для входа — <b th:text="${issued.name()}">Имя</b>, <span class="num" th:text="${@fmt.phone(issued.phone())}"></span>:
+    <b class="num" th:text="${issued.password()}">пароль</b>. Передайте его сотруднику: больше он не покажется,
+    при первом входе система попросит сменить пароль.
+</p>
+</body>
+</html>

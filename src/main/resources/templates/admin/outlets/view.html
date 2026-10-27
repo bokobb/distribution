@@ -19,10 +19,10 @@
                 <dt>Юр. лицо</dt><dd th:text="${o.legal}"></dd>
                 <dt>БИН / ИИН</dt><dd th:text="${o.bin}"></dd>
                 <dt>Владелец</dt><dd th:text="${o.owner}"></dd>
-                <dt>Телефон</dt><dd><a class="link num" th:href="${'tel:' + o.phone.replace(' ', '')}" th:text="${o.phone}"></a></dd>
+                <dt>Телефон</dt><dd><a class="link num" th:if="${o.phone != null}" th:href="${'tel:' + o.phone.replace(' ', '')}" th:text="${o.phone}"></a></dd>
                 <dt>Адрес</dt><dd th:text="${o.address}"></dd>
-                <dt>Регион, маршрут</dt><dd th:text="${o.region.name + ' · ' + o.route.name + ' (' + o.route.days + ')'}"></dd>
-                <dt>Агент</dt><dd th:text="${o.agent.name}"></dd>
+                <dt>Регион, маршрут</dt><dd th:text="${o.route == null ? 'без маршрута' : o.region.name + ' · ' + o.route.name + ' (' + o.route.days + ')'}"></dd>
+                <dt>Агент</dt><dd th:text="${o.agent?.name ?: '—'}"></dd>
                 <dt>Тип цен</dt><dd th:text="${o.priceType}"></dd>
                 <dt>В базе с</dt><dd th:text="${@fmt.date(o.createdAt) + ' · ' + o.createdBy}"></dd>
                 <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>

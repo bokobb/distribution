@@ -2,12 +2,13 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
+<p th:replace="~{admin/parts :: issued}"></p>
 <div class="tools">
     <nav class="tabs" aria-label="Команда" style="flex:1">
         <a href="/admin/staff" th:attr="aria-current=${tab == 'people'} ? 'true' : null" th:text="${'Сотрудники · ' + people.size()}">Сотрудники</a>
         <a href="/admin/staff?tab=vehicles" th:attr="aria-current=${tab == 'vehicles'} ? 'true' : null" th:text="${'Машины · ' + vehicles.size()}">Машины</a>
     </nav>
-    <button class="btn btn-primary btn-sm" type="button" disabled title="Этап 1"><th:block th:utext="${i16['plus']}"></th:block>Добавить</button>
+    <a class="btn btn-primary btn-sm" th:href="${tab == 'vehicles' ? '/admin/staff/vehicles/new' : '/admin/staff/new'}"><th:block th:utext="${i16['plus']}"></th:block>Добавить</a>
 </div>
 
 <section class="card" th:if="${tab == 'people'}">
@@ -15,7 +16,7 @@
     <div class="tbl-w"><table class="tbl tbl--cards">
         <thead><tr><th>Сотрудник</th><th>Роль</th><th>Телефон</th><th>Маршруты / машина</th><th>Связь с телефоном</th></tr></thead>
         <tbody><tr th:each="e : ${people}">
-            <td><b th:text="${e.name}"></b><span class="sub" th:if="${v.isAll()}" th:text="${e.company.name}"></span></td>
+            <td><a class="rl" th:href="${'/admin/staff/' + e.id}" th:text="${e.name}"></a><span class="sub bad" th:unless="${e.active}">отключён</span><span class="sub" th:if="${v.isAll()}" th:text="${e.company.name}"></span></td>
             <td th:text="${e.role.label}"></td>
             <td class="num hide-m" th:text="${@fmt.phone(e.phone)}"></td>
             <td class="hide-m small">
@@ -38,7 +39,7 @@
     <div class="tbl-w"><table class="tbl">
         <thead><tr><th>Гос. номер</th><th>Модель</th><th>Экспедитор</th><th th:if="${v.isAll()}">Компания</th></tr></thead>
         <tbody><tr th:each="m : ${vehicles}">
-            <td class="num"><b th:text="${m.plate}"></b></td>
+            <td class="num"><a class="rl" th:href="${'/admin/staff/vehicles/' + m.id}" th:text="${m.plate}"></a></td>
             <td th:text="${m.model}"></td>
             <td th:text="${m.expeditor == null ? '—' : m.expeditor.name}"></td>
             <td th:if="${v.isAll()}" th:text="${m.company.name}"></td>

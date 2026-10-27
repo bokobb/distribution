@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<a class="back" href="/admin/staff"><th:block th:utext="${i16['back']}"></th:block>Сотрудники</a>
+<p th:replace="~{admin/parts :: issued}"></p>
+<p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
+
+<form class="card" th:action="@{/admin/staff/save}" method="post">
+    <input type="hidden" name="id" th:if="${f.id != null}" th:value="${f.id}">
+    <div class="card-h"><h2>Сотрудник</h2><p th:if="${e != null and !e.active}" class="bad">отключён — вход закрыт и в админку, и в приложение</p></div>
+    <div class="card-b form">
+        <label class="field">ФИО<input class="inp" name="name" required th:value="${f.name}"></label>
+        <label class="field">Роль
+            <select class="sel" name="role">
+                <option th:each="r : ${roles}" th:value="${r}" th:text="${r.label + ' — ' + r.hint}" th:selected="${r == f.role}"></option>
+            </select></label>
+        <label class="field">Телефон — вход<input class="inp" name="phone" type="tel" required th:value="${f.phone}" placeholder="+7 7__ ___ __ __"></label>
+        <label class="field">Логин<input class="inp" name="login" th:value="${f.login}" autocomplete="off" autocapitalize="none"><span class="hint">по желанию: входить по логину вместо телефона</span></label>
+    </div>
+    <div class="card-b acts"><button class="btn btn-primary" type="submit" th:text="${f.id == null ? 'Добавить и выдать пароль' : 'Сохранить'}">Сохранить</button>
+        <a class="btn btn-soft" href="/admin/staff">Отмена</a></div>
+</form>
+
+<section class="card" th:if="${e != null}">
+    <div class="card-h"><h2>Вход</h2></div>
+    <div class="card-b"><dl class="kv">
+        <dt>Пароль</dt><dd th:text="${e.mustChangePassword ? 'временный — сотрудник ещё не сменил его' : 'свой'}"></dd>
+        <th:block th:if="${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}">
+            <dt>Связь с телефоном</dt><dd th:classappend="${e.stale} ? 'bad'" th:text="${@fmt.ago(e.lastSync)}"></dd>
+        </th:block>
+        <th:block th:if="${e.vehicle != null}"><dt>Машина</dt><dd th:text="${e.vehicle.model + ' · ' + e.vehicle.plate}"></dd></th:block>
+    </dl></div>
+    <div class="card-b acts">
+        <form th:action="@{'/admin/staff/' + ${e.id} + '/password'}" method="post"><button class="btn btn-soft" type="submit" data-confirm="Выдать новый временный пароль? Старый перестанет работать.">Выдать новый пароль</button></form>
+        <form th:action="@{'/admin/staff/' + ${e.id} + '/active'}" method="post">
+            <input type="hidden" name="on" th:value="${!e.active}">
+            <button th:if="${e.active}" class="btn btn-danger" type="submit" data-confirm="Отключить сотрудника? Он не сможет войти, записи о нём останутся.">Отключить</button>
+            <button th:unless="${e.active}" class="btn btn-soft" type="submit">Включить снова</button>
+        </form>
+    </div>
+</section>
+</th:block>
+</body>
+</html>

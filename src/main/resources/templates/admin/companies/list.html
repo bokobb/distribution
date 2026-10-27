@@ -2,12 +2,13 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
+<p th:replace="~{admin/parts :: issued}"></p>
 <section class="card">
     <div class="tbl-w"><table class="tbl tbl--cards">
         <thead><tr><th>Компания</th><th>Директор</th><th>Клиент в CRM</th><th class="r">Агенты</th><th class="r">Экспед.</th><th class="r">Магазины</th><th class="r">Выдано сегодня</th><th></th></tr></thead>
         <tbody><tr th:each="r : ${rows}">
             <td><b th:text="${r.company().name}"></b><span class="sub" th:text="${r.company().own ? 'своя доставка производства' : 'склад-дилер'}"></span></td>
-            <td class="hide-m"><th:block th:text="${r.company().director}"></th:block><span class="sub num" th:text="${r.company().phone}"></span></td>
+            <td class="hide-m"><th:block th:text="${r.company().director}"></th:block><span class="sub num" th:text="${@fmt.phone(r.company().phone)}"></span></td>
             <td class="hide-m"><span class="tag" th:classappend="${r.company().crmClient != null} ? 'tag--crm'" th:text="${r.company().crmClient ?: '—'}"></span></td>
             <td class="r num hide-m" th:text="${r.agents()}"></td>
             <td class="r num hide-m" th:text="${r.expeditors()}"></td>
@@ -18,13 +19,14 @@
     </table></div>
 </section>
 
+<p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
 <form class="card" th:action="@{/admin/companies}" method="post">
     <div class="card-h"><h2>Новая компания</h2><p>склад-дилер получит свою отдельную админку и приложение для команды</p></div>
     <div class="card-b form">
-        <label class="field">Название<input class="inp" name="name" required placeholder="Склад-дилер …"></label>
-        <label class="field">Директор (ФИО)<input class="inp" name="director"></label>
-        <label class="field">Телефон директора — вход<input class="inp" name="phone" type="tel"></label>
-        <label class="field">Клиент в CRM<input class="inp" name="crmClient" placeholder="для автоприхода отгрузок"><span class="hint">выбор из клиентов CRM — на этапе 7</span></label>
+        <label class="field">Название<input class="inp" name="name" required placeholder="Склад-дилер …" th:value="${f.name}"></label>
+        <label class="field">Директор (ФИО)<input class="inp" name="director" required th:value="${f.director}"></label>
+        <label class="field">Телефон директора — вход<input class="inp" name="phone" type="tel" required placeholder="+7 7__ ___ __ __" th:value="${f.phone}"><span class="hint">пароль выдаст система — покажем после создания</span></label>
+        <label class="field">Клиент в CRM<input class="inp" name="crmClient" placeholder="для автоприхода отгрузок" th:value="${f.crmClient}"><span class="hint">выбор из клиентов CRM — на этапе 7</span></label>
     </div>
     <div class="card-b"><button class="btn btn-primary" type="submit">Создать компанию</button></div>
 </form>

@@ -2,18 +2,26 @@ package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Outlet;
 import com.confectionery.distribution.domain.OutletStatus;
+import com.confectionery.distribution.domain.PriceKind;
+import com.confectionery.distribution.repository.PriceTypeRepository;
+import com.confectionery.distribution.service.FormException;
+import com.confectionery.distribution.service.OutletForm;
 import com.confectionery.distribution.service.OutletService;
 import com.confectionery.distribution.service.RouteService;
+import com.confectionery.distribution.service.SettingsService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Controller
 @RequiredArgsConstructor
@@ -22,6 +30,8 @@ public class AdminOutletController {
     private final AdminContext ctx;
     private final OutletService outlets;
     private final RouteService routes;
+    private final SettingsService settings;
+    private final PriceTypeRepository priceTypes;
     private final Fmt fmt;
 
     @GetMapping("/admin/outlets")
@@ -37,7 +47,7 @@ public class AdminOutletController {
         List<Outlet> list = all.stream()
                 .filter(o -> status == null || o.getStatus() == status)
                 .filter(o -> region == null || (o.getRegion() != null && region.equals(o.getRegion().getId())))
-                .filter(o -> needle.isEmpty() || (o.getName() + " " + o.getOwner() + " " + o.getPhone() + " " + o.getAddress())
+                .filter(o -> needle.isEmpty() || Stream.of(o.getName(), o.getOwner(), o.getPhone(), o.getAddress()).filter(Objects::nonNull).collect(Collectors.joining(" "))
                         .toLowerCase(Locale.ROOT).contains(needle))
                 .sorted(Comparator.comparing(Outlet::getName)).toList();
         AdminPage.head(model, "outlets", "Магазины", v.scopeName() + " · " + fmt.plural(all.size(), "точка", "точки", "точек"));
@@ -55,7 +65,7 @@ public class AdminOutletController {
     @GetMapping("/admin/outlets/{id}")
     public String view(@PathVariable Long id, Model model, HttpSession session) {
         Outlet o = outlets.get(id);
-        AdminPage.head(model, "outlets", o.getName(), o.getLegal() + " · " + o.getAddress());
+        AdminPage.head(model, "outlets", o.getName(), Stream.of(o.getLegal(), o.getAddress()).filter(Objects::nonNull).collect(Collectors.joining(" · ")));
         model.addAttribute("o", o);
         model.addAttribute("orders", outlets.ordersOf(o));
         model.addAttribute("payments", outlets.paymentsOf(o));
@@ -66,26 +76,44 @@ public class AdminOutletController {
     @GetMapping("/admin/outlets/new")
     public String create(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        AdminPage.head(model, "outlets", "Новый магазин", v.scopeName());
-        model.addAttribute("o", new Outlet().setCreditLimit(100_000).setPaymentDays(7));
-        model.addAttribute("routes", routes.routes());
-        return "admin/outlets/form";
+        if (v.isAll()) {
+            ctx.toast(session, "Выберите компанию в шапке: магазин добавляется в одну компанию");
+            return "redirect:/admin/outlets";
+        }
+        OutletForm f = new OutletForm();
+        f.setCreditLimit(String.valueOf(settings.of(v.companyId()).getDefaultCreditLimit()));
+        f.setPaymentDays("7");
+        priceTypes.findByCompanyIdAndCode(v.companyId(), PriceKind.WHOLESALE).ifPresent(t -> f.setPriceTypeId(t.getId()));
+        return form(model, f, v.companyId(), v.scopeName());
     }
 
     @GetMapping("/admin/outlets/{id}/edit")
-    public String edit(@PathVariable Long id, Model model, HttpSession session) {
+    public String edit(@PathVariable Long id, Model model) {
         Outlet o = outlets.get(id);
-        AdminPage.head(model, "outlets", "Изменить магазин", o.getName());
-        model.addAttribute("o", o);
-        model.addAttribute("routes", routes.routes());
-        return "admin/outlets/form";
+        return form(model, OutletForm.of(o), o.getCompanyId(), o.getName());
     }
 
-    /** ЗАГЛУШКА: форма ничего не сохраняет, только показывает, что сохранение будет здесь. */
     @PostMapping("/admin/outlets/save")
-    public String save(@RequestParam(required = false) Long id, @RequestParam String name, HttpSession session) {
-        ctx.toast(session, "«" + name + "»: сохранение заработает на этапе 1 (сейчас данные — заглушки)");
-        return "redirect:" + (id != null ? "/admin/outlets/" + id : "/admin/outlets");
+    public String save(@ModelAttribute("f") OutletForm f, Model model, HttpSession session) {
+        Viewer v = ctx.viewer(session);
+        try {
+            Outlet o = outlets.save(f, v.companyId(), v.who());
+            ctx.toast(session, "«" + o.getName() + "» — сохранено");
+            return "redirect:/admin/outlets/" + o.getId();
+        } catch (FormException e) {
+            model.addAttribute("error", e.getMessage());
+            Outlet o = f.getId() == null ? null : outlets.get(f.getId());
+            return form(model, f, o == null ? v.companyId() : o.getCompanyId(), o == null ? v.scopeName() : o.getName());
+        }
+    }
+
+    /** Форма магазина: маршруты и типы цен — только компании этого магазина. */
+    private String form(Model model, OutletForm f, Long companyId, String sub) {
+        AdminPage.head(model, "outlets", f.getId() == null ? "Новый магазин" : "Изменить магазин", sub);
+        model.addAttribute("f", f);
+        model.addAttribute("routes", routes.routes().stream().filter(r -> r.getCompanyId().equals(companyId)).toList());
+        model.addAttribute("priceTypes", priceTypes.findByCompanyIdOrderByIdAsc(companyId));
+        return "admin/outlets/form";
     }
 
     @PostMapping("/admin/outlets/{id}/approve")

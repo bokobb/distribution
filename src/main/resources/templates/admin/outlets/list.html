@@ -28,7 +28,7 @@
         <tbody><tr th:each="o : ${outlets}" th:classappend="${o.status.name() == 'CLOSED'} ? 'is-off'">
             <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}">Магазин</a><span class="sub" th:text="${o.address}"></span></td>
             <td class="hide-m"><th:block th:text="${o.owner}"></th:block><span class="sub num" th:text="${o.phone}"></span></td>
-            <td class="hide-m"><th:block th:text="${o.route.name + ' · ' + o.route.days}"></th:block><span class="sub" th:text="${o.agent.name + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
+            <td class="hide-m"><th:block th:text="${o.route == null ? 'без маршрута' : o.route.name + ' · ' + o.route.days}"></th:block><span class="sub" th:text="${(o.agent != null ? o.agent.name : '—') + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
             <td style="min-width:170px">
                 <span class="num" th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt) + ' / ' + @fmt.num(o.creditLimit)}"></span>
                 <span class="meter" th:classappend="${o.overLimit or o.overdue > 0} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<a class="back" href="/admin/staff?tab=vehicles"><th:block th:utext="${i16['back']}"></th:block>Машины</a>
+<p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
+
+<form class="card" th:action="@{/admin/staff/vehicles/save}" method="post">
+    <input type="hidden" name="id" th:if="${f.id != null}" th:value="${f.id}">
+    <div class="card-h"><h2>Машина</h2><p>у каждой машины свой склад: товар в рейсе числится на нём</p></div>
+    <div class="card-b form">
+        <label class="field">Гос. номер<input class="inp" name="plate" required th:value="${f.plate}" placeholder="245 AKS 02"></label>
+        <label class="field">Модель<input class="inp" name="model" th:value="${f.model}" placeholder="Hyundai Porter"></label>
+        <label class="field">Экспедитор
+            <select class="sel" name="expeditorId">
+                <option value="">не закреплён</option>
+                <option th:each="x : ${expeditors}" th:value="${x.id}" th:text="${x.name}" th:selected="${x.id == f.expeditorId}"></option>
+            </select><span class="hint">в списке — экспедиторы без машины</span></label>
+    </div>
+    <div class="card-b acts"><button class="btn btn-primary" type="submit">Сохранить</button>
+        <a class="btn btn-soft" href="/admin/staff?tab=vehicles">Отмена</a></div>
+</form>
+</th:block>
+</body>
+</html>
