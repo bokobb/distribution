@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
@@ -220,7 +221,6 @@ public class TestData {
         });
     }
 
-    /** Выданное ушло из машины в магазин. */
     /** Визит агента компании в магазин; lat/lng — где был телефон (null — не отметился). */
     public Visit visit(World w, Outlet outlet, LocalDateTime at, VisitResult result, Double lat, Double lng) {
         return root(() -> save(visits, new Visit().setAgent(w.agent()).setOutlet(outlet).setRoute(w.route()).setStartedAt(at)
@@ -232,6 +232,19 @@ public class TestData {
         jdbc.update("update outlets set lat = ?, lng = ? where id = ?", lat, lng, outlet.getId());
     }
 
+    /** Точка GPS сотрудника, как прислал бы телефон. */
+    public void point(Employee e, LocalDateTime at, double lat, double lng) {
+        jdbc.update("insert into gps_points (company_id, user_id, recorded_at, lat, lng, accuracy_m, received_at) values (?, ?, ?, ?, ?, 10, ?)",
+                e.getCompanyId(), e.getId(), at, lat, lng, at);
+    }
+
+    /** Запись журнала приложения сотрудника. */
+    public void event(Employee e, LocalDateTime at, AppEventKind kind) {
+        jdbc.update("insert into app_events (company_id, uuid, user_id, event_at, kind, received_at) values (?, ?, ?, ?, ?, ?)",
+                e.getCompanyId(), UUID.randomUUID(), e.getId(), at, kind.name(), at);
+    }
+
+    /** Выданное ушло из машины в магазин. */
     public void deliveredFromCar(World w, Trip trip, int qty) {
         root(() -> stock.move(w.product(), qty, w.car(), null, MovementReason.DELIVERY, null, null, m -> m.setTrip(trip)));
     }

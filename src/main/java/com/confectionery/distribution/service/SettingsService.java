@@ -29,6 +29,7 @@ public class SettingsService {
     public CompanySettings save(Long companyId, SettingsForm f, boolean owner) {
         if (companyId == null) throw new FormException("Выберите компанию в шапке, чтобы изменить её настройки");
         int radius = Forms.number(f.getVisitRadius(), "Радиус, метров", 10, 5000);
+        int gps = Forms.number(f.getGpsInterval(), "Интервал GPS, минут", 1, 60);
         if (f.getDeliveryDays() < 1 || f.getDeliveryDays() > 7) throw new FormException("Доставка — от 1 до 7 дней после заказа");
         long limit = Forms.money(f.getDefaultLimit(), "Лимит долга нового магазина");
         long tolerance = Forms.money(f.getCashTolerance(), "Допустимая разница при приёме");
@@ -39,7 +40,7 @@ public class SettingsService {
             s.setCompany(companies.getReferenceById(companyId));
             return s;
         });
-        st.setVisitRadius(radius).setShelfPhotoRequired(f.isShelfPhoto()).setRefuseReasonRequired(f.isRefuseReason())
+        st.setVisitRadius(radius).setGpsInterval(gps).setShelfPhotoRequired(f.isShelfPhoto()).setRefuseReasonRequired(f.isRefuseReason())
                 .setDeliveryDays(f.getDeliveryDays()).setDefaultCreditLimit(limit).setAllowCredit(f.isCredit())
                 .setApprovalOverLimit(f.isApproval()).setAgentDiscount(f.isDiscount()).setCashTolerance(tolerance)
                 .setAcceptKaspi(f.isKaspi()).setAutoReceipt(f.isAutoReceipt());

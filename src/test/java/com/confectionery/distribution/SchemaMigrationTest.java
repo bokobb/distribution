@@ -30,7 +30,7 @@ class SchemaMigrationTest {
                 "outlet_opening_debts", "price_types", "products", "prices", "vehicles", "warehouses",
                 "stock_balances", "stock_movements", "receipts", "receipt_items", "visits", "orders",
                 "order_items", "order_events", "trips", "trip_orders", "deliveries", "delivery_items",
-                "payments", "returns", "return_items", "cash_handovers");
+                "payments", "returns", "return_items", "cash_handovers", "gps_points", "app_events");
     }
 
     @Test
@@ -42,6 +42,20 @@ class SchemaMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
         // у сотрудника компании она обязательна, у владельца — пуста
         assertThatThrownBy(() -> jdbc.update("insert into users (name, role, phone, created_at) values ('А', 'AGENT', '+77011234567', now())"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void точкаGpsНеДублируетсяИЖурналЗнаетСвоиСобытия() {
+        Long company = jdbc.queryForObject("insert into companies (name, created_at) values ('GPS', now()) returning id", Long.class);
+        Long agent = jdbc.queryForObject("insert into users (company_id, name, role, phone, created_at) values (?, 'А', 'AGENT', '+77019990001', now()) returning id",
+                Long.class, company);
+        String point = "insert into gps_points (company_id, user_id, recorded_at, lat, lng, received_at) values (?, ?, '2026-10-27 10:00', 42.3, 69.5, now())";
+        jdbc.update(point, company, agent);
+        assertThatThrownBy(() -> jdbc.update(point, company, agent)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("insert into app_events (company_id, uuid, user_id, event_at, kind, received_at) values (?, gen_random_uuid(), ?, now(), 'CRASH', now())",
+                company, agent)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("insert into company_settings (company_id, gps_interval_min) values (?, 0)", company))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

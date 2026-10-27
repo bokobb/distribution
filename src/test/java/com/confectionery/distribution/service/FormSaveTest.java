@@ -290,12 +290,17 @@ class FormSaveTest {
         assertThat(none).isEmpty();
 
         f.setVisitRadius("300");
+        f.setGpsInterval("0");
+        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f, false)))
+                .isInstanceOf(FormException.class).hasMessage("«Интервал GPS, минут» — число от 1 до 60");
+        f.setGpsInterval("10");
         f.setKaspi(false);
         f.setCashTolerance("1 000");
         f.setCrmClient("ТОО «Чужой»");
         in(w.id(), () -> settings.save(w.id(), f, false));
         CompanySettings st = in(w.id(), () -> settingsRepo.findByCompanyId(w.id()).orElseThrow());
         assertThat(st.getVisitRadius()).isEqualTo(300);
+        assertThat(st.getGpsInterval()).isEqualTo(10);
         assertThat(st.isAcceptKaspi()).isFalse();
         assertThat(st.getCashTolerance()).isEqualTo(1_000);
         assertThat(in(w.id(), () -> companyRepo.findById(w.id()).orElseThrow().getCrmClient())).isNull();

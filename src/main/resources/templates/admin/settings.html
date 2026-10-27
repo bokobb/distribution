@@ -13,6 +13,13 @@
         </div>
     </section>
     <section class="card">
+        <div class="card-h"><h2>GPS и журнал приложения</h2></div>
+        <div class="card-b form">
+            <label class="field">Интервал GPS, минут<input class="inp" name="gpsInterval" inputmode="numeric" th:value="${f.gpsInterval}"><span class="hint">телефон снимает точку раз в столько минут — только в рабочий день, от «Начал день» до «Закончил день»</span></label>
+            <p class="muted">Точки GPS хранятся 6 месяцев, журнал приложения — год, старше удаляются сами.</p>
+        </div>
+    </section>
+    <section class="card">
         <div class="card-h"><h2>Заказы и долги</h2></div>
         <div class="card-b form">
             <label class="field">Доставка по умолчанию

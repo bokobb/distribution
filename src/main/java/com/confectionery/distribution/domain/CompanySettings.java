@@ -32,4 +32,7 @@ public class CompanySettings extends CompanyEntity {
     private boolean acceptKaspi = true;
     /** Создавать приход после отгрузки в CRM. */
     private boolean autoReceipt = true;
+    /** Телефон торгового и экспедитора снимает точку GPS раз в столько минут — только в рабочий день. */
+    @Column(name = "gps_interval_min")
+    private int gpsInterval = 5;
 }
