@@ -22,7 +22,7 @@
 
 <div class="grid-wide">
     <section class="card">
-        <div class="card-h"><h2 th:text="${'Состав · ' + o.lines.size() + ' позиций'}">Состав</h2>
+        <div class="card-h"><h2 th:text="${'Состав · ' + @fmt.plural(o.lines.size(), 'позиция', 'позиции', 'позиций')}">Состав</h2>
             <span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></div>
         <div class="tbl-w"><table class="tbl">
             <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th><th class="r">Выдано</th></tr></thead>

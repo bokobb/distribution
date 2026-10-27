@@ -25,6 +25,7 @@ public class AdminOrderController {
 
     private final AdminContext ctx;
     private final StubStore store;
+    private final Fmt fmt;
 
     /** Фильтр по дню доставки: today — развозят сегодня, tomorrow — заказы агентов на завтра. */
     @GetMapping("/admin/orders")
@@ -75,7 +76,7 @@ public class AdminOrderController {
         List<Order> list = store.orders(v.companyId()).stream()
                 .filter(o -> o.getStatus() == OrderStatus.ACCEPTED || o.getStatus() == OrderStatus.ASSEMBLED)
                 .sorted(Comparator.comparing((Order o) -> o.getOutlet().getRoute().getName())).toList();
-        AdminPage.head(model, "orders", "Лист сборки на завтра", v.scopeName() + " · " + list.size() + " заказов");
+        AdminPage.head(model, "orders", "Лист сборки на завтра", v.scopeName() + " · " + fmt.plural(list.size(), "заказ", "заказа", "заказов"));
         model.addAttribute("orders", list);
         model.addAttribute("rows", store.pickList(list));
         return "admin/orders/pick";

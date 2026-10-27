@@ -5,12 +5,12 @@
 <p class="note">Регионы и маршруты загрузятся из Doctor Sales один раз, дальше ведутся здесь: агенту назначают маршрут и дни обхода, порядок магазинов меняют перетаскиванием (этап 1).</p>
 <section class="card" th:each="r : ${regions}">
     <div class="card-h"><h2 th:text="${r.name}">Регион</h2>
-        <p th:text="${r.routes.size() + ' маршрутов' + (v.isAll() ? ' · ' + r.company.name : '')}"></p></div>
+        <p th:text="${@fmt.plural(r.routes.size(), 'маршрут', 'маршрута', 'маршрутов') + (v.isAll() ? ' · ' + r.company.name : '')}"></p></div>
     <div class="card-b routes">
         <article class="route" th:each="rt : ${r.routes}">
             <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
                 <h3 th:text="${rt.name}">Маршрут</h3><span class="tag" th:text="${rt.days}"></span></div>
-            <span class="small"><th:block th:utext="${i16['user']}"></th:block> <th:block th:text="${rt.agent.name + ' · ' + rt.outlets.size() + ' магазинов'}"></th:block></span>
+            <span class="small"><th:block th:utext="${i16['user']}"></th:block> <th:block th:text="${rt.agent.name + ' · ' + @fmt.plural(rt.outlets.size(), 'магазин', 'магазина', 'магазинов')}"></th:block></span>
             <ol><li th:each="o, it : ${rt.outlets}" th:if="${it.index < 7}"><a th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}" style="text-decoration:none"></a></li></ol>
             <span class="small muted" th:if="${rt.outlets.size() > 7}" th:text="${'и ещё ' + (rt.outlets.size() - 7)}"></span>
         </article>

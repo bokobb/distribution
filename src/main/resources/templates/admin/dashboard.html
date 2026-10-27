@@ -31,7 +31,7 @@
                 <thead><tr><th>Компания</th><th class="r">Выдано сегодня</th><th class="r">Заказы на завтра</th><th class="r">На руках</th><th class="r">Долги</th><th class="r">Возвраты</th></tr></thead>
                 <tbody><tr th:each="r : ${companyRows}">
                     <td><a class="rl" th:href="@{/admin/scope(company=${r.company().id},back='/admin/dashboard')}" th:text="${r.company().name}">Компания</a>
-                        <span class="sub" th:text="${r.agents() + ' агентов · ' + r.expeditors() + ' эксп. · ' + r.outlets() + ' магазинов'}"></span></td>
+                        <span class="sub" th:text="${@fmt.plural(r.agents(), 'агент', 'агента', 'агентов') + ' · ' + r.expeditors() + ' эксп. · ' + @fmt.plural(r.outlets(), 'магазин', 'магазина', 'магазинов')}"></span></td>
                     <td class="r num" th:text="${@fmt.money(r.summary().deliveredToday())}"></td>
                     <td class="r num" th:text="${@fmt.money(r.summary().tomorrowSum())}"></td>
                     <td class="r num" th:text="${@fmt.money(r.summary().cashOnHands())}"></td>

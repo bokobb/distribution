@@ -23,6 +23,7 @@ public class AdminOutletController {
 
     private final AdminContext ctx;
     private final StubStore store;
+    private final Fmt fmt;
 
     @GetMapping("/admin/outlets")
     public String list(@RequestParam(required = false) OutletStatus status,
@@ -40,7 +41,7 @@ public class AdminOutletController {
                 .filter(o -> needle.isEmpty() || (o.getName() + " " + o.getOwner() + " " + o.getPhone() + " " + o.getAddress())
                         .toLowerCase(Locale.ROOT).contains(needle))
                 .sorted(Comparator.comparing(Outlet::getName)).toList();
-        AdminPage.head(model, "outlets", "Магазины", v.scopeName() + " · " + all.size() + " точек");
+        AdminPage.head(model, "outlets", "Магазины", v.scopeName() + " · " + fmt.plural(all.size(), "точка", "точки", "точек"));
         model.addAttribute("outlets", list);
         model.addAttribute("counts", counts);
         model.addAttribute("total", all.size());

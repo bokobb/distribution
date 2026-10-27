@@ -8,7 +8,7 @@
     <button class="btn btn-primary btn-sm" type="button" disabled title="Этап 1"><th:block th:utext="${i16['plus']}"></th:block>Новый товар</button>
 </div>
 <section class="card" th:each="e : ${byCat}">
-    <div class="card-h"><h2 th:text="${e.key}">Категория</h2><p th:text="${e.value.size() + ' товаров'}"></p></div>
+    <div class="card-h"><h2 th:text="${e.key}">Категория</h2><p th:text="${@fmt.plural(e.value.size(), 'товар', 'товара', 'товаров')}"></p></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
         <thead><tr><th>Товар</th><th>Штрихкод</th><th class="r">В коробке</th><th>Код CRM</th><th class="r">Опт</th><th class="r">Розница</th></tr></thead>
         <tbody><tr th:each="p : ${e.value}" th:classappend="${!p.active} ? 'is-off'">

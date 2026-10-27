@@ -11,7 +11,7 @@
 </div>
 
 <section class="card" th:if="${tab == 'people'}">
-    <div class="card-h"><h2>Сотрудники</h2><p th:text="${agents + ' агентов, ' + expeditors + ' экспедиторов'}"></p></div>
+    <div class="card-h"><h2>Сотрудники</h2><p th:text="${@fmt.plural(agents, 'агент', 'агента', 'агентов') + ', ' + @fmt.plural(expeditors, 'экспедитор', 'экспедитора', 'экспедиторов')}"></p></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
         <thead><tr><th>Сотрудник</th><th>Роль</th><th>Телефон</th><th>Маршруты / машина</th><th>Связь с телефоном</th></tr></thead>
         <tbody><tr th:each="e : ${people}">

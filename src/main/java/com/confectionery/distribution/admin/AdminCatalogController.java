@@ -19,6 +19,7 @@ public class AdminCatalogController {
 
     private final AdminContext ctx;
     private final StubStore store;
+    private final Fmt fmt;
 
     @GetMapping("/admin/products")
     public String products(Model model, HttpSession session) {
@@ -28,7 +29,7 @@ public class AdminCatalogController {
                 .collect(Collectors.groupingBy(Product::getCategory, TreeMap::new, Collectors.toList()));
         AdminPage.head(model, "products", "Товары и прайс",
                 (v.isAll() ? store.companies().get(0).getName() + " (у каждой компании свой прайс)" : v.scopeName())
-                        + " · " + list.size() + " товаров");
+                        + " · " + fmt.plural(list.size(), "товар", "товара", "товаров"));
         model.addAttribute("byCat", byCat);
         model.addAttribute("fromCrm", list.stream().filter(p -> p.getCrmCode() != null).count());
         return "admin/products/list";
