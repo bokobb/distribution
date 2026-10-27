@@ -43,6 +43,7 @@ public class TestData {
     private final TripRepository trips;
     private final TripOrderRepository tripOrders;
     private final DeliveryRepository deliveries;
+    private final VisitRepository visits;
     private final PaymentRepository payments;
     private final ProductReturnRepository returns;
     private final StockService stock;
@@ -220,6 +221,17 @@ public class TestData {
     }
 
     /** Выданное ушло из машины в магазин. */
+    /** Визит агента компании в магазин; lat/lng — где был телефон (null — не отметился). */
+    public Visit visit(World w, Outlet outlet, LocalDateTime at, VisitResult result, Double lat, Double lng) {
+        return root(() -> save(visits, new Visit().setAgent(w.agent()).setOutlet(outlet).setRoute(w.route()).setStartedAt(at)
+                .setFinishedAt(at.plusMinutes(5)).setResult(result).setLat(lat).setLng(lng), w.company()));
+    }
+
+    /** Координаты магазина. */
+    public void place(Outlet outlet, double lat, double lng) {
+        jdbc.update("update outlets set lat = ?, lng = ? where id = ?", lat, lng, outlet.getId());
+    }
+
     public void deliveredFromCar(World w, Trip trip, int qty) {
         root(() -> stock.move(w.product(), qty, w.car(), null, MovementReason.DELIVERY, null, null, m -> m.setTrip(trip)));
     }

@@ -32,6 +32,7 @@ public final class AdminSections {
 
     public static final List<Section> ALL = List.of(
             new Section("dashboard", "Дашборд", "", EnumSet.of(DIRECTOR, OPERATOR, STOREKEEPER)),
+            new Section("map", "Карта", "", EnumSet.of(DIRECTOR, OPERATOR)),
             new Section("orders", "Заказы", "Продажи", EnumSet.of(DIRECTOR, OPERATOR, STOREKEEPER)),
             new Section("outlets", "Магазины", "Продажи", EnumSet.of(DIRECTOR, OPERATOR)),
             new Section("debts", "Долги магазинов", "Продажи", EnumSet.of(DIRECTOR, OPERATOR)),

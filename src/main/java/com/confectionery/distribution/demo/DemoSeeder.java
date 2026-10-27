@@ -90,7 +90,8 @@ public class DemoSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         TenantContext.run(TenantContext.ROOT, () -> {
             if (companies.count() > 0) {
-                log.info("Демо-данные не нужны: в базе уже есть компании");
+                Integer filled = tx.execute(s -> fillCoordinates());
+                log.info("Демо-данные не нужны: в базе уже есть компании" + (filled > 0 ? "; координаты для карты добавлены: " + filled : ""));
                 return;
             }
             if (demoPassword == null || demoPassword.isBlank())
@@ -289,6 +290,8 @@ public class DemoSeeder implements ApplicationRunner {
             o.setStatus(OutletStatus.CLOSED);
             debt = 0;
         }
+        double[] g = DemoGeo.outlet(route.getRegion().getName(), route.getName(), route.getStops().size(), n);
+        o.setLat(g[0]).setLng(g[1]);
         o.setCompany(co.c);
         outlets.save(o);
         if (debt > 0) {
@@ -377,8 +380,44 @@ public class DemoSeeder implements ApplicationRunner {
         Visit v = new Visit().setAgent(agent).setOutlet(o).setRoute(route).setStartedAt(at).setFinishedAt(at.plusMinutes(6 + rnd.nextInt(10)))
                 .setDistance(rnd.nextInt(120)).setResult(result)
                 .setRefuseReason(result == VisitResult.NO_ORDER ? NO_ORDER[rnd.nextInt(NO_ORDER.length)] : null);
+        visitPlace(v);
         v.setCompany(co.c);
         return visits.save(v);
+    }
+
+    /** Где был телефон агента при визите: в distance метрах от магазина. */
+    private static void visitPlace(Visit v) {
+        Outlet o = v.getOutlet();
+        if (o.getLat() == null || o.getLng() == null) return;
+        double[] g = DemoGeo.near(o.getLat(), o.getLng(), v.getDistance() == null ? 0 : v.getDistance(), v.getStartedAt().hashCode() + o.getName().hashCode());
+        v.setLat(g[0]).setLng(g[1]);
+    }
+
+    /** Где был телефон экспедитора при выдаче: у магазина. */
+    private static void deliveryPlace(Delivery d) {
+        Outlet o = d.getOrder().getOutlet();
+        if (o.getLat() == null || o.getLng() == null) return;
+        double[] g = DemoGeo.near(o.getLat(), o.getLng(), 25, d.getDeliveredAt().hashCode() + o.getName().hashCode());
+        d.setLat(g[0]).setLng(g[1]);
+    }
+
+    /**
+     * Демо-база, созданная до карты: магазинам без координат — точки по их маршрутам, визитам и выдачам
+     * без отметки места — рядом с магазином. Возвращает, сколько магазинов получили координаты.
+     */
+    private int fillCoordinates() {
+        int n = 0;
+        for (Outlet o : outlets.findAll()) {
+            if (o.getLat() != null && o.getLng() != null) continue;
+            Route r = o.getRoute();
+            int pos = r == null ? 0 : Math.max(0, r.getOutlets().indexOf(o));
+            double[] g = DemoGeo.outlet(r == null ? null : r.getRegion().getName(), r == null ? null : r.getName(), pos, o.getId());
+            o.setLat(g[0]).setLng(g[1]);
+            n++;
+        }
+        for (Visit v : visits.findAll()) if (v.getLat() == null) visitPlace(v);
+        for (Delivery d : deliveries.findAll()) if (d.getLat() == null) deliveryPlace(d);
+        return n;
     }
 
     private void ordersAndTrips(Co co) {
@@ -494,6 +533,7 @@ public class DemoSeeder implements ApplicationRunner {
         String who = exp.getName();
         Actor actor = new Actor(exp, who);
         Delivery d = new Delivery().setOrder(o).setTrip(t).setDeliveredAt(at).setExpeditor(exp);
+        deliveryPlace(d);
         d.setCompany(co.c);
         int roll = rnd.nextInt(12);
         if (roll == 0) {

@@ -194,6 +194,27 @@ a.kpi:hover{border-color:var(--line-strong)}
 .bulk .sel{min-height:38px;min-width:0;max-width:100%;flex:0 1 260px}
 .al p{font-size:13.5px;margin-top:2px}
 
+/* ---------- карта ---------- */
+.dot{flex:none;display:inline-block;width:12px;height:12px;border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 3px var(--line-strong)}
+.dd-pop .check .dot{margin-left:-2px}
+.map-wrap{display:grid;gap:18px;grid-template-columns:minmax(0,1fr) 330px;align-items:start}
+.map-card{overflow:hidden}
+.map{height:min(72vh,720px);min-height:380px;background:var(--paper-deep)}
+.map-side{display:flex;flex-direction:column;max-height:min(72vh,720px);overflow:auto}
+.map-people{display:flex;flex-direction:column;padding:0 10px 8px}
+.map-people li{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line)}
+.map-people .check{min-height:40px;padding:0 6px}
+.map-people .check input{width:18px;height:18px}
+.map-who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:8px 4px;border:0;background:none;text-align:left}
+.map-who:hover b{text-decoration:underline}
+.map-who span{min-width:0;display:flex;flex-direction:column}
+.map-who small{font-size:12.5px;color:var(--ink-soft)}
+.map-note{margin:8px 18px 0;font-size:13px}
+.map-side .map-note:last-child{margin-bottom:18px}
+.map-n span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--c);color:#fff;border:2px solid #fff;font:700 11px/1 var(--body);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.map-n span.off{background:#fff;color:var(--c);border-color:var(--c)}
+.map.leaflet-container{font:400 12px/1.5 var(--body)}
+
 /* ---------- список «требует внимания», полоски ---------- */
 .alerts{display:flex;flex-direction:column;gap:8px}
 .al{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;text-decoration:none;font-size:14.5px}
@@ -252,6 +273,8 @@ a.kpi:hover{border-color:var(--line-strong)}
 /* ---------- узкие экраны ---------- */
 @media (max-width:1100px){
   .grid-wide{grid-template-columns:minmax(0,1fr)}
+  .map-wrap{grid-template-columns:minmax(0,1fr)}
+  .map-side{max-height:none}
 }
 @media (max-width:980px){
   .app{grid-template-columns:minmax(0,1fr)}

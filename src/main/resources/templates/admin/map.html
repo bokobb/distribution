@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
+<body>
+<th:block th:fragment="content">
+
+<form class="card flt" action="/admin/map" method="get" aria-label="Фильтры карты">
+    <div class="field">
+        <span>День</span>
+        <input class="inp" type="date" name="date" th:value="${date}" aria-label="День">
+        <div class="chips">
+            <a class="chip" th:href="${link.with('date', today)}" th:attr="aria-current=${date == today} ? 'true' : null">Сегодня</a>
+            <a class="chip" th:href="${link.with('date', today.minusDays(1))}" th:attr="aria-current=${date == today.minusDays(1)} ? 'true' : null">Вчера</a>
+        </div>
+    </div>
+
+    <div class="field">
+        <span>Торговые</span>
+        <details class="dd">
+            <summary class="sel" th:with="on=${chosen.?[role().name() == 'AGENT']}"
+                     th:text="${on.isEmpty() ? 'Все' : on.size() <= 2 ? #strings.listJoin(on.![name()], ', ') : 'Выбрано: ' + on.size()}">Все</summary>
+            <div class="dd-pop">
+                <label class="check" th:each="p : ${agents}"><input type="checkbox" name="who" th:value="${p.id()}" th:checked="${sel.contains(p.id())}"><i class="dot" th:style="${'background:' + p.color()}"></i><span th:text="${p.name()}"></span></label>
+                <p class="muted" th:if="${agents.isEmpty()}">Торговых пока нет</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="field">
+        <span>Экспедиторы</span>
+        <details class="dd">
+            <summary class="sel" th:with="on=${chosen.?[role().name() == 'EXPEDITOR']}"
+                     th:text="${on.isEmpty() ? 'Все' : on.size() <= 2 ? #strings.listJoin(on.![name()], ', ') : 'Выбрано: ' + on.size()}">Все</summary>
+            <div class="dd-pop">
+                <label class="check" th:each="p : ${expeditors}"><input type="checkbox" name="who" th:value="${p.id()}" th:checked="${sel.contains(p.id())}"><i class="dot" th:style="${'background:' + p.color()}"></i><span th:text="${p.name()}"></span></label>
+                <p class="muted" th:if="${expeditors.isEmpty()}">Экспедиторов пока нет</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="field">
+        <span>На карте</span>
+        <label class="check"><input type="checkbox" id="lay-shops" checked>Магазины</label>
+        <label class="check"><input type="checkbox" id="lay-paths" checked>Пути за день</label>
+    </div>
+
+    <div class="flt-acts">
+        <button class="btn btn-primary btn-sm" type="submit">Показать</button>
+        <a class="btn btn-soft btn-sm" href="/admin/map">Сбросить</a>
+    </div>
+</form>
+
+<div class="map-wrap">
+    <section class="card map-card">
+        <div id="map" class="map" role="region" aria-label="Карта магазинов и путей за день"
+             th:attr="data-src=${'/admin/map/data' + (#strings.contains(here, '?') ? here.substring(here.indexOf('?')) : '')}"></div>
+    </section>
+    <aside class="card map-side" aria-label="Кто был в пути">
+        <div class="card-h"><h2>За день</h2><p>нажмите на человека — карта покажет его путь</p></div>
+        <ul class="map-people" id="map-people"></ul>
+        <p class="empty" id="map-empty" hidden>За этот день отметок нет.</p>
+        <p class="note map-note" id="map-note" hidden></p>
+        <p class="note map-note">Путь торгового — по визитам, экспедитора — по выдачам, в порядке времени. Точный трек по GPS появится с приложением.</p>
+    </aside>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
+<script src="/admin/assets/leaflet/leaflet.js"></script>
+<script src="/admin/assets/map.js?v=1"></script>
+</th:block>
+</body>
+</html>

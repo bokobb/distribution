@@ -135,4 +135,21 @@ class AdminOrderListTest {
                 .andExpect(content().string(containsString("Накладная № " + a.getNumber())));
         mvc.perform(get("/admin/orders/" + foreign.getId() + "/invoice").session(s)).andExpect(status().isNotFound());
     }
+
+    @Test
+    void картаИЕёДанные() throws Exception {
+        World w = data.world("Карта страницей");
+        data.place(w.outlet(), 42.3, 69.58);
+        MockHttpSession s = login(w.operator());
+        mvc.perform(get("/admin/map").session(s)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-src=\"/admin/map/data\"")))
+                .andExpect(content().string(containsString(w.agent().getName())));
+        mvc.perform(get("/admin/map/data").session(s).param("date", data.today().toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(content().string(containsString(w.outlet().getName())));
+
+        MockHttpSession keeper = login(data.person(w, "Кладовщик Карты", Role.STOREKEEPER));
+        mvc.perform(get("/admin/map/data").session(keeper)).andExpect(redirectedUrl("/admin/dashboard"));
+    }
 }
