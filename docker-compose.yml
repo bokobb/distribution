@@ -1,0 +1,25 @@
+# База для разработки: docker compose up -d
+# Пароль берётся из .env (файл не в git, пример — .env.example). Порт открыт только на этой машине.
+services:
+  postgres:
+    image: postgres:16
+    container_name: distribution-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: distribution
+      POSTGRES_USER: ${DB_USER:-distribution}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Задайте DB_PASSWORD в .env}
+      TZ: Asia/Almaty
+      PGTZ: Asia/Almaty
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - distribution-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d distribution"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  distribution-pg:

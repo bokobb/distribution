@@ -1,0 +1,9 @@
+# Профиль local: скопируйте в src/main/resources/application-local.properties (файл не в git)
+# и запускайте ./gradlew bootRun --args='--spring.profiles.active=local'.
+# Сюда — то, что нужно только на этой машине. Пароли лучше держать в .env.
+
+# Другая база или порт
+# spring.datasource.url=jdbc:postgresql://127.0.0.1:5436/distribution
+
+# Показать SQL в логе
+# spring.jpa.show-sql=true
