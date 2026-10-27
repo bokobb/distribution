@@ -167,6 +167,29 @@ a.kpi:hover{border-color:var(--line-strong)}
 .tabs a{padding:10px 14px;text-decoration:none;font-weight:600;color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-1px}
 .tabs a[aria-current=true]{color:var(--ink);border-color:var(--crimson)}
 
+/* ---------- фильтры списка, галочки, страницы ---------- */
+.flt{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px 16px;padding:16px 18px}
+.flt>.field{flex:1 1 200px;min-width:0}
+.flt>.flt-date{flex:2 1 330px}
+.flt-row{display:flex;align-items:center;gap:8px}
+.flt-row .inp{flex:1;min-width:0}
+.flt-acts{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-end}
+.dd{position:relative}
+.dd summary{display:block;list-style:none;cursor:pointer;line-height:41px;padding-right:34px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;position:relative}
+.dd summary::-webkit-details-marker{display:none}
+.dd summary::after{content:"";position:absolute;right:14px;top:50%;width:7px;height:7px;margin-top:-6px;border:solid var(--ink-soft);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.dd[open] summary{border-color:var(--ink)}
+.dd-pop{position:absolute;left:0;top:calc(100% + 4px);z-index:15;min-width:100%;max-width:min(360px,calc(100vw - 32px));max-height:320px;overflow:auto;padding:4px 12px;background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 40px -20px rgba(42,23,18,.45)}
+.dd-pop .check{min-height:40px;font-size:14.5px;white-space:nowrap}
+.dd-pop .muted{padding:10px 0;font-size:14px}
+.tbl th.c-chk,.tbl td.c-chk{width:1%;padding-right:0}
+.c-chk input{width:20px;height:20px;margin:0;vertical-align:middle;accent-color:var(--crimson)}
+.tbl tbody tr.is-sel{background:#FFF6DA}
+.pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:12px 18px;border-top:1px solid var(--line);font-size:14px}
+.pager-sz,.pager-pg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pager .chip{min-width:36px;justify-content:center;padding:0 10px}
+.bulk{position:sticky;bottom:12px;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:10px 16px;border-radius:16px;background:var(--ink);color:#fff;box-shadow:0 20px 40px -18px rgba(0,0,0,.5)}
+
 /* ---------- список «требует внимания», полоски ---------- */
 .alerts{display:flex;flex-direction:column;gap:8px}
 .al{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;text-decoration:none;font-size:14.5px}
@@ -242,10 +265,16 @@ a.kpi:hover{border-color:var(--line-strong)}
   .tbl--cards td{border:0;padding:0}
   .tbl--cards td.r{text-align:right}
   .tbl--cards td.hide-m{display:none}
+  .tbl--sel.tbl--cards tr{grid-template-columns:auto 1fr auto;gap:4px 12px}
+  .tbl--sel.tbl--cards td.c-chk{grid-column:1;grid-row:1/span 3;padding-top:2px}
+  .tbl--sel.tbl--cards td.c-ord{grid-column:2;grid-row:1}
+  .tbl--sel.tbl--cards td.c-sum{grid-column:3;grid-row:1}
+  .tbl--sel.tbl--cards td.c-shop{grid-column:2/-1;grid-row:2}
+  .tbl--sel.tbl--cards td.c-st{grid-column:2/-1;grid-row:3}
   .timeline li{grid-template-columns:1fr}
 }
 @media print{
-  .side,.bar,.stub,.acts,.tools{display:none!important}
+  .side,.bar,.stub,.acts,.tools,.flt,.pager,.bulk,.c-chk{display:none!important}
   .app{display:block}
   .card{box-shadow:none;border:0}
 }

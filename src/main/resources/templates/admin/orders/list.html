@@ -2,45 +2,121 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<nav class="tabs" aria-label="День доставки">
-    <a th:href="@{/admin/orders(day='tomorrow')}" th:attr="aria-current=${day == 'tomorrow'} ? 'true' : null">На завтра (от агентов)</a>
-    <a th:href="@{/admin/orders(day='today')}" th:attr="aria-current=${day == 'today'} ? 'true' : null">Развозят сегодня</a>
-    <a th:href="@{/admin/orders(day='all')}" th:attr="aria-current=${day == 'all'} ? 'true' : null">Все</a>
-</nav>
+
+<form class="card flt" action="/admin/orders" method="get" aria-label="Фильтры заказов">
+    <input type="hidden" name="day" value="range">
+    <input type="hidden" name="status" th:if="${status != null}" th:value="${status}">
+    <input type="hidden" name="size" th:value="${p.size()}">
+
+    <div class="field flt-date">
+        <span>Дата доставки</span>
+        <div class="flt-row">
+            <input class="inp" type="date" name="from" th:value="${from}" aria-label="С какого дня">
+            <span class="muted">—</span>
+            <input class="inp" type="date" name="to" th:value="${to}" aria-label="По какой день">
+        </div>
+        <div class="chips">
+            <a class="chip" th:href="${link.day('today')}" th:attr="aria-current=${quick == 'today'} ? 'true' : null">Сегодня</a>
+            <a class="chip" th:href="${link.day('tomorrow')}" th:attr="aria-current=${quick == 'tomorrow'} ? 'true' : null">Завтра и позже</a>
+            <a class="chip" th:href="${link.day('all')}" th:attr="aria-current=${quick == 'all'} ? 'true' : null">Все</a>
+        </div>
+    </div>
+
+    <div class="field">
+        <span>Торговые представители</span>
+        <details class="dd">
+            <summary class="sel" th:with="on=${agents.?[on()]}"
+                     th:text="${on.isEmpty() ? 'Все' : on.size() <= 2 ? #strings.listJoin(on.![name()], ', ') : 'Выбрано: ' + on.size()}">Все</summary>
+            <div class="dd-pop">
+                <label class="check" th:each="a : ${agents}"><input type="checkbox" name="agent" th:value="${a.id()}" th:checked="${a.on()}"><span th:text="${a.name()}"></span></label>
+                <p class="muted" th:if="${agents.isEmpty()}">Торговых пока нет</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="field">
+        <span>Филиал</span>
+        <details class="dd">
+            <summary class="sel" th:with="on=${regions.?[on()]}"
+                     th:text="${on.isEmpty() ? 'Все' : on.size() <= 2 ? #strings.listJoin(on.![name()], ', ') : 'Выбрано: ' + on.size()}">Все</summary>
+            <div class="dd-pop">
+                <label class="check" th:each="r : ${regions}"><input type="checkbox" name="region" th:value="${r.id()}" th:checked="${r.on()}"><span th:text="${r.name()}"></span></label>
+                <p class="muted" th:if="${regions.isEmpty()}">Филиалов пока нет</p>
+            </div>
+        </details>
+    </div>
+
+    <label class="field">
+        <span>Экспедитор</span>
+        <select class="sel" name="exp">
+            <option value="">Любой</option>
+            <option value="none" th:selected="${exp == 'none'}">Ещё не отгружены</option>
+            <option th:each="e : ${expeditors}" th:value="${e.id()}" th:selected="${e.on()}" th:text="${e.name()}"></option>
+        </select>
+    </label>
+
+    <label class="field">
+        <span>Поиск</span>
+        <input class="inp" type="search" name="q" th:value="${q}" placeholder="№, магазин, торговый">
+    </label>
+
+    <div class="flt-acts">
+        <button class="btn btn-primary btn-sm" type="submit">Показать</button>
+        <a class="btn btn-soft btn-sm" href="/admin/orders">Сбросить</a>
+    </div>
+</form>
 
 <div class="tools">
     <div class="chips" aria-label="Статус">
-        <a class="chip" th:href="@{/admin/orders(day=${day},q=${q})}" th:attr="aria-current=${status == null} ? 'true' : null">Все <span class="cnt" th:text="${total}"></span></a>
+        <a class="chip" th:href="${link.with('status', null)}" th:attr="aria-current=${status == null} ? 'true' : null">Все <span class="cnt" th:text="${#aggregates.sum(p.counts().values()) ?: 0}"></span></a>
         <th:block th:each="st : ${statuses}">
-            <a class="chip" th:if="${counts.containsKey(st)}" th:href="@{/admin/orders(day=${day},status=${st},q=${q})}" th:attr="aria-current=${st == status} ? 'true' : null"><th:block th:text="${st.label}"></th:block> <span class="cnt" th:text="${counts.get(st)}"></span></a>
+            <a class="chip" th:if="${p.counts().containsKey(st)}" th:href="${link.with('status', st)}" th:attr="aria-current=${st == status} ? 'true' : null"><th:block th:text="${st.label}"></th:block> <span class="cnt" th:text="${p.counts().get(st)}"></span></a>
         </th:block>
     </div>
-    <form class="search" role="search" action="/admin/orders" method="get">
-        <th:block th:utext="${i16['search']}"></th:block>
-        <input type="hidden" name="day" th:value="${day}">
-        <input type="hidden" name="status" th:if="${status != null}" th:value="${status}">
-        <input type="search" name="q" th:value="${q}" placeholder="№, магазин, агент" aria-label="Найти заказ">
-    </form>
     <span style="flex:1"></span>
     <a class="btn btn-soft btn-sm" href="/admin/orders/pick"><th:block th:utext="${i16['print']}"></th:block>Лист сборки на завтра</a>
 </div>
 
 <section class="card">
-    <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Заказ</th><th>Магазин</th><th>Агент</th><th>Доставка</th><th>Оплата</th><th class="r">Сумма</th><th>Статус</th></tr></thead>
-        <tbody><tr th:each="o : ${orders}">
-            <td><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a><span class="sub" th:text="${@fmt.when(o.createdAt)}"></span></td>
-            <td><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${o.outlet.address + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
+    <div class="tbl-w"><table class="tbl tbl--cards tbl--sel">
+        <thead><tr>
+            <th class="c-chk"><input type="checkbox" data-check-all="ids" aria-label="Выбрать все заказы на странице"></th>
+            <th>Заказ</th><th>Магазин</th><th>Торговый</th><th>Доставка</th><th>Оплата</th><th>Экспедитор</th><th class="r">Сумма</th><th>Статус</th>
+        </tr></thead>
+        <tbody><tr th:each="o : ${p.rows()}">
+            <td class="c-chk"><input type="checkbox" name="ids" th:value="${o.id}" th:attr="data-sum=${o.total}" th:aria-label="${'Выбрать заказ № ' + o.number}"></td>
+            <td class="c-ord"><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a><span class="sub" th:text="${@fmt.when(o.createdAt)}"></span></td>
+            <td class="c-shop"><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${@fmt.dot(o.outlet.address, o.outlet.region?.name, v.isAll() ? o.company.name : null)}"></span></td>
             <td class="hide-m" th:text="${o.agent?.name}"></td>
             <td class="hide-m" th:text="${@fmt.day(o.deliveryDate)}"></td>
             <td class="hide-m" th:text="${o.payment.label}"></td>
-            <td class="r num"><b th:text="${@fmt.money(o.total)}"></b></td>
-            <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
+            <td class="hide-m" th:text="${o.trip != null ? o.trip.expeditor.name : '—'}"></td>
+            <td class="r num c-sum"><b th:text="${@fmt.money(o.total)}"></b></td>
+            <td class="c-st"><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
         </tr></tbody>
-        <tfoot th:unless="${orders.isEmpty()}"><tr><td colspan="5" th:text="${'Итого: ' + @fmt.plural(orders.size(), 'заказ', 'заказа', 'заказов')}"></td><td class="r num" th:text="${@fmt.money(sum)}"></td><td></td></tr></tfoot>
+        <tfoot th:if="${p.total() > 0}"><tr><td></td><td colspan="6" th:text="${'Найдено: ' + @fmt.plural(p.total(), 'заказ', 'заказа', 'заказов')}"></td><td class="r num" th:text="${@fmt.money(p.sum())}"></td><td></td></tr></tfoot>
     </table></div>
-    <p class="empty" th:if="${orders.isEmpty()}">Заказов с такими условиями нет.</p>
+    <p class="empty" th:if="${p.total() == 0}">Заказов с такими условиями нет.</p>
+
+    <nav class="pager" aria-label="Страницы списка" th:if="${p.total() > 0}">
+        <span class="muted" th:text="${'Показаны ' + p.first() + '–' + p.last() + ' из ' + p.total()}"></span>
+        <span class="pager-sz"><span class="muted">Строк на странице:</span>
+            <a class="chip" th:each="z : ${sizes}" th:href="${link.with('size', z)}" th:text="${z}" th:attr="aria-current=${z == p.size()} ? 'true' : null"></a>
+        </span>
+        <span class="pager-pg" th:if="${p.pages() > 1}">
+            <a class="chip" th:if="${p.page() > 1}" th:href="${link.with('page', p.page() - 1)}" aria-label="Предыдущая страница">‹</a>
+            <th:block th:each="n : ${p.around()}">
+                <span class="muted" th:if="${n == 0}">…</span>
+                <a class="chip" th:if="${n != 0}" th:href="${link.with('page', n)}" th:text="${n}" th:attr="aria-current=${n == p.page()} ? 'true' : null"></a>
+            </th:block>
+            <a class="chip" th:if="${p.page() < p.pages()}" th:href="${link.with('page', p.page() + 1)}" aria-label="Следующая страница">›</a>
+        </span>
+    </nav>
 </section>
+
+<div class="bulk" id="bulk-bar" hidden>
+    <span>Выбрано: <b data-sel-count>0</b> · <b class="num" data-sel-sum>0 ₸</b></span>
+</div>
 </th:block>
 </body>
 </html>

@@ -143,7 +143,7 @@ public class DashboardService {
             List<Alert> out = new ArrayList<>();
             Summary s = summary(cid);
             if (s.needsApproval() > 0)
-                out.add(new Alert("warn", "Заказы ждут разрешения: долг сверх лимита", String.valueOf(s.needsApproval()), "/admin/orders?status=NEEDS_APPROVAL"));
+                out.add(new Alert("warn", "Заказы ждут разрешения: долг сверх лимита", String.valueOf(s.needsApproval()), "/admin/orders?day=all&status=NEEDS_APPROVAL"));
             if (s.pendingOutlets() > 0)
                 out.add(new Alert("info", "Новые магазины на проверке", String.valueOf(s.pendingOutlets()), "/admin/outlets?status=PENDING"));
             long returned = of(tripList, cid).stream().filter(t -> t.getStatus() == TripStatus.RETURNED).count();

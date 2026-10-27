@@ -83,6 +83,17 @@ public class Fmt {
         return (min / 60 / 24) + " дн назад";
     }
 
+    /** Подпись через точку без пустых частей: dot(адрес, филиал, компания) → «ул. Абая 5 · Центр». */
+    public String dot(Object... parts) {
+        StringBuilder b = new StringBuilder();
+        for (Object p : parts) {
+            if (p == null || p.toString().isBlank()) continue;
+            if (!b.isEmpty()) b.append(" · ");
+            b.append(p);
+        }
+        return b.toString();
+    }
+
     /** Склонение: plural(5, "магазин", "магазина", "магазинов"). */
     public String plural(Number count, String one, String few, String many) {
         long n = count == null ? 0 : count.longValue();

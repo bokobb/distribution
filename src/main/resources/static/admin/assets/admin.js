@@ -16,8 +16,7 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       menu(false);
-      var me = document.querySelector('.me[open]');
-      if (me) me.removeAttribute('open');
+      document.querySelectorAll('.me[open], .dd[open]').forEach(function (d) { d.removeAttribute('open'); });
     }
   });
 
@@ -25,10 +24,11 @@
   var scope = document.getElementById('scope-sel');
   if (scope) scope.addEventListener('change', function () { scope.form.submit(); });
 
-  // меню пользователя закрывается кликом мимо
+  // меню пользователя и выпадающие фильтры закрываются кликом мимо
   document.addEventListener('click', function (e) {
-    var me = document.querySelector('.me[open]');
-    if (me && !me.contains(e.target)) me.removeAttribute('open');
+    document.querySelectorAll('.me[open], .dd[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
   });
 
   // всплывающая строка после действия
@@ -44,6 +44,35 @@
     var text = (btn && btn.getAttribute('data-confirm')) || e.target.getAttribute('data-confirm');
     if (text && !window.confirm(text)) e.preventDefault();
   });
+
+  // галочки списка: «выбрать все на странице» и строка внизу — сколько выбрано и на какую сумму
+  var all = document.querySelector('[data-check-all]');
+  if (all) {
+    var name = all.getAttribute('data-check-all');
+    var bar = document.getElementById('bulk-bar');
+    var boxes = function () { return document.querySelectorAll('input[type=checkbox][name="' + name + '"]'); };
+    var sync = function () {
+      var list = boxes(), n = 0, sum = 0;
+      list.forEach(function (b) {
+        var tr = b.closest('tr');
+        if (tr) tr.classList.toggle('is-sel', b.checked);
+        if (b.checked) { n++; sum += parseInt(b.getAttribute('data-sum'), 10) || 0; }
+      });
+      all.checked = list.length > 0 && n === list.length;
+      all.indeterminate = n > 0 && n < list.length;
+      if (bar) {
+        bar.hidden = n === 0;
+        bar.querySelector('[data-sel-count]').textContent = n;
+        bar.querySelector('[data-sel-sum]').textContent = sum.toLocaleString('ru-RU') + ' ₸';
+      }
+    };
+    all.addEventListener('change', function () {
+      boxes().forEach(function (b) { b.checked = all.checked; });
+      sync();
+    });
+    document.addEventListener('change', function (e) { if (e.target.name === name) sync(); });
+    sync();
+  }
 
   // приём кассы: разница считается сразу при вводе
   var counted = document.getElementById('counted');

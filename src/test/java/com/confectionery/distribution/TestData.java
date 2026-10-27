@@ -129,10 +129,28 @@ public class TestData {
         root(() -> save(openingDebts, new OutletOpeningDebt().setOutlet(w.outlet()).setAmount(amount).setAsOf(asOf), w.company()));
     }
 
+    /** Ещё один магазин компании — на новом маршруте агента agent в новом регионе (филиале). */
+    public Outlet outletInNewRegion(World w, Employee agent) {
+        return root(() -> {
+            long n = SEQ.getAndIncrement();
+            Region region = save(regions, new Region().setName("Регион " + n), w.company());
+            Route route = save(routes, new Route().setRegion(region).setName("Маршрут " + n).setAgent(agent).setDaysMask(127), w.company());
+            Outlet o = save(outlets, new Outlet().setName("Магазин " + n).setPriceType(w.wholesale()).setCreditLimit(100_000)
+                    .setPaymentDays(7).setCreatedAt(today()), w.company());
+            save(routeOutlets, new RouteOutlet().setRoute(route).setOutlet(o).setPosition(0), w.company());
+            return o;
+        });
+    }
+
     /** Заказ на одну строку: qty штук товара по price. */
     public Order order(World w, LocalDate delivery, PaymentMethod payment, int qty, long price) {
+        return order(w, w.outlet(), w.agent(), delivery, payment, qty, price);
+    }
+
+    /** Заказ магазина outlet от агента agent. */
+    public Order order(World w, Outlet outlet, Employee agent, LocalDate delivery, PaymentMethod payment, int qty, long price) {
         return root(() -> {
-            Order o = new Order().setNumber("Т-" + SEQ.getAndIncrement()).setOutlet(w.outlet()).setAgent(w.agent())
+            Order o = new Order().setNumber("Т-" + SEQ.getAndIncrement()).setOutlet(outlet).setAgent(agent)
                     .setCreatedAt(LocalDateTime.now(clock)).setDeliveryDate(delivery).setStatus(OrderStatus.ACCEPTED).setPayment(payment);
             o.setCompany(w.company());
             o.addLine(new OrderLine().setProduct(w.product()).setQty(qty).setPrice(price));
