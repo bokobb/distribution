@@ -39,6 +39,15 @@ public final class QueryLink {
         return build(p);
     }
 
+    /** Период «с» и «по» вместо введённого. */
+    public String period(Object from, Object to) {
+        Map<String, String[]> p = new LinkedHashMap<>(params);
+        p.remove("page");
+        p.put("from", new String[]{from.toString()});
+        p.put("to", new String[]{to.toString()});
+        return build(p);
+    }
+
     private String build(Map<String, String[]> p) {
         UriComponentsBuilder b = UriComponentsBuilder.fromPath(path);
         p.forEach((k, v) -> {

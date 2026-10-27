@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<a class="back" href="/admin/reports"><th:block th:utext="${i16['back']}"></th:block>Отчёты</a>
+
+<form class="card flt" action="/admin/reports/workday" method="get" aria-label="Период и сотрудники">
+    <div class="field flt-date">
+        <span>Период</span>
+        <div class="flt-row">
+            <input class="inp" type="date" name="from" th:value="${from}" aria-label="С какого дня">
+            <span class="muted">—</span>
+            <input class="inp" type="date" name="to" th:value="${to}" aria-label="По какой день">
+        </div>
+        <div class="chips">
+            <a class="chip" th:href="${link.period(today, today)}" th:attr="aria-current=${from == today && to == today} ? 'true' : null">Сегодня</a>
+            <a class="chip" th:href="${link.period(today.minusDays(1), today.minusDays(1))}" th:attr="aria-current=${from == today.minusDays(1) && to == from} ? 'true' : null">Вчера</a>
+            <a class="chip" th:href="${link.period(today.minusDays(6), today)}" th:attr="aria-current=${from == today.minusDays(6) && to == today} ? 'true' : null">7 дней</a>
+        </div>
+    </div>
+
+    <div class="field">
+        <span>Торговые</span>
+        <details class="dd">
+            <summary class="sel" th:with="on=${chosen.?[role().name() == 'AGENT']}"
+                     th:text="${on.isEmpty() ? 'Все' : on.size() <= 2 ? #strings.listJoin(on.![name()], ', ') : 'Выбрано: ' + on.size()}">Все</summary>
+            <div class="dd-pop">
+                <label class="check" th:each="p : ${agents}"><input type="checkbox" name="who" th:value="${p.id()}" th:checked="${sel.contains(p.id())}"><i class="dot" th:style="${'background:' + p.color()}"></i><span th:text="${p.name()}"></span></label>
+                <p class="muted" th:if="${agents.isEmpty()}">Торговых пока нет</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="field">
+        <span>Экспедиторы</span>
+        <details class="dd">
+            <summary class="sel" th:with="on=${chosen.?[role().name() == 'EXPEDITOR']}"
+                     th:text="${on.isEmpty() ? 'Все' : on.size() <= 2 ? #strings.listJoin(on.![name()], ', ') : 'Выбрано: ' + on.size()}">Все</summary>
+            <div class="dd-pop">
+                <label class="check" th:each="p : ${expeditors}"><input type="checkbox" name="who" th:value="${p.id()}" th:checked="${sel.contains(p.id())}"><i class="dot" th:style="${'background:' + p.color()}"></i><span th:text="${p.name()}"></span></label>
+                <p class="muted" th:if="${expeditors.isEmpty()}">Экспедиторов пока нет</p>
+            </div>
+        </details>
+    </div>
+
+    <div class="flt-acts">
+        <button class="btn btn-primary btn-sm" type="submit">Показать</button>
+        <a class="btn btn-soft btn-sm" href="/admin/reports/workday">Сбросить</a>
+    </div>
+</form>
+
+<p class="al al--warn" role="status" th:if="${clipped}" th:text="${'Период длиннее ' + maxDays + ' дней — показаны последние ' + maxDays + '.'}"></p>
+
+<section class="card">
+    <div class="card-h"><h2>По дням</h2><p>начал и закончил — по кнопкам «Начал день» и «Закончил день» в приложении</p></div>
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Сотрудник</th><th>День</th><th>Начал — закончил</th><th class="r">Часов</th><th class="r">Км по GPS</th><th>Работа</th><th>GPS пропадал</th><th class="hide-m">Приложение</th></tr></thead>
+        <tbody><tr th:each="x : ${r.rows()}">
+            <td><b th:text="${x.name()}"></b><span class="sub" th:text="${x.role().label}"></span></td>
+            <td class="num" th:text="${@fmt.day(x.date())}"></td>
+            <td class="num">
+                <span class="st st--off" th:if="${x.start() == null}">не начат в приложении</span>
+                <th:block th:if="${x.start() != null}">
+                    <span th:text="${@fmt.time(x.start())} + ' — '"></span><span th:if="${x.end() != null}" th:text="${@fmt.time(x.end())}"></span>
+                    <span class="st st--warn" th:if="${x.open() && x.date() != today}">не закрыл</span>
+                    <span class="st st--work" th:if="${x.open() && x.date() == today}">работает</span>
+                </th:block>
+            </td>
+            <td class="r num" th:text="${x.hours() ?: '—'}"></td>
+            <td class="r num"><b th:if="${x.gpsOn()}" th:text="${x.kmText()}"></b><span class="muted" th:unless="${x.gpsOn()}">нет точек</span></td>
+            <td th:text="${x.work()}"></td>
+            <td>
+                <span class="muted" th:if="${x.gaps().isEmpty() && x.start() == null}">—</span>
+                <span class="good" th:if="${x.gaps().isEmpty() && x.start() != null}">не пропадал</span>
+                <th:block th:unless="${x.gaps().isEmpty()}">
+                    <b class="bad" th:text="${@fmt.plural(x.gaps().size(), 'раз', 'раза', 'раз') + ' · ' + x.gapMinutes() + ' мин'}"></b>
+                    <span class="sub" th:each="g : ${x.gaps()}" th:text="${g.from() + '–' + g.to() + ' · ' + g.cause()}"></span>
+                </th:block>
+            </td>
+            <td class="hide-m"><span th:text="${x.app() ?: '—'}"></span><span class="sub bad" th:if="${x.oldApp()}" th:text="${'старая версия, последняя ' + r.latestApp()}"></span></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${r.rows().isEmpty()}">За эти дни с телефонов ничего не приходило.</p>
+</section>
+
+<section class="card">
+    <div class="card-h"><h2>Журнал приложения</h2><p>сначала новые</p></div>
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Когда</th><th>Сотрудник</th><th>Событие</th><th class="hide-m">Приложение</th><th class="hide-m">Подробности</th></tr></thead>
+        <tbody><tr th:each="e : ${r.journal()}">
+            <td class="num" th:text="${@fmt.when(e.at())}"></td>
+            <td><b th:text="${e.name()}"></b><span class="sub" th:text="${e.role().label}"></span></td>
+            <td><span th:classappend="${e.kind().name() == 'GPS_OFF'} ? 'bad'" th:text="${e.kind().label}"></span></td>
+            <td class="hide-m" th:text="${@fmt.dot(e.version(), e.device()) ?: '—'}"></td>
+            <td class="hide-m" th:text="${e.note() ?: ''}"></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${r.journal().isEmpty()}">Записей нет.</p>
+    <p class="note" th:if="${r.cut()}" th:text="${'Показаны последние ' + r.journal().size() + ' записей — сузьте период или выберите людей.'}"></p>
+</section>
+
+<p class="note"><th:block th:text="${gpsInterval != null ? 'Телефон снимает точку GPS раз в ' + gpsInterval + ' мин' : 'Телефон снимает точку GPS с интервалом из «Настроек»'}"></th:block>
+    — только в рабочий день, от «Начал день» до «Закончил день». Пропал GPS — нет точек дольше 15 минут. Точки хранятся 6 месяцев, журнал приложения — год.</p>
+</th:block>
+</body>
+</html>

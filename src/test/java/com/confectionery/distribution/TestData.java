@@ -240,8 +240,13 @@ public class TestData {
 
     /** Запись журнала приложения сотрудника. */
     public void event(Employee e, LocalDateTime at, AppEventKind kind) {
-        jdbc.update("insert into app_events (company_id, uuid, user_id, event_at, kind, received_at) values (?, ?, ?, ?, ?, ?)",
-                e.getCompanyId(), UUID.randomUUID(), e.getId(), at, kind.name(), at);
+        event(e, at, kind, null);
+    }
+
+    /** Запись журнала с версией приложения. */
+    public void event(Employee e, LocalDateTime at, AppEventKind kind, String version) {
+        jdbc.update("insert into app_events (company_id, uuid, user_id, event_at, kind, app_version, received_at) values (?, ?, ?, ?, ?, ?, ?)",
+                e.getCompanyId(), UUID.randomUUID(), e.getId(), at, kind.name(), version, at);
     }
 
     /** Выданное ушло из машины в магазин. */
