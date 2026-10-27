@@ -7,14 +7,19 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-/** Вход в админку и служебные переключатели: компания (владелец) и «Смотреть как» (заглушка входа). */
+/** Начальная страница и переключатели владельца: компания в шапке и «Смотреть как». */
 @Controller
 @RequiredArgsConstructor
 public class AdminMiscController {
 
     private final AdminContext ctx;
 
-    @GetMapping({"/", "/admin", "/admin/"})
+    @GetMapping("/")
+    public String root() {
+        return "redirect:/admin";
+    }
+
+    @GetMapping({"/admin", "/admin/"})
     public String home(HttpSession session) {
         return "redirect:" + AdminSections.home(ctx.viewer(session).role()).href();
     }
@@ -22,7 +27,7 @@ public class AdminMiscController {
     @GetMapping("/admin/scope")
     public String scope(@RequestParam String company, @RequestParam(required = false) String back, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        if (v.isSuper()) {
+        if (v.owner()) {
             ctx.setCompany(session, "all".equals(company) ? null : parseId(company));
         }
         return "redirect:" + AdminPage.back(back, "/admin/dashboard");
@@ -30,7 +35,7 @@ public class AdminMiscController {
 
     @GetMapping("/admin/as")
     public String as(@RequestParam Role role, @RequestParam(required = false) String back, HttpSession session) {
-        if (!role.webAdmin()) return "redirect:/admin";
+        if (!ctx.viewer(session).owner() || !role.webAdmin()) return "redirect:/admin";
         ctx.setRole(session, role);
         ctx.toast(session, "Смотрите админку как: " + role.getLabel());
         String target = AdminPage.back(back, "/admin");

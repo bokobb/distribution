@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!--/* Вход в админку: телефон или логин и пароль. Оформление — admin.css, без меню. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>Вход — Дистрибуция</title>
+    <link rel="icon" href="/admin/assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vollkorn:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=2">
+</head>
+<body>
+<main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px var(--gut)">
+    <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:16px">
+        <div>
+            <h1 style="font-size:30px">Дистрибуция</h1>
+            <p class="muted">Вход для директора, оператора и кладовщика</p>
+        </div>
+        <p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
+        <p class="al al--info" role="status" th:if="${info != null}" th:text="${info}"></p>
+        <form class="card" th:action="@{/login}" method="post">
+            <div class="card-b" style="display:flex;flex-direction:column;gap:16px;padding-top:18px">
+                <label class="field">Телефон или логин<input class="inp" name="username" required autofocus autocomplete="username" autocapitalize="none" placeholder="+7 7__ ___ __ __"></label>
+                <label class="field">Пароль<input class="inp" name="password" type="password" required autocomplete="current-password"></label>
+                <button class="btn btn-primary" type="submit">Войти</button>
+            </div>
+        </form>
+        <p class="hint">Забыли пароль — попросите директора выдать новый.</p>
+    </div>
+</main>
+</body>
+</html>

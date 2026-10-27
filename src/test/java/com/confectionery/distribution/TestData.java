@@ -7,11 +7,14 @@ import com.confectionery.distribution.service.StockService;
 import com.confectionery.distribution.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.test.context.TestComponent;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
@@ -45,6 +48,8 @@ public class TestData {
     private final StockService stock;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final PasswordEncoder encoder;
+    private final JdbcTemplate jdbc;
 
     /** Компания с одним магазином, товаром, агентом, экспедитором с машиной и оператором. */
     public record World(Company company, Employee operator, Employee agent, Employee expeditor, Route route,
@@ -84,6 +89,30 @@ public class TestData {
             save(routeOutlets, new RouteOutlet().setRoute(route).setOutlet(o).setPosition(0), c);
             return new World(c, operator, agent, expeditor, route, wholesale, p, o, v, main, defect, car);
         });
+    }
+
+    /** Ещё один сотрудник компании. */
+    public Employee person(World w, String name, Role role) {
+        return root(() -> person(w.company(), name, role));
+    }
+
+    /** Пароль для входа; mustChange — временный, при входе сначала сменить. */
+    public void password(Employee e, String password, boolean mustChange) {
+        jdbc.update("update users set password_hash = ?, must_change_password = ?, active = true where id = ?",
+                encoder.encode(password), mustChange, e.getId());
+    }
+
+    /** Владелец (один на базу): нет — создаётся; пароль задаётся заново. Возвращает телефон для входа. */
+    public String owner(String password) {
+        List<String> phones = jdbc.queryForList("select phone from users where role = 'SUPER_ADMIN'", String.class);
+        String phone = phones.isEmpty() ? "+77000000000" : phones.get(0);
+        if (phones.isEmpty()) {
+            jdbc.update("insert into users (name, role, phone, must_change_password, created_at) values ('Владелец', 'SUPER_ADMIN', ?, false, ?)",
+                    phone, LocalDateTime.now(clock));
+        }
+        jdbc.update("update users set password_hash = ?, must_change_password = false, active = true where phone = ?",
+                encoder.encode(password), phone);
+        return phone;
     }
 
     private Employee person(Company c, String name, Role role) {

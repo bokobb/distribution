@@ -82,6 +82,9 @@ a{color:inherit}
 .me-pop a:hover{background:var(--paper)}
 .me-pop a[aria-current=true]{font-weight:700}
 .me-pop a span{color:var(--ink-mute);font-size:12.5px}
+.me-pop hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.me-pop button{display:flex;width:100%;padding:9px 8px;border:0;border-radius:10px;background:none;text-align:left;font-size:14px}
+.me-pop button:hover{background:var(--paper)}
 
 .view{padding:20px var(--gut) 48px;display:flex;flex-direction:column;gap:18px;max-width:1440px;width:100%}
 .stub{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:12px;background:var(--yolk-soft);color:var(--ink);font-size:13.5px}

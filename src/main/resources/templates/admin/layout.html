@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!--/* Общая часть админки: меню, верхняя строка, выбор компании (владелец), «Смотреть как» (заглушка
-     входа), всплывающая строка. Страница: <html th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<!--/* Общая часть админки: меню, верхняя строка, выбор компании и «Смотреть как» (только владелец),
+     меню пользователя (смена пароля, выход), всплывающая строка. Страница: <html th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
      и свой фрагмент content. Из модели: title, sub, sec — подсвеченный пункт меню. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content, scripts)">
 <head>
@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vollkorn:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="/admin/assets/admin.css?v=1">
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=2">
 </head>
 <body>
 <div class="app" id="app">
@@ -34,7 +34,7 @@
         <header class="bar">
             <button class="burger" type="button" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="side" th:utext="${i['menu']}"></button>
             <div class="bar-t"><h1 th:text="${title}">Дашборд</h1><p th:if="${sub != null}" th:text="${sub}"></p></div>
-            <form class="scope" th:if="${v.isSuper()}" action="/admin/scope" method="get">
+            <form class="scope" th:if="${v.owner()}" action="/admin/scope" method="get">
                 <label for="scope-sel">Компания</label>
                 <select id="scope-sel" name="company">
                     <option value="all" th:selected="${v.isAll()}">Все компании</option>
@@ -43,13 +43,18 @@
                 <input type="hidden" name="back" th:value="${here}">
                 <noscript><button class="btn btn-soft btn-sm" type="submit">Показать</button></noscript>
             </form>
-            <span class="tag" th:unless="${v.isSuper()}" th:text="${v.scopeName()}">Компания</span>
+            <span class="tag" th:unless="${v.owner()}" th:text="${v.scopeName()}">Компания</span>
             <details class="me">
                 <summary><span class="ava" aria-hidden="true" th:text="${v.me().initial}">В</span><span class="me-n"><b th:text="${v.me().name}">Владелец</b><span th:text="${v.role().label}">роль</span></span><span class="sr">Меню пользователя</span></summary>
                 <div class="me-pop">
-                    <p>Вход пока не подключён (этап 1). Чтобы проверить, что видит каждая роль, выберите её.</p>
-                    <h4>Смотреть как</h4>
-                    <a th:each="r : ${roles}" th:href="@{/admin/as(role=${r},back=${here})}" th:attr="aria-current=${r == v.role()} ? 'true' : null"><th:block th:text="${r.label}">Роль</th:block><span th:text="${r.hint}"></span></a>
+                    <th:block th:if="${v.owner()}">
+                        <p>Чтобы проверить, что видит каждая роль, откройте админку её глазами. Действия всё равно записываются на вас.</p>
+                        <h4>Смотреть как</h4>
+                        <a th:each="r : ${roles}" th:href="@{/admin/as(role=${r},back=${here})}" th:attr="aria-current=${r == v.role()} ? 'true' : null"><th:block th:text="${r.label}">Роль</th:block><span th:text="${r.hint}"></span></a>
+                        <hr>
+                    </th:block>
+                    <a href="/password">Сменить пароль</a>
+                    <form th:action="@{/logout}" method="post"><button type="submit">Выйти</button></form>
                 </div>
             </details>
         </header>

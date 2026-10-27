@@ -32,7 +32,8 @@ public record Viewer(Role role, Long companyId, Company company, Employee me, bo
 
     /** Подпись в истории: «Сауле Ким (оператор)», у владельца — просто имя. */
     public String who() {
-        return me.getName() + (role == Role.SUPER_ADMIN ? "" : " (" + role.getLabel().toLowerCase() + ")");
+        Role own = me.getRole(); // владелец в «Смотреть как» подписывается собой, а не чужой ролью
+        return me.getName() + (own == Role.SUPER_ADMIN ? "" : " (" + own.getLabel().toLowerCase() + ")");
     }
 
     public Actor actor() {
