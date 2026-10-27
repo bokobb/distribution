@@ -28,6 +28,8 @@ class MapServiceTest {
     MapService maps;
     @Autowired
     TransactionTemplate tx;
+    @Autowired
+    com.confectionery.distribution.repository.OrderRepository orderRepo;
 
     World w, other;
     Outlet second;
@@ -84,5 +86,28 @@ class MapServiceTest {
         MapService.Day d = day(List.of());
         assertThat(d.noCoords()).isEqualTo(1);
         assertThat(d.outlets()).extracting(MapService.Shop::id).doesNotContain(bare.getId());
+    }
+
+    @Test
+    void заказыНаКартеЦветомТорговогоИЭкспедитора() {
+        Order shipped = data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 1, 300);
+        data.trip(w, TripStatus.LOADING, shipped);
+        Order waiting = data.order(w, second, w.agent(), data.today().plusDays(1), PaymentMethod.KASPI, 2, 100);
+        Outlet bare = data.outletInNewRegion(w, w.agent());
+        Order noPlace = data.order(w, bare, w.agent(), data.today().plusDays(1), PaymentMethod.CASH, 1, 100);
+        MapService.OrdersMap m = TenantContext.call(w.id(), () -> tx.execute(s -> maps.orders(null,
+                List.of(orderRepo.findById(shipped.getId()).orElseThrow(), orderRepo.findById(waiting.getId()).orElseThrow(),
+                        orderRepo.findById(noPlace.getId()).orElseThrow()), false)));
+        assertThat(m.points()).extracting(MapService.OrderPoint::number).containsExactly(shipped.getNumber(), waiting.getNumber());
+        assertThat(m.noCoords()).isEqualTo(1);
+        MapService.OrderPoint p = m.points().get(0);
+        assertThat(p.expeditor()).isEqualTo(w.expeditor().getName());
+        assertThat(p.expColor()).isNotEqualTo(MapService.NOT_SHIPPED).isNotEqualTo(p.agentColor());
+        assertThat(m.points().get(1).expColor()).isEqualTo(MapService.NOT_SHIPPED);
+        assertThat(m.agents()).singleElement().satisfies(l -> {
+            assertThat(l.count()).isEqualTo(2);
+            assertThat(l.sum()).isEqualTo(500);
+        });
+        assertThat(m.expeditors()).extracting(MapService.Legend::name).containsExactlyInAnyOrder(w.expeditor().getName(), "Не отгружены");
     }
 }

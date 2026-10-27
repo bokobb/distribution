@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
 <body>
 <th:block th:fragment="content">
 
@@ -77,6 +77,20 @@
     <a class="btn btn-soft btn-sm" href="/admin/orders/pick"><th:block th:utext="${i16['print']}"></th:block>Лист сборки на завтра</a>
 </div>
 
+<details class="card map-box">
+    <summary class="card-h"><h2>На карте</h2><p>магазины найденных заказов — цветом торгового или экспедитора</p></summary>
+    <div class="map-box-b">
+        <div class="chips" role="radiogroup" aria-label="Цвет точек">
+            <label class="chip"><input class="sr" type="radio" name="map-color" value="agent" checked>По торговым</label>
+            <label class="chip"><input class="sr" type="radio" name="map-color" value="exp">По экспедиторам</label>
+        </div>
+        <div id="orders-map" class="map map--orders" role="region" aria-label="Карта найденных заказов"
+             th:attr="data-src=${'/admin/orders/map-data' + (#strings.contains(here, '?') ? here.substring(here.indexOf('?')) : '')}"></div>
+        <ul class="map-legend" id="orders-map-legend"></ul>
+        <p class="note" id="orders-map-note" hidden></p>
+    </div>
+</details>
+
 <div class="al" th:if="${notice != null}" th:classappend="${notice.kind()}" role="status">
     <div><strong th:text="${notice.title()}"></strong>
         <p th:each="l : ${notice.lines()}" th:text="${l}"></p></div>
@@ -134,6 +148,12 @@
         <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/invoices" formtarget="_blank" formnovalidate name="kind" value="total" th:utext="${i16['print'] + 'Общая накладная'}">Общая накладная</button>
     </span>
 </form>
+</th:block>
+
+<th:block th:fragment="scripts">
+<link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
+<script src="/admin/assets/leaflet/leaflet.js"></script>
+<script src="/admin/assets/map.js?v=2"></script>
 </th:block>
 </body>
 </html>

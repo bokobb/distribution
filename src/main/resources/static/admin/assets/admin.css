@@ -214,6 +214,17 @@ a.kpi:hover{border-color:var(--line-strong)}
 .map-n span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--c);color:#fff;border:2px solid #fff;font:700 11px/1 var(--body);box-shadow:0 1px 4px rgba(0,0,0,.35)}
 .map-n span.off{background:#fff;color:var(--c);border-color:var(--c)}
 .map.leaflet-container{font:400 12px/1.5 var(--body)}
+.map-box>summary{cursor:pointer;list-style:none}
+.map-box>summary::-webkit-details-marker{display:none}
+.map-box>summary::after{content:"";width:8px;height:8px;margin-left:auto;border:solid var(--ink-soft);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.map-box[open]>summary::after{transform:rotate(-135deg)}
+.map-box-b{display:flex;flex-direction:column;gap:12px;padding:0 18px 18px}
+.map-box .chip:has(input:checked){background:var(--ink);border-color:var(--ink);color:#fff}
+.map-box .chip:has(input:focus-visible){outline:3px solid var(--ink);outline-offset:2px}
+.map--orders{height:min(60vh,560px);min-height:340px;border-radius:14px}
+.map-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13.5px}
+.map-legend li{display:flex;align-items:center;gap:8px}
+.map-legend small{color:var(--ink-soft)}
 
 /* ---------- список «требует внимания», полоски ---------- */
 .alerts{display:flex;flex-direction:column;gap:8px}
@@ -301,7 +312,7 @@ a.kpi:hover{border-color:var(--line-strong)}
   .timeline li{grid-template-columns:1fr}
 }
 @media print{
-  .side,.bar,.stub,.acts,.tools,.flt,.pager,.bulk,.c-chk{display:none!important}
+  .side,.bar,.stub,.acts,.tools,.flt,.pager,.bulk,.c-chk,.map-box{display:none!important}
   .app{display:block}
   .card{box-shadow:none;border:0}
 }

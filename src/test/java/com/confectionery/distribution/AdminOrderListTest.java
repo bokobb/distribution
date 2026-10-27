@@ -149,6 +149,18 @@ class AdminOrderListTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(content().string(containsString(w.outlet().getName())));
 
+        // карта над списком заказов — с теми же условиями
+        Employee agent2 = data.person(w, "Иван", Role.AGENT);
+        Outlet outlet2 = data.outletInNewRegion(w, agent2);
+        data.place(outlet2, 42.31, 69.6);
+        Order mine = data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 1, 1000);
+        Order his = data.order(w, outlet2, agent2, data.today().plusDays(1), PaymentMethod.CASH, 1, 1000);
+        mvc.perform(get("/admin/orders").session(s)).andExpect(content().string(containsString("data-src=\"/admin/orders/map-data\"")));
+        mvc.perform(get("/admin/orders/map-data").session(s).param("agent", agent2.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(his.getNumber())))
+                .andExpect(content().string(not(containsString(mine.getNumber()))));
+
         MockHttpSession keeper = login(data.person(w, "Кладовщик Карты", Role.STOREKEEPER));
         mvc.perform(get("/admin/map/data").session(keeper)).andExpect(redirectedUrl("/admin/dashboard"));
     }

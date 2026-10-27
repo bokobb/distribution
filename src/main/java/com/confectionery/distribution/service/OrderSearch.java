@@ -65,10 +65,19 @@ public class OrderSearch {
         }
     }
 
+    private static final String FROM = " from Order o join o.outlet ot left join o.agent a";
+
+    /** Все найденные заказы, не больше limit (для карты списка), — новые доставки первыми. */
+    public List<Order> all(Filter f, int limit) {
+        Map<String, Object> params = new HashMap<>();
+        return query("select o" + FROM + where(f, params, true) + " order by o.deliveryDate desc, o.id desc", Order.class, params)
+                .setMaxResults(limit).getResultList();
+    }
+
     public Page find(Filter f, int page, int size) {
         int s = SIZES.contains(size) ? size : DEFAULT_SIZE;
         Map<String, Object> params = new HashMap<>();
-        String from = " from Order o join o.outlet ot left join o.agent a";
+        String from = FROM;
         String where = where(f, params, true);
 
         long total = query("select count(o)" + from + where, Long.class, params).getSingleResult();

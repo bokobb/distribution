@@ -6,6 +6,7 @@ import com.confectionery.distribution.domain.Order;
 import com.confectionery.distribution.domain.OrderStatus;
 import com.confectionery.distribution.domain.Role;
 import com.confectionery.distribution.service.FormException;
+import com.confectionery.distribution.service.MapService;
 import com.confectionery.distribution.service.OrderSearch;
 import com.confectionery.distribution.service.OrderService;
 import com.confectionery.distribution.service.RouteService;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.Clock;
@@ -36,6 +38,7 @@ public class AdminOrderController {
     private final OrderSearch search;
     private final StaffService staff;
     private final TripService trips;
+    private final MapService map;
     private final RouteService routes;
     private final Fmt fmt;
     private final Clock clock;
@@ -44,11 +47,7 @@ public class AdminOrderController {
     public record Option(Long id, String name, boolean on) {
     }
 
-    /**
-     * Заказы с фильтрами. Дата доставки: day = today | tomorrow (завтра и позже) | all — быстрый выбор,
-     * day = range — «с» и «по» из формы; без условий — завтра и позже, как на дашборде. Торговые и филиалы —
-     * несколько сразу; экспедитор: пусто — любой, none — ещё не отгружены, id — его рейсы.
-     */
+    /** Заказы с фильтрами (см. filter): торговые и филиалы — несколько сразу, внизу — страницы. */
     @GetMapping("/admin/orders")
     public String list(@RequestParam(required = false) String day,
                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -62,6 +61,60 @@ public class AdminOrderController {
                        @RequestParam(defaultValue = "" + OrderSearch.DEFAULT_SIZE) int size,
                        Model model, HttpSession session, HttpServletRequest request) {
         Viewer v = ctx.viewer(session);
+        LocalDate today = LocalDate.now(clock);
+        OrderSearch.Filter f = filter(day, from, to, agentIds, regionIds, exp, status, q);
+        OrderSearch.Page p = search.find(f, page, size);
+
+        AdminPage.head(model, "orders", "Заказы", v.scopeName());
+        model.addAttribute("from", f.from());
+        model.addAttribute("to", f.to());
+        model.addAttribute("quick", f.from() == null && f.to() == null ? "all"
+                : today.equals(f.from()) && today.equals(f.to()) ? "today"
+                : today.plusDays(1).equals(f.from()) && f.to() == null ? "tomorrow" : "");
+        model.addAttribute("agents", options(staff.staff(v.companyId(), Role.AGENT), f.agents(), v));
+        model.addAttribute("regions", routes.regions().stream()
+                .filter(r -> v.companyId() == null || v.companyId().equals(r.getCompanyId()))
+                .map(r -> new Option(r.getId(), label(r.getName(), r.getCompany(), v), f.regions().contains(r.getId()))).toList());
+        model.addAttribute("expeditors", options(staff.staff(v.companyId(), Role.EXPEDITOR),
+                f.expeditor() == null ? List.of() : List.of(f.expeditor()), v));
+        model.addAttribute("exp", exp == null ? "" : exp);
+        model.addAttribute("shipTo", staff.staff(v.companyId(), Role.EXPEDITOR).stream().filter(Employee::isActive).toList());
+        model.addAttribute("status", status);
+        model.addAttribute("q", q);
+        model.addAttribute("statuses", OrderStatus.values());
+        model.addAttribute("p", p);
+        model.addAttribute("sizes", OrderSearch.SIZES);
+        model.addAttribute("link", new QueryLink(request));
+        return "admin/orders/list";
+    }
+
+    /** Сколько заказов самое большее показывает карта списка. */
+    private static final int MAP_LIMIT = 2000;
+
+    /** Магазины найденных заказов для карты над списком — те же условия, что у списка. */
+    @GetMapping("/admin/orders/map-data")
+    @ResponseBody
+    public MapService.OrdersMap mapData(@RequestParam(required = false) String day,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                        @RequestParam(name = "agent", required = false) List<Long> agentIds,
+                                        @RequestParam(name = "region", required = false) List<Long> regionIds,
+                                        @RequestParam(required = false) String exp,
+                                        @RequestParam(required = false) OrderStatus status,
+                                        @RequestParam(required = false) String q,
+                                        HttpSession session) {
+        List<Order> list = search.all(filter(day, from, to, agentIds, regionIds, exp, status, q), MAP_LIMIT + 1);
+        boolean cut = list.size() > MAP_LIMIT;
+        return map.orders(ctx.viewer(session).companyId(), cut ? list.subList(0, MAP_LIMIT) : list, cut);
+    }
+
+    /**
+     * Условия списка из адреса. Дата доставки: day = today | tomorrow (завтра и позже) | all — быстрый
+     * выбор, day = range — «с» и «по» из формы; без условий — завтра и позже. Экспедитор: пусто — любой,
+     * none — ещё не отгружены, id — его рейсы.
+     */
+    private OrderSearch.Filter filter(String day, LocalDate from, LocalDate to, List<Long> agentIds, List<Long> regionIds,
+                                      String exp, OrderStatus status, String q) {
         LocalDate today = LocalDate.now(clock);
         if (!"range".equals(day)) {
             switch (day == null ? "tomorrow" : day) {
@@ -78,33 +131,8 @@ public class AdminOrderController {
             from = to;
             to = t;
         }
-        List<Long> agentSel = agentIds == null ? List.of() : agentIds;
-        List<Long> regionSel = regionIds == null ? List.of() : regionIds;
         Long expeditor = exp == null || exp.isBlank() ? null : "none".equals(exp) ? OrderSearch.NO_EXPEDITOR : parseId(exp);
-
-        OrderSearch.Page p = search.find(new OrderSearch.Filter(from, to, agentSel, regionSel, expeditor, status, q), page, size);
-
-        AdminPage.head(model, "orders", "Заказы", v.scopeName());
-        model.addAttribute("from", from);
-        model.addAttribute("to", to);
-        model.addAttribute("quick", from == null && to == null ? "all"
-                : today.equals(from) && today.equals(to) ? "today"
-                : today.plusDays(1).equals(from) && to == null ? "tomorrow" : "");
-        model.addAttribute("agents", options(staff.staff(v.companyId(), Role.AGENT), agentSel, v));
-        model.addAttribute("regions", routes.regions().stream()
-                .filter(r -> v.companyId() == null || v.companyId().equals(r.getCompanyId()))
-                .map(r -> new Option(r.getId(), label(r.getName(), r.getCompany(), v), regionSel.contains(r.getId()))).toList());
-        model.addAttribute("expeditors", options(staff.staff(v.companyId(), Role.EXPEDITOR),
-                expeditor == null ? List.of() : List.of(expeditor), v));
-        model.addAttribute("exp", exp == null ? "" : exp);
-        model.addAttribute("shipTo", staff.staff(v.companyId(), Role.EXPEDITOR).stream().filter(Employee::isActive).toList());
-        model.addAttribute("status", status);
-        model.addAttribute("q", q);
-        model.addAttribute("statuses", OrderStatus.values());
-        model.addAttribute("p", p);
-        model.addAttribute("sizes", OrderSearch.SIZES);
-        model.addAttribute("link", new QueryLink(request));
-        return "admin/orders/list";
+        return new OrderSearch.Filter(from, to, agentIds, regionIds, expeditor, status, q);
     }
 
     private static Long parseId(String s) {
