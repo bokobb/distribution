@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<nav class="tabs" aria-label="Склад">
+    <a href="/admin/stock" th:attr="aria-current=${tab == 'stock'} ? 'true' : null">Остатки</a>
+    <a href="/admin/stock?tab=receipts" th:attr="aria-current=${tab == 'receipts'} ? 'true' : null">Приходы</a>
+</nav>
+
+<section class="card" th:if="${tab == 'stock'}">
+    <div class="card-h"><h2>Остатки</h2><p>резерв — заказы на завтра, ещё не загруженные в машины</p></div>
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Товар</th><th class="r">Основной склад</th><th class="r">Резерв</th><th class="r">Свободно</th><th class="r">В машинах</th><th class="r">Негодный</th></tr></thead>
+        <tbody><tr th:each="r : ${rows}">
+            <td><b th:text="${r.product().name}"></b><span class="sub" th:text="${r.product().category + ' · кор. ' + r.product().perBox + ' шт'}"></span></td>
+            <td class="r num hide-m" th:text="${r.main()}"></td>
+            <td class="r num hide-m" th:text="${r.reserved()}"></td>
+            <td class="r num"><b th:classappend="${r.low()} ? 'bad'" th:text="${r.free()}"></b><span class="sub bad" th:if="${r.low()}">мало</span></td>
+            <td class="r num hide-m" th:text="${r.inVehicles()}"></td>
+            <td class="r num hide-m" th:text="${r.defect()}"></td>
+        </tr></tbody>
+    </table></div>
+</section>
+
+<section class="card" th:if="${tab == 'receipts'}">
+    <div class="card-h"><h2>Приходы</h2><p>из CRM производства приход создаётся сам после отгрузки — кладовщик сверяет количество</p></div>
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Приход</th><th>Откуда</th><th>Основание</th><th class="r">Позиций</th><th class="r">Штук</th><th>Статус</th></tr></thead>
+        <tbody><tr th:each="r : ${receipts}">
+            <td><a class="rl" th:href="${'/admin/stock/receipts/' + r.id}" th:text="${r.number}"></a><span class="sub" th:text="${@fmt.day(r.date)}"></span></td>
+            <td><span class="tag" th:classappend="${r.source.name() == 'CRM'} ? 'tag--crm'" th:text="${r.source.label}"></span><span class="sub" th:text="${r.supplier}"></span></td>
+            <td class="hide-m" th:text="${r.basis}"></td>
+            <td class="r num hide-m" th:text="${r.lines.size()}"></td>
+            <td class="r num hide-m" th:text="${r.qty}"></td>
+            <td><span class="st" th:classappend="${'st--' + r.status.badge}" th:text="${r.status.label}"></span></td>
+        </tr></tbody>
+    </table></div>
+</section>
+</th:block>
+</body>
+</html>

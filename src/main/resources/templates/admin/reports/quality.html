@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<a class="back" href="/admin/reports"><th:block th:utext="${i16['back']}"></th:block>Отчёты</a>
+<p class="note">Этот же отчёт по товарам производства уйдёт в CRM на главный экран: какие товары магазины возвращают как негодные и почему.</p>
+<section class="card">
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Товар</th><th>Причина</th><th class="r">Штук</th><th class="r">Сумма</th></tr></thead>
+        <tbody><tr th:each="q : ${rows}">
+            <td th:text="${q.product()}"></td>
+            <td th:text="${q.reason()}"></td>
+            <td class="r num"><b th:text="${q.qty()}"></b></td>
+            <td class="r num" th:text="${@fmt.money(q.sum())}"></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${rows.isEmpty()}">Возвратов нет.</p>
+</section>
+</th:block>
+</body>
+</html>

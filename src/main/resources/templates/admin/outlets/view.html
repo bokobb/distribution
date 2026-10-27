@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="acts">
+    <a class="back" href="/admin/outlets"><th:block th:utext="${i16['back']}"></th:block>Магазины</a>
+    <span style="flex:1"></span>
+    <form th:if="${o.status.name() == 'PENDING'}" th:action="@{'/admin/outlets/' + ${o.id} + '/approve'}" method="post"><button class="btn btn-primary btn-sm" type="submit"><th:block th:utext="${i16['check']}"></th:block>Проверен, работает</button></form>
+    <a class="btn btn-soft btn-sm" th:href="${'/admin/outlets/' + o.id + '/edit'}"><th:block th:utext="${i16['edit']}"></th:block>Изменить</a>
+</div>
+
+<p class="note" th:if="${o.status.name() == 'PENDING'}" th:text="${'Новый магазин добавил агент ' + o.createdBy + ' ' + @fmt.day(o.createdAt) + '. Проверьте название, телефон и адрес — после этого он появится в маршрутах и отчётах.'}"></p>
+
+<div class="grid-wide">
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <section class="card">
+            <div class="card-h"><h2>Карточка</h2><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></div>
+            <div class="card-b"><dl class="kv">
+                <dt>Юр. лицо</dt><dd th:text="${o.legal}"></dd>
+                <dt>БИН / ИИН</dt><dd th:text="${o.bin}"></dd>
+                <dt>Владелец</dt><dd th:text="${o.owner}"></dd>
+                <dt>Телефон</dt><dd><a class="link num" th:href="${'tel:' + o.phone.replace(' ', '')}" th:text="${o.phone}"></a></dd>
+                <dt>Адрес</dt><dd th:text="${o.address}"></dd>
+                <dt>Регион, маршрут</dt><dd th:text="${o.region.name + ' · ' + o.route.name + ' (' + o.route.days + ')'}"></dd>
+                <dt>Агент</dt><dd th:text="${o.agent.name}"></dd>
+                <dt>Тип цен</dt><dd th:text="${o.priceType}"></dd>
+                <dt>В базе с</dt><dd th:text="${@fmt.date(o.createdAt) + ' · ' + o.createdBy}"></dd>
+                <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>
+            </dl></div>
+        </section>
+
+        <section class="card">
+            <div class="card-h"><h2>Заказы</h2><p th:text="${orders.size() + ' за период заглушек'}"></p></div>
+            <div class="tbl-w"><table class="tbl">
+                <thead><tr><th>Заказ</th><th>Доставка</th><th>Оплата</th><th class="r">Сумма</th><th>Статус</th></tr></thead>
+                <tbody><tr th:each="x : ${orders}">
+                    <td><a class="rl" th:href="${'/admin/orders/' + x.id}" th:text="${'№ ' + x.number}"></a></td>
+                    <td th:text="${@fmt.day(x.deliveryDate)}"></td>
+                    <td th:text="${x.payment.label}"></td>
+                    <td class="r num" th:text="${@fmt.money(x.total)}"></td>
+                    <td><span class="st" th:classappend="${'st--' + x.status.badge}" th:text="${x.status.label}"></span></td>
+                </tr></tbody>
+            </table></div>
+            <p class="empty" th:if="${orders.isEmpty()}">Заказов пока нет.</p>
+        </section>
+
+        <section class="card" th:unless="${returns.isEmpty()}">
+            <div class="card-h"><h2>Возвраты негодного</h2></div>
+            <div class="tbl-w"><table class="tbl">
+                <thead><tr><th>Дата</th><th>Товар</th><th>Причина</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead>
+                <tbody><th:block th:each="r : ${returns}"><tr th:each="l : ${r.lines}">
+                    <td th:text="${@fmt.day(r.date)}"></td><td th:text="${l.product.name}"></td><td th:text="${l.reason.label}"></td>
+                    <td class="r num" th:text="${l.qty}"></td><td class="r num" th:text="${@fmt.money(l.sum)}"></td>
+                </tr></th:block></tbody>
+            </table></div>
+        </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <section class="card">
+            <div class="card-h"><h2>Долг</h2></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+                <span class="kpi-v num" th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt)}"></span>
+                <span class="meter" th:classappend="${o.overLimit or o.overdue > 0} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span>
+                <dl class="kv">
+                    <dt>Лимит</dt><dd class="num" th:text="${@fmt.money(o.creditLimit)}"></dd>
+                    <dt>Отсрочка</dt><dd th:text="${@fmt.plural(o.paymentDays, 'день', 'дня', 'дней')}"></dd>
+                    <dt>Просрочено</dt><dd class="num" th:classappend="${o.overdue > 0} ? 'bad'" th:text="${@fmt.money(o.overdue)}"></dd>
+                    <dt>Последняя оплата</dt><dd th:text="${o.lastPaymentDate == null ? '—' : @fmt.day(o.lastPaymentDate) + ', ' + @fmt.money(o.lastPaymentSum)}"></dd>
+                </dl>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-h"><h2>На карте</h2></div>
+            <div class="card-b"><div class="map-ph">Карта появится после импорта координат</div></div>
+        </section>
+        <section class="card" th:unless="${payments.isEmpty()}">
+            <div class="card-h"><h2>Оплаты</h2></div>
+            <div class="tbl-w"><table class="tbl">
+                <tbody><tr th:each="p : ${payments}">
+                    <td th:text="${@fmt.when(p.at)}"></td>
+                    <td><th:block th:text="${p.method.label}"></th:block><span class="sub" th:text="${p.oldDebt ? 'в счёт долга' : 'заказ ' + p.order.number}"></span></td>
+                    <td class="r num" th:text="${@fmt.money(p.amount)}"></td>
+                </tr></tbody>
+            </table></div>
+        </section>
+    </div>
+</div>
+</th:block>
+</body>
+</html>

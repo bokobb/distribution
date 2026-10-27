@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<ol class="steps" aria-label="Шаги импорта">
+    <li th:attr="aria-current=${step == 1} ? 'step' : null"><b>1</b>Файл</li>
+    <li th:attr="aria-current=${step == 2} ? 'step' : null"><b>2</b>Проверка</li>
+    <li th:attr="aria-current=${step == 3} ? 'step' : null"><b>3</b>Готово</li>
+</ol>
+
+<th:block th:if="${step == 1}">
+<div class="grid">
+    <form class="card" th:action="@{/admin/import}" method="post" enctype="multipart/form-data">
+        <div class="card-h"><h2>Загрузить выгрузку</h2></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+            <label class="drop"><th:block th:utext="${i['upload']}"></th:block>
+                <span>Excel или CSV из Doctor Sales</span>
+                <input type="file" name="file" accept=".xlsx,.xls,.csv"></label>
+            <label class="field" th:if="${v.isSuper()}">В какую компанию
+                <select class="sel" name="companyId">
+                    <option th:each="c : ${companies}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == v.companyId()}"></option>
+                </select></label>
+            <button class="btn btn-primary" type="submit" style="align-self:flex-start">Проверить файл</button>
+        </div>
+    </form>
+    <section class="card">
+        <div class="card-h"><h2>Что выгрузить из Doctor Sales</h2></div>
+        <div class="card-b"><ul style="list-style:disc;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+            <li>Регионы и маршруты (с днями обхода и агентом)</li>
+            <li>Торговые точки: название, ИП/ТОО, БИН, владелец, телефоны, адрес, координаты</li>
+            <li>Агенты и экспедиторы (ФИО, телефон)</li>
+            <li>Товары и цены, если есть</li>
+            <li>Долги магазинов на дату перехода</li>
+        </ul>
+        <p class="hint" style="margin-top:12px">Перенос разовый: после него Doctor Sales не используется. Формат подстроим под вашу реальную выгрузку.</p></div>
+    </section>
+</div>
+</th:block>
+
+<th:block th:if="${step == 2}">
+<p class="stub">Пример предпросмотра на придуманных данных. Настоящий разбор файла сделаем, когда пришлёте выгрузку.</p>
+<section class="card">
+    <div class="card-h"><h2>Колонки файла → поля</h2><p>проверьте сопоставление</p></div>
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Колонка в файле</th><th>Поле в дистрибуции</th><th>Пример</th></tr></thead>
+        <tbody>
+            <tr><td>Наименование ТТ</td><td><select class="sel" aria-label="Поле"><option selected>Название магазина</option><option>Не загружать</option></select></td><td class="muted">Магазин «Асель»</td></tr>
+            <tr><td>Контрагент</td><td><select class="sel" aria-label="Поле"><option selected>ИП / ТОО</option><option>Не загружать</option></select></td><td class="muted">ИП «Асель»</td></tr>
+            <tr><td>Телефон</td><td><select class="sel" aria-label="Поле"><option selected>Телефон</option><option>Не загружать</option></select></td><td class="muted">+7 701 000 00 00</td></tr>
+            <tr><td>Адрес</td><td><select class="sel" aria-label="Поле"><option selected>Адрес</option><option>Не загружать</option></select></td><td class="muted">ул. Абая, 24</td></tr>
+            <tr><td>Маршрут</td><td><select class="sel" aria-label="Поле"><option selected>Маршрут</option><option>Не загружать</option></select></td><td class="muted">Центр-1</td></tr>
+            <tr><td>Долг</td><td><select class="sel" aria-label="Поле"><option selected>Начальный долг</option><option>Не загружать</option></select></td><td class="muted">58 000</td></tr>
+        </tbody>
+    </table></div>
+</section>
+<section class="kpis">
+    <div class="kpi"><span class="kpi-l">Магазинов в файле</span><span class="kpi-v">[N]</span></div>
+    <div class="kpi"><span class="kpi-l">Похожи на дубли</span><span class="kpi-v">[N]</span><span class="kpi-s">по телефону и БИН</span></div>
+    <div class="kpi"><span class="kpi-l">Без координат</span><span class="kpi-v">[N]</span><span class="kpi-s">агент отметит при визите</span></div>
+</section>
+<div class="acts">
+    <a class="btn btn-primary" href="/admin/import?step=3">Загрузить</a>
+    <a class="btn btn-soft" href="/admin/import">Другой файл</a>
+</div>
+</th:block>
+
+<th:block th:if="${step == 3}">
+<section class="card">
+    <div class="card-h"><h2>Импорт завершён (пример)</h2></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+        <p class="muted">Здесь будет итог: сколько регионов, маршрутов, магазинов и долгов загружено, что пропущено и почему. Долги запишутся документом «Ввод начальных долгов» на дату перехода.</p>
+        <div class="acts"><a class="btn btn-soft" href="/admin/outlets">К магазинам</a><a class="btn btn-soft" href="/admin/routes">К маршрутам</a></div>
+    </div>
+</section>
+</th:block>
+</th:block>
+</body>
+</html>

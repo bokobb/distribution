@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<a class="back" href="/admin/orders"><th:block th:utext="${i16['back']}"></th:block>Заказы</a>
+
+<section class="card" th:if="${o.status.name() == 'NEEDS_APPROVAL'}" style="border-color:var(--warn)">
+    <div class="card-h"><h2>Нужно разрешение: долг сверх лимита</h2></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+        <dl class="kv">
+            <dt>Долг магазина сейчас</dt><dd class="num" th:text="${@fmt.money(o.outlet.debt)}"></dd>
+            <dt>С этим заказом</dt><dd class="num bad"><b th:text="${@fmt.money(o.outlet.debt + o.total)}"></b></dd>
+            <dt>Лимит</dt><dd class="num" th:text="${@fmt.money(o.outlet.creditLimit)}"></dd>
+            <dt>Просрочено</dt><dd class="num" th:text="${@fmt.money(o.outlet.overdue)}"></dd>
+        </dl>
+        <div class="acts">
+            <form th:action="@{'/admin/orders/' + ${o.id} + '/approve'}" method="post"><button class="btn btn-primary btn-sm" type="submit">Разрешить заказ</button></form>
+            <form th:action="@{'/admin/orders/' + ${o.id} + '/cancel'}" method="post"><input type="hidden" name="reason" value="долг сверх лимита, не разрешено"><button class="btn btn-danger btn-sm" type="submit" data-confirm="Отклонить заказ? Агент увидит отмену в приложении.">Отклонить</button></form>
+        </div>
+    </div>
+</section>
+
+<div class="grid-wide">
+    <section class="card">
+        <div class="card-h"><h2 th:text="${'Состав · ' + o.lines.size() + ' позиций'}">Состав</h2>
+            <span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></div>
+        <div class="tbl-w"><table class="tbl">
+            <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th><th class="r">Выдано</th></tr></thead>
+            <tbody><tr th:each="l : ${o.lines}">
+                <td th:text="${l.product.name}"></td>
+                <td class="r num" th:text="${l.qty + ' ' + l.product.unit}"></td>
+                <td class="r num" th:text="${@fmt.money(l.price)}"></td>
+                <td class="r num" th:text="${@fmt.money(l.sum)}"></td>
+                <td class="r num" th:classappend="${l.shortDelivered} ? 'bad'" th:text="${l.delivered == null ? '—' : l.delivered + ' ' + l.product.unit}"></td>
+            </tr></tbody>
+            <tfoot><tr><td colspan="3">Итого</td><td class="r num" th:text="${@fmt.money(o.total)}"></td>
+                <td class="r num" th:text="${o.status.delivered() ? @fmt.money(o.deliveredTotal) : '—'}"></td></tr></tfoot>
+        </table></div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <section class="card">
+            <div class="card-h"><h2>Заказ</h2></div>
+            <div class="card-b"><dl class="kv">
+                <dt>Магазин</dt><dd><a class="link" th:href="${'/admin/outlets/' + o.outlet.id}" th:text="${o.outlet.name}"></a></dd>
+                <dt>Адрес</dt><dd th:text="${o.outlet.address}"></dd>
+                <dt>Агент</dt><dd th:text="${o.agent.name}"></dd>
+                <dt>Оформлен</dt><dd th:text="${@fmt.when(o.createdAt)}"></dd>
+                <dt>Доставка</dt><dd th:text="${@fmt.day(o.deliveryDate)}"></dd>
+                <dt>Оплата</dt><dd th:text="${o.payment.label}"></dd>
+                <dt>Цены</dt><dd th:text="${o.outlet.priceType}"></dd>
+                <dt th:if="${o.trip != null}">Рейс</dt><dd th:if="${o.trip != null}"><a class="link" th:href="${'/admin/trips/' + o.trip.id}" th:text="${o.trip.number + ' · ' + o.trip.expeditor.name}"></a></dd>
+                <dt th:if="${o.refuseReason != null}">Отказ</dt><dd th:if="${o.refuseReason != null}" class="bad" th:text="${o.refuseReason}"></dd>
+                <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>
+            </dl></div>
+        </section>
+
+        <section class="card">
+            <div class="card-h"><h2>История</h2></div>
+            <div class="card-b"><ol class="timeline">
+                <li th:each="e : ${o.events}"><time th:text="${@fmt.when(e.at())}"></time><span><b th:text="${e.text()}"></b><span class="muted small" th:text="${e.who()}"></span></span></li>
+            </ol></div>
+        </section>
+
+        <section class="card" th:if="${o.status.cancellable() and o.status.name() != 'NEEDS_APPROVAL'}">
+            <div class="card-h"><h2>Отменить заказ</h2><p>До загрузки в машину</p></div>
+            <form class="card-b" th:action="@{'/admin/orders/' + ${o.id} + '/cancel'}" method="post" style="display:flex;flex-direction:column;gap:10px">
+                <label class="field">Причина<input class="inp" name="reason" placeholder="например, магазин попросил перенести"></label>
+                <button class="btn btn-danger btn-sm" type="submit" data-confirm="Отменить заказ?" style="align-self:flex-start">Отменить заказ</button>
+            </form>
+        </section>
+    </div>
+</div>
+</th:block>
+</body>
+</html>

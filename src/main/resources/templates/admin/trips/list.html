@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<section class="card">
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Рейс</th><th>Экспедитор, машина</th><th>Точки</th><th class="r">Загружено</th><th class="r">Выдано</th><th class="r">Наличные</th><th class="r">Kaspi</th><th class="r">Возвраты</th><th>Статус</th><th></th></tr></thead>
+        <tbody><tr th:each="t : ${trips}">
+            <td><a class="rl" th:href="${'/admin/trips/' + t.id}" th:text="${t.number}">Рейс</a><span class="sub" th:text="${@fmt.day(t.date) + ', выехал ' + @fmt.time(t.startedAt)}"></span></td>
+            <td><b th:text="${t.expeditor.name}"></b><span class="sub" th:text="${t.vehicle.model + ' · ' + t.vehicle.plate + (v.isAll() ? ' · ' + t.company.name : '')}"></span></td>
+            <td style="min-width:120px"><span class="num small" th:text="${t.doneStops + ' из ' + t.stops}"></span>
+                <span class="meter" th:classappend="${t.progress == 100} ? 'meter--ok'"><i th:style="${'width:' + t.progress + '%'}"></i></span></td>
+            <td class="r num hide-m" th:text="${@fmt.money(t.loadedTotal)}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(t.deliveredTotal)}"></td>
+            <td class="r num"><b th:text="${@fmt.money(t.cash)}"></b></td>
+            <td class="r num hide-m" th:text="${@fmt.money(t.kaspi)}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(t.returnsTotal)}"></td>
+            <td><span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span></td>
+            <td class="c-acts"><a class="btn btn-primary btn-sm" th:if="${t.status.name() == 'RETURNED'}" th:href="${'/admin/cash/' + t.id}">Принять кассу</a></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${trips.isEmpty()}">Рейсов сегодня нет.</p>
+</section>
+<p class="note">Рейсы формирует кладовщик из заказов на дату: одна машина и один экспедитор. Загрузка переносит товар с основного склада на склад машины (этап 4 по плану).</p>
+</th:block>
+</body>
+</html>

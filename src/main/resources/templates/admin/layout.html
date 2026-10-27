@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<!--/* Общая часть админки: меню, верхняя строка, выбор компании (владелец), «Смотреть как» (заглушка
+     входа), всплывающая строка. Страница: <html th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+     и свой фрагмент content. Из модели: title, sub, sec — подсвеченный пункт меню. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content, scripts)">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title th:text="${(title != null ? title + ' — ' : '') + 'Дистрибуция'}">Дистрибуция</title>
+    <link rel="icon" href="/admin/assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vollkorn:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=1">
+</head>
+<body>
+<div class="app" id="app">
+    <aside class="side" id="side" aria-label="Меню админки">
+        <div class="side-brand">
+            <a href="/admin"><b>Дистрибуция</b><span th:text="${v.scopeName()}">Все компании</span></a>
+            <button class="side-x" type="button" id="side-x" aria-label="Закрыть меню" th:utext="${i['x']}"></button>
+        </div>
+        <nav class="nav" aria-label="Разделы">
+            <th:block th:each="g : ${menu}">
+                <hr class="nav-sep" th:if="${g.separator}">
+                <p class="nav-g" th:if="${!g.separator and !#strings.isEmpty(g.title)}" th:text="${g.title}">Продажи</p>
+                <a th:each="s : ${g.items}" class="nav-a" th:href="${s.href()}" th:attr="aria-current=${s.key == sec} ? 'page' : null"><th:block th:utext="${i[s.key]}"></th:block><span th:text="${s.title}">Раздел</span></a>
+            </th:block>
+        </nav>
+        <div class="side-foot">
+            <p>Данные — заглушки, пока не подключена база.</p>
+        </div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="main">
+        <header class="bar">
+            <button class="burger" type="button" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="side" th:utext="${i['menu']}"></button>
+            <div class="bar-t"><h1 th:text="${title}">Дашборд</h1><p th:if="${sub != null}" th:text="${sub}"></p></div>
+            <form class="scope" th:if="${v.isSuper()}" action="/admin/scope" method="get">
+                <label for="scope-sel">Компания</label>
+                <select id="scope-sel" name="company">
+                    <option value="all" th:selected="${v.isAll()}">Все компании</option>
+                    <option th:each="c : ${companies}" th:value="${c.id}" th:text="${c.name}" th:selected="${c.id == v.companyId()}">Компания</option>
+                </select>
+                <input type="hidden" name="back" th:value="${here}">
+                <noscript><button class="btn btn-soft btn-sm" type="submit">Показать</button></noscript>
+            </form>
+            <span class="tag" th:unless="${v.isSuper()}" th:text="${v.scopeName()}">Компания</span>
+            <details class="me">
+                <summary><span class="ava" aria-hidden="true" th:text="${v.me().initial}">В</span><span class="me-n"><b th:text="${v.me().name}">Владелец</b><span th:text="${v.role().label}">роль</span></span><span class="sr">Меню пользователя</span></summary>
+                <div class="me-pop">
+                    <p>Вход пока не подключён (этап 1). Чтобы проверить, что видит каждая роль, выберите её.</p>
+                    <h4>Смотреть как</h4>
+                    <a th:each="r : ${roles}" th:href="@{/admin/as(role=${r},back=${here})}" th:attr="aria-current=${r == v.role()} ? 'true' : null"><th:block th:text="${r.label}">Роль</th:block><span th:text="${r.hint}"></span></a>
+                </div>
+            </details>
+        </header>
+        <main class="view" id="view">
+            <th:block th:replace="${content}"></th:block>
+        </main>
+    </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden th:text="${toast}"></div>
+<script src="/admin/assets/admin.js?v=1"></script>
+<th:block th:replace="${scripts}"></th:block>
+</body>
+</html>

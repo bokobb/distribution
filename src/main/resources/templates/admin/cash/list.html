@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<section class="kpis">
+    <div class="kpi kpi--main"><span class="kpi-l">Наличные на руках у экспедиторов</span><span class="kpi-v num" th:text="${@fmt.money(onHands)}"></span><span class="kpi-s">пока рейс не закрыт</span></div>
+    <div class="kpi" th:classappend="${!waiting.isEmpty()} ? 'kpi--alert'"><span class="kpi-l">Ждут приёма</span><span class="kpi-v num" th:text="${waiting.size()}"></span><span class="kpi-s" th:text="${waiting.isEmpty() ? 'все приняты' : 'рейсы вернулись'}"></span></div>
+    <div class="kpi"><span class="kpi-l">В пути</span><span class="kpi-v num" th:text="${onRoad.size()}"></span></div>
+    <div class="kpi"><span class="kpi-l">Закрыты</span><span class="kpi-v num" th:text="${closed.size()}"></span></div>
+</section>
+
+<section class="card">
+    <div class="card-h"><h2>Ждут приёма</h2><p>оператор пересчитывает наличные и сверяет Kaspi, кладовщик принимает товар</p></div>
+    <div class="tbl-w"><table class="tbl tbl--cards" th:unless="${waiting.isEmpty()}">
+        <thead><tr><th>Экспедитор</th><th class="r">Наличные</th><th class="r">Kaspi</th><th class="r">Негодный товар</th><th></th></tr></thead>
+        <tbody><tr th:each="t : ${waiting}">
+            <td><b th:text="${t.expeditor.name}"></b><span class="sub" th:text="${t.number + ' · ' + t.vehicle.plate + (v.isAll() ? ' · ' + t.company.name : '')}"></span></td>
+            <td class="r num"><b th:text="${@fmt.money(t.cash)}"></b></td>
+            <td class="r num" th:text="${@fmt.money(t.kaspi)}"></td>
+            <td class="r num" th:text="${t.returnsQty + ' шт · ' + @fmt.money(t.returnsTotal)}"></td>
+            <td class="c-acts"><a class="btn btn-primary btn-sm" th:href="${'/admin/cash/' + t.id}">Принять</a></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${waiting.isEmpty()}">Нет рейсов, ждущих приёма.</p>
+</section>
+
+<div class="grid">
+    <section class="card">
+        <div class="card-h"><h2>В пути</h2></div>
+        <div class="tbl-w"><table class="tbl">
+            <tbody><tr th:each="t : ${onRoad}">
+                <td><a class="rl" th:href="${'/admin/trips/' + t.id}" th:text="${t.expeditor.name}"></a><span class="sub" th:text="${t.doneStops + ' из ' + t.stops + ' точек'}"></span></td>
+                <td class="r num"><b th:text="${@fmt.money(t.cash)}"></b><span class="sub">на руках</span></td>
+            </tr></tbody>
+        </table></div>
+        <p class="empty" th:if="${onRoad.isEmpty()}">Никого в пути.</p>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>Закрыты</h2></div>
+        <div class="tbl-w"><table class="tbl">
+            <tbody><tr th:each="t : ${closed}">
+                <td><a class="rl" th:href="${'/admin/cash/' + t.id}" th:text="${t.expeditor.name}"></a><span class="sub" th:text="${'принял ' + t.acceptedBy + ', ' + @fmt.time(t.closedAt)}"></span></td>
+                <td class="r num"><b th:text="${@fmt.money(t.cashCounted)}"></b>
+                    <span class="sub" th:classappend="${t.cashDiff < 0} ? 'bad'" th:text="${t.cashDiff == 0 ? 'сошлось' : 'разница ' + @fmt.signed(t.cashDiff)}"></span></td>
+            </tr></tbody>
+        </table></div>
+        <p class="empty" th:if="${closed.isEmpty()}">Сегодня ещё никто не сдал кассу.</p>
+    </section>
+</div>
+</th:block>
+</body>
+</html>

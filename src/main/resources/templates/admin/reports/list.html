@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="grid">
+    <section class="card" th:each="c : ${cards}">
+        <div class="card-h"><h2 th:text="${c.title()}">Отчёт</h2><span class="tag" th:unless="${c.ready()}">этап 6</span></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+            <p class="muted" th:text="${c.text()}"></p>
+            <a class="btn btn-soft btn-sm" style="align-self:flex-start" th:if="${c.ready()}" th:href="${'/admin/reports/' + c.key()}">Открыть</a>
+        </div>
+    </section>
+</div>
+</th:block>
+</body>
+</html>

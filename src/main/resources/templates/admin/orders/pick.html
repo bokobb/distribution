@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="acts">
+    <a class="back" href="/admin/orders"><th:block th:utext="${i16['back']}"></th:block>Заказы</a>
+    <span style="flex:1"></span>
+    <button class="btn btn-soft btn-sm" type="button" onclick="window.print()"><th:block th:utext="${i16['print']}"></th:block>Печать</button>
+</div>
+<p class="note">Все принятые заказы на завтра, сложенные по товарам. Заказы «Нужно разрешение» сюда не входят, пока оператор их не разрешит.</p>
+<div class="grid">
+    <section class="card">
+        <div class="card-h"><h2>Собрать</h2><p th:text="${rows.size() + ' товаров'}"></p></div>
+        <div class="tbl-w"><table class="tbl">
+            <thead><tr><th>Товар</th><th class="r">Всего</th><th class="r">Коробок + шт</th></tr></thead>
+            <tbody><tr th:each="r : ${rows}">
+                <td th:text="${r.product().name}"></td>
+                <td class="r num"><b th:text="${r.qty() + ' шт'}"></b></td>
+                <td class="r num" th:text="${r.boxes() + ' кор. по ' + r.product().perBox + (r.pieces() > 0 ? ' + ' + r.pieces() + ' шт' : '')}"></td>
+            </tr></tbody>
+        </table></div>
+        <p class="empty" th:if="${rows.isEmpty()}">Нечего собирать.</p>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>По магазинам</h2><p>в порядке маршрутов</p></div>
+        <div class="tbl-w"><table class="tbl">
+            <thead><tr><th>Маршрут</th><th>Магазин</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead>
+            <tbody><tr th:each="o : ${orders}">
+                <td class="muted" th:text="${o.outlet.route.name}"></td>
+                <td><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${o.outlet.name}"></a></td>
+                <td class="r num" th:text="${o.qty}"></td>
+                <td class="r num" th:text="${@fmt.money(o.total)}"></td>
+            </tr></tbody>
+        </table></div>
+    </section>
+</div>
+</th:block>
+</body>
+</html>

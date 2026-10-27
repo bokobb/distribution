@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="tools">
+    <p class="note" style="flex:1" th:text="${'Товаров производства (с кодом CRM): ' + fromCrm + '. Их приход создаётся автоматически после отгрузки в CRM. Прайс у каждой компании свой.'}"></p>
+    <button class="btn btn-soft btn-sm" type="button" disabled title="Этап 1">Загрузить товары из CRM</button>
+    <button class="btn btn-primary btn-sm" type="button" disabled title="Этап 1"><th:block th:utext="${i16['plus']}"></th:block>Новый товар</button>
+</div>
+<section class="card" th:each="e : ${byCat}">
+    <div class="card-h"><h2 th:text="${e.key}">Категория</h2><p th:text="${e.value.size() + ' товаров'}"></p></div>
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Товар</th><th>Штрихкод</th><th class="r">В коробке</th><th>Код CRM</th><th class="r">Опт</th><th class="r">Розница</th></tr></thead>
+        <tbody><tr th:each="p : ${e.value}" th:classappend="${!p.active} ? 'is-off'">
+            <td><b th:text="${p.name}"></b></td>
+            <td class="num muted hide-m" th:text="${p.barcode}"></td>
+            <td class="r num hide-m" th:text="${p.perBox + ' шт'}"></td>
+            <td class="hide-m"><span class="tag" th:classappend="${p.crmCode != null} ? 'tag--crm'" th:text="${p.crmCode ?: 'другой поставщик'}"></span></td>
+            <td class="r num"><b th:text="${@fmt.money(p.wholesale)}"></b></td>
+            <td class="r num" th:text="${@fmt.money(p.retail)}"></td>
+        </tr></tbody>
+    </table></div>
+</section>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="stub" role="note"><th:block th:utext="${i['alert']}"></th:block>
+    <p><b>Данные — заглушки.</b> Компании, магазины, заказы и касса придуманы и пересоздаются при каждом запуске. После выгрузки из Doctor Sales и подключения базы страницы останутся такими же.</p></div>
+
+<section class="kpis" aria-label="Главные цифры">
+    <a class="kpi kpi--main" href="/admin/orders?day=today"><span class="kpi-l">Выдано сегодня</span>
+        <span class="kpi-v num" th:text="${@fmt.money(s.deliveredToday())}">0 ₸</span>
+        <span class="kpi-s" th:text="${@fmt.plural(s.deliveredStops(), 'точка', 'точки', 'точек')}"></span></a>
+    <a class="kpi" href="/admin/orders"><span class="kpi-l">Заказы агентов на завтра</span>
+        <span class="kpi-v num" th:text="${@fmt.money(s.tomorrowSum())}">0 ₸</span>
+        <span class="kpi-s" th:text="${@fmt.plural(s.tomorrowOrders(), 'заказ', 'заказа', 'заказов')}"></span></a>
+    <a class="kpi" href="/admin/cash"><span class="kpi-l">Наличные на руках</span>
+        <span class="kpi-v num" th:text="${@fmt.money(s.cashOnHands())}">0 ₸</span>
+        <span class="kpi-s" th:text="${s.openTrips() == 0 ? 'все рейсы закрыты' : 'рейсов не закрыто: ' + s.openTrips()}"></span></a>
+    <a class="kpi" th:classappend="${s.overdue() > 0} ? 'kpi--alert'" href="/admin/debts"><span class="kpi-l">Долги магазинов</span>
+        <span class="kpi-v num" th:text="${@fmt.money(s.debts())}">0 ₸</span>
+        <span class="kpi-s" th:text="${s.overdue() > 0 ? 'просрочено ' + @fmt.money(s.overdue()) : 'просрочки нет'}"></span></a>
+    <a class="kpi" href="/admin/reports/quality"><span class="kpi-l">Возвраты негодного</span>
+        <span class="kpi-v num" th:text="${@fmt.money(s.returnsToday())}">0 ₸</span>
+        <span class="kpi-s" th:text="${s.returnsQty() + ' шт · ' + s.returnsPercent() + '% от выданного'}"></span></a>
+</section>
+
+<div class="grid-wide">
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <section class="card" th:if="${companyRows != null}">
+            <div class="card-h"><h2>По компаниям</h2><a class="link" href="/admin/companies">Все компании</a></div>
+            <div class="tbl-w"><table class="tbl">
+                <thead><tr><th>Компания</th><th class="r">Выдано сегодня</th><th class="r">Заказы на завтра</th><th class="r">На руках</th><th class="r">Долги</th><th class="r">Возвраты</th></tr></thead>
+                <tbody><tr th:each="r : ${companyRows}">
+                    <td><a class="rl" th:href="@{/admin/scope(company=${r.company().id},back='/admin/dashboard')}" th:text="${r.company().name}">Компания</a>
+                        <span class="sub" th:text="${r.agents() + ' агентов · ' + r.expeditors() + ' эксп. · ' + r.outlets() + ' магазинов'}"></span></td>
+                    <td class="r num" th:text="${@fmt.money(r.summary().deliveredToday())}"></td>
+                    <td class="r num" th:text="${@fmt.money(r.summary().tomorrowSum())}"></td>
+                    <td class="r num" th:text="${@fmt.money(r.summary().cashOnHands())}"></td>
+                    <td class="r num"><th:block th:text="${@fmt.money(r.summary().debts())}"></th:block><span class="sub bad" th:if="${r.summary().overdue() > 0}" th:text="${'просрочено ' + @fmt.money(r.summary().overdue())}"></span></td>
+                    <td class="r num" th:text="${@fmt.money(r.summary().returnsToday())}"></td>
+                </tr></tbody>
+                <tfoot><tr><td>Итого</td>
+                    <td class="r num" th:text="${@fmt.money(s.deliveredToday())}"></td>
+                    <td class="r num" th:text="${@fmt.money(s.tomorrowSum())}"></td>
+                    <td class="r num" th:text="${@fmt.money(s.cashOnHands())}"></td>
+                    <td class="r num" th:text="${@fmt.money(s.debts())}"></td>
+                    <td class="r num" th:text="${@fmt.money(s.returnsToday())}"></td></tr></tfoot>
+            </table></div>
+        </section>
+
+        <section class="card">
+            <div class="card-h"><h2>Агенты сегодня</h2><p>Заказы — на доставку завтра</p></div>
+            <div class="tbl-w"><table class="tbl tbl--cards">
+                <thead><tr><th>Агент</th><th>Посещено</th><th class="r">Заказов</th><th class="r">Сумма</th><th class="r">Отказы</th><th>Связь</th></tr></thead>
+                <tbody><tr th:each="a : ${agents}">
+                    <td><b th:text="${a.agent().name}">Агент</b><span class="sub" th:if="${v.isAll()}" th:text="${a.agent().company.name}"></span></td>
+                    <td><span class="num small" th:text="${a.agent().visitedToday + ' / ' + a.agent().planToday}"></span>
+                        <span class="meter" role="img" th:attr="aria-label=${'посещено ' + a.agent().visitedToday + ' из ' + a.agent().planToday}"><i th:style="${'width:' + (a.agent().planToday == 0 ? 0 : a.agent().visitedToday * 100 / a.agent().planToday) + '%'}"></i></span></td>
+                    <td class="r num" th:text="${a.orders()}"></td>
+                    <td class="r num"><b th:text="${@fmt.money(a.sum())}"></b></td>
+                    <td class="r num hide-m" th:text="${a.refusals()}"></td>
+                    <td class="small" th:classappend="${a.stale()} ? 'bad'"><th:block th:text="${@fmt.ago(a.agent().lastSync)}"></th:block><span class="sub" th:if="${a.agent().unsent > 0}" th:text="${'на телефоне ждут сети: ' + a.agent().unsent}"></span></td>
+                </tr></tbody>
+            </table></div>
+        </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        <section class="card">
+            <div class="card-h"><h2>Требует внимания</h2></div>
+            <div class="card-b">
+                <div class="alerts" th:unless="${alerts.isEmpty()}">
+                    <a th:each="a : ${alerts}" class="al" th:classappend="${'al--' + a.tone()}" th:href="${a.href()}"><span th:text="${a.text()}"></span><b th:text="${a.value()}"></b></a>
+                </div>
+                <p class="empty" th:if="${alerts.isEmpty()}">Всё спокойно.</p>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-h"><h2>Рейсы сегодня</h2><a class="link" href="/admin/trips">Все рейсы</a></div>
+            <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
+                <a th:each="t : ${trips}" th:href="${t.status.name() == 'RETURNED' ? '/admin/cash/' + t.id : '/admin/trips/' + t.id}" style="text-decoration:none;display:flex;flex-direction:column;gap:6px">
+                    <span style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+                        <b th:text="${t.expeditor.name + ' · ' + t.vehicle.plate}">Экспедитор</b>
+                        <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span></span>
+                    <span class="meter" th:classappend="${t.progress == 100} ? 'meter--ok'"><i th:style="${'width:' + t.progress + '%'}"></i></span>
+                    <span class="small muted" th:text="${t.doneStops + ' из ' + t.stops + ' точек · наличные ' + @fmt.money(t.cash) + (v.isAll() ? ' · ' + t.company.name : '')}"></span>
+                </a>
+                <p class="empty" th:if="${trips.isEmpty()}">Рейсов сегодня нет.</p>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-h"><h2>Что возвращают</h2><a class="link" href="/admin/reports/quality">Отчёт</a></div>
+            <div class="tbl-w"><table class="tbl">
+                <tbody><tr th:each="q : ${quality}"><td th:text="${q.product()}"></td><td class="muted small" th:text="${q.reason()}"></td><td class="r num" th:text="${q.qty() + ' шт'}"></td></tr></tbody>
+            </table></div>
+            <p class="empty" th:if="${quality.isEmpty()}">Возвратов нет.</p>
+        </section>
+    </div>
+</div>
+</th:block>
+</body>
+</html>

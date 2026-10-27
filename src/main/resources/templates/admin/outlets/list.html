@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="tools">
+    <div class="chips" aria-label="Статус">
+        <a class="chip" th:href="@{/admin/outlets(region=${region},q=${q})}" th:attr="aria-current=${status == null} ? 'true' : null">Все <span class="cnt" th:text="${total}"></span></a>
+        <th:block th:each="st : ${statuses}">
+            <a class="chip" th:if="${counts.containsKey(st)}" th:href="@{/admin/outlets(status=${st},region=${region},q=${q})}" th:attr="aria-current=${st == status} ? 'true' : null"><th:block th:text="${st.label}"></th:block> <span class="cnt" th:text="${counts.get(st)}"></span></a>
+        </th:block>
+    </div>
+    <form class="tools" role="search" action="/admin/outlets" method="get">
+        <input type="hidden" name="status" th:if="${status != null}" th:value="${status}">
+        <select class="sel" name="region" aria-label="Регион" onchange="this.form.submit()">
+            <option value="">Все регионы</option>
+            <option th:each="r : ${regions}" th:value="${r.id}" th:text="${r.name + (v.isAll() ? ' · ' + r.company.name : '')}" th:selected="${r.id == region}"></option>
+        </select>
+        <label class="search"><th:block th:utext="${i16['search']}"></th:block>
+            <input type="search" name="q" th:value="${q}" placeholder="Название, владелец, телефон" aria-label="Найти магазин"></label>
+    </form>
+    <span style="flex:1"></span>
+    <a class="btn btn-primary btn-sm" href="/admin/outlets/new"><th:block th:utext="${i16['plus']}"></th:block>Новый магазин</a>
+</div>
+
+<section class="card">
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Магазин</th><th>Владелец</th><th>Маршрут</th><th>Долг / лимит</th><th>Статус</th></tr></thead>
+        <tbody><tr th:each="o : ${outlets}" th:classappend="${o.status.name() == 'CLOSED'} ? 'is-off'">
+            <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}">Магазин</a><span class="sub" th:text="${o.address}"></span></td>
+            <td class="hide-m"><th:block th:text="${o.owner}"></th:block><span class="sub num" th:text="${o.phone}"></span></td>
+            <td class="hide-m"><th:block th:text="${o.route.name + ' · ' + o.route.days}"></th:block><span class="sub" th:text="${o.agent.name + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
+            <td style="min-width:170px">
+                <span class="num" th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt) + ' / ' + @fmt.num(o.creditLimit)}"></span>
+                <span class="meter" th:classappend="${o.overLimit or o.overdue > 0} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span>
+                <span class="sub bad" th:if="${o.overdue > 0}" th:text="${'просрочено ' + @fmt.money(o.overdue)}"></span></td>
+            <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${outlets.isEmpty()}">Магазинов с такими условиями нет.</p>
+</section>
+</th:block>
+</body>
+</html>

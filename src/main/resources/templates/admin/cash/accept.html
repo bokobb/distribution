@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="acts">
+    <a class="back" href="/admin/cash"><th:block th:utext="${i16['back']}"></th:block>Приём кассы</a>
+    <span style="flex:1"></span>
+    <a class="link" th:href="${'/admin/trips/' + t.id}">Точки рейса</a>
+    <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
+</div>
+
+<p class="note" th:if="${t.status.name() == 'ON_ROAD' or t.status.name() == 'LOADING'}" th:text="${'Рейс ещё в пути: пройдено ' + t.doneStops + ' из ' + t.stops + ' точек. Принять кассу можно, когда экспедитор закроет рейс в приложении.'}"></p>
+
+<form th:action="@{'/admin/cash/' + ${t.id}}" method="post" class="grid">
+    <section class="card">
+        <div class="card-h"><h2>Касса</h2><p>принимает оператор</p></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+            <dl class="kv">
+                <dt>Ожидается наличными</dt><dd class="num"><b th:text="${@fmt.money(t.cash)}"></b></dd>
+                <dt>в т.ч. старые долги</dt><dd class="num" th:text="${@fmt.money(t.oldDebtCollected)}"></dd>
+            </dl>
+            <label class="field">Пересчитано наличных, ₸
+                <input class="inp inp--big" id="counted" name="counted" inputmode="numeric" autocomplete="off" required
+                       th:attr="data-expected=${t.cash}" th:value="${t.cashCounted}" th:readonly="${t.status.name() == 'CLOSED'}"></label>
+            <div class="diff" id="diff" hidden><span></span><span class="num"></span></div>
+            <label class="check"><input type="checkbox" name="kaspi" value="true" th:checked="${t.kaspiChecked}" th:disabled="${t.status.name() == 'CLOSED'}">
+                <span th:text="${'Kaspi сверен с выпиской: ' + @fmt.money(t.kaspi)}"></span></label>
+        </div>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>Товар</h2><p>принимает кладовщик</p></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+            <dl class="kv">
+                <dt>Невыданный товар</dt><dd th:text="${t.undeliveredQty + ' шт → основной склад'}"></dd>
+                <dt>Негодный товар</dt><dd th:text="${t.returnsQty + ' шт, ' + @fmt.money(t.returnsTotal) + ' → склад негодного'}"></dd>
+            </dl>
+            <label class="check"><input type="checkbox" name="goods" value="true" th:checked="${t.goodsChecked}" th:disabled="${t.status.name() == 'CLOSED'}">
+                <span>Товар пересчитан и принят</span></label>
+        </div>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>Итог рейса</h2></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
+            <dl class="kv">
+                <dt>Загружено</dt><dd class="num" th:text="${@fmt.money(t.loadedTotal)}"></dd>
+                <dt>Выдано</dt><dd class="num" th:text="${@fmt.money(t.deliveredTotal)}"></dd>
+                <dt>Отдано в долг</dt><dd class="num" th:text="${@fmt.money(t.credit)}"></dd>
+                <dt>Возвраты</dt><dd class="num" th:text="${@fmt.money(t.returnsTotal)}"></dd>
+            </dl>
+            <button class="btn btn-primary" type="submit" th:if="${t.status.name() == 'RETURNED'}">Закрыть рейс</button>
+            <p class="hint" th:if="${t.status.name() == 'RETURNED'}">Рейс закроется, когда отмечены Kaspi и товар. После закрытия изменить его сможет только директор.</p>
+            <p class="diff" th:if="${t.status.name() == 'CLOSED'}" th:classappend="${t.cashDiff < 0} ? 'diff--bad' : 'diff--ok'">
+                <span th:text="${'Закрыт ' + @fmt.time(t.closedAt) + ', принял ' + t.acceptedBy}"></span><span class="num" th:text="${t.cashDiff == 0 ? 'сошлось' : @fmt.signed(t.cashDiff)}"></span></p>
+        </div>
+    </section>
+</form>
+</th:block>
+</body>
+</html>

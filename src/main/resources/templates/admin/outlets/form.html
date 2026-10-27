@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<a class="back" th:href="${o.id == null ? '/admin/outlets' : '/admin/outlets/' + o.id}"><th:block th:utext="${i16['back']}"></th:block>Назад</a>
+<p class="stub">Форма-шаблон: сохранение заработает на этапе 1, когда подключим базу.</p>
+<form class="card" th:action="@{/admin/outlets/save}" method="post">
+    <input type="hidden" name="id" th:if="${o.id != null}" th:value="${o.id}">
+    <div class="card-h"><h2>Магазин</h2></div>
+    <div class="card-b form">
+        <label class="field">Название<input class="inp" name="name" required th:value="${o.name}" placeholder="Магазин «…»"></label>
+        <label class="field">ИП / ТОО<input class="inp" name="legal" th:value="${o.legal}"></label>
+        <label class="field">БИН / ИИН<input class="inp" name="bin" inputmode="numeric" th:value="${o.bin}"></label>
+        <label class="field">Владелец<input class="inp" name="owner" th:value="${o.owner}"></label>
+        <label class="field">Телефон<input class="inp" name="phone" type="tel" th:value="${o.phone}" placeholder="+7 7__ ___ __ __"></label>
+        <label class="field field--wide">Адрес<input class="inp" name="address" th:value="${o.address}"></label>
+        <label class="field">Маршрут
+            <select class="sel" name="routeId">
+                <option th:each="r : ${routes}" th:value="${r.id}" th:text="${r.name + ' · ' + r.days + ' · ' + r.agent.name}" th:selected="${o.route != null and r.id == o.route.id}"></option>
+            </select></label>
+        <label class="field">Тип цен
+            <select class="sel" name="priceType">
+                <option th:selected="${o.priceType == 'Опт'}">Опт</option>
+                <option th:selected="${o.priceType == 'Розница'}">Розница</option>
+            </select></label>
+        <label class="field">Лимит долга, ₸<input class="inp" name="creditLimit" inputmode="numeric" th:value="${o.creditLimit}"></label>
+        <label class="field">Отсрочка, дней<input class="inp" name="paymentDays" inputmode="numeric" th:value="${o.paymentDays}"></label>
+        <label class="field">Широта<input class="inp" name="lat" inputmode="decimal" th:value="${o.lat}"><span class="hint">агент ставит точку с телефона</span></label>
+        <label class="field">Долгота<input class="inp" name="lng" inputmode="decimal" th:value="${o.lng}"></label>
+    </div>
+    <div class="card-b acts"><button class="btn btn-primary" type="submit">Сохранить</button>
+        <a class="btn btn-soft" th:href="${o.id == null ? '/admin/outlets' : '/admin/outlets/' + o.id}">Отмена</a></div>
+</form>
+</th:block>
+</body>
+</html>

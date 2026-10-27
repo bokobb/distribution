@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<p class="stub">Шаблон настроек: значения — примеры, сохранение заработает на этапе 1.</p>
+<form th:action="@{/admin/settings}" method="post" style="display:flex;flex-direction:column;gap:18px">
+    <section class="card">
+        <div class="card-h"><h2>Визиты агентов</h2></div>
+        <div class="card-b form">
+            <label class="field">Радиус «на месте», метров<input class="inp" name="visitRadius" inputmode="numeric" value="200"><span class="hint">дальше — визит помечается</span></label>
+            <label class="check"><input type="checkbox" name="shelfPhoto" value="true">Фото полки обязательно</label>
+            <label class="check"><input type="checkbox" name="refuseReason" value="true" checked>Причина отказа обязательна</label>
+        </div>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>Заказы и долги</h2></div>
+        <div class="card-b form">
+            <label class="field">Доставка по умолчанию
+                <select class="sel" name="deliveryDays"><option value="1" selected>на следующий день</option><option value="2">через день</option></select></label>
+            <label class="field">Лимит долга нового магазина, ₸<input class="inp" name="defaultLimit" inputmode="numeric" value="50000"></label>
+            <label class="check"><input type="checkbox" name="credit" value="true" checked>Разрешать продажу в долг</label>
+            <label class="check"><input type="checkbox" name="approval" value="true" checked>Сверх лимита — только с разрешения оператора</label>
+            <label class="check"><input type="checkbox" name="discount" value="true">Агент может давать скидку</label>
+        </div>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>Касса</h2></div>
+        <div class="card-b form">
+            <label class="field">Допустимая разница при приёме, ₸<input class="inp" name="cashTolerance" inputmode="numeric" value="0"></label>
+            <label class="check"><input type="checkbox" name="kaspi" value="true" checked>Принимать Kaspi</label>
+        </div>
+    </section>
+    <section class="card">
+        <div class="card-h"><h2>Связь с CRM производства</h2></div>
+        <div class="card-b form">
+            <label class="field">Клиент в CRM<input class="inp" name="crmClient" th:value="${v.company != null ? v.company.crmClient : ''}" placeholder="—"></label>
+            <label class="field">Ключ API<input class="inp" name="crmKey" type="password" value="" placeholder="выдаётся в CRM" autocomplete="off"></label>
+            <label class="check"><input type="checkbox" name="autoReceipt" value="true" checked>Создавать приход после отгрузки в CRM</label>
+        </div>
+    </section>
+    <div class="acts"><button class="btn btn-primary" type="submit">Сохранить</button></div>
+</form>
+</th:block>
+</body>
+</html>

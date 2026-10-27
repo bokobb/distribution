@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="acts">
+    <a class="back" href="/admin/stock?tab=receipts"><th:block th:utext="${i16['back']}"></th:block>Приходы</a>
+    <span style="flex:1"></span>
+    <span class="st" th:classappend="${'st--' + r.status.badge}" th:text="${r.status.label}"></span>
+</div>
+<p class="note" th:if="${r.source.name() == 'CRM' and r.status.name() == 'DRAFT'}">Приход создан автоматически: производство отгрузило заказ этой компании в CRM. Пересчитайте товар и при расхождении поправьте количество — CRM увидит разницу.</p>
+<form class="card" th:action="@{'/admin/stock/receipts/' + ${r.id}}" method="post">
+    <div class="card-h"><h2 th:text="${r.supplier}">Откуда</h2><p th:text="${@fmt.day(r.date) + ' · ' + r.basis}"></p></div>
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Товар</th><th>Код CRM</th><th class="r">По документу</th><th class="r">Принято</th></tr></thead>
+        <tbody><tr th:each="l : ${r.lines}">
+            <td th:text="${l.product.name}"></td>
+            <td><span class="tag" th:text="${l.product.crmCode ?: '—'}"></span></td>
+            <td class="r num" th:text="${l.expected}"></td>
+            <td class="r">
+                <input th:if="${r.status.name() == 'DRAFT'}" class="inp" style="width:110px;text-align:right" inputmode="numeric"
+                       th:name="${'qty_' + l.product.id}" th:value="${l.expected}" th:attr="aria-label=${'Принято: ' + l.product.name}">
+                <span th:unless="${r.status.name() == 'DRAFT'}" class="num" th:classappend="${l.mismatch} ? 'bad'" th:text="${l.actual}"></span>
+            </td>
+        </tr></tbody>
+        <tfoot><tr><td colspan="2">Итого</td><td class="r num" th:text="${r.qty}"></td><td></td></tr></tfoot>
+    </table></div>
+    <div class="card-b acts" th:if="${r.status.name() == 'DRAFT'}"><button class="btn btn-primary" type="submit">Принять на склад</button></div>
+    <div class="card-b" th:unless="${r.status.name() == 'DRAFT'}"><p class="muted" th:text="${'Принял: ' + r.confirmedBy}"></p></div>
+</form>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="tools">
+    <nav class="tabs" aria-label="Команда" style="flex:1">
+        <a href="/admin/staff" th:attr="aria-current=${tab == 'people'} ? 'true' : null" th:text="${'Сотрудники · ' + people.size()}">Сотрудники</a>
+        <a href="/admin/staff?tab=vehicles" th:attr="aria-current=${tab == 'vehicles'} ? 'true' : null" th:text="${'Машины · ' + vehicles.size()}">Машины</a>
+    </nav>
+    <button class="btn btn-primary btn-sm" type="button" disabled title="Этап 1"><th:block th:utext="${i16['plus']}"></th:block>Добавить</button>
+</div>
+
+<section class="card" th:if="${tab == 'people'}">
+    <div class="card-h"><h2>Сотрудники</h2><p th:text="${agents + ' агентов, ' + expeditors + ' экспедиторов'}"></p></div>
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Сотрудник</th><th>Роль</th><th>Телефон</th><th>Маршруты / машина</th><th>Связь с телефоном</th></tr></thead>
+        <tbody><tr th:each="e : ${people}">
+            <td><b th:text="${e.name}"></b><span class="sub" th:if="${v.isAll()}" th:text="${e.company.name}"></span></td>
+            <td th:text="${e.role.label}"></td>
+            <td class="num hide-m" th:text="${e.phone}"></td>
+            <td class="hide-m small">
+                <th:block th:if="${e.role.name() == 'AGENT'}"><th:block th:each="r, it : ${routes}" th:if="${r.agent == e}" th:text="${r.name + ' (' + r.days + ') '}"></th:block></th:block>
+                <th:block th:if="${e.vehicle != null}" th:text="${e.vehicle.model + ' · ' + e.vehicle.plate}"></th:block>
+            </td>
+            <td class="small">
+                <th:block th:if="${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}">
+                    <span th:classappend="${e.stale} ? 'bad'" th:text="${@fmt.ago(e.lastSync)}"></span>
+                    <span class="sub" th:if="${e.unsent > 0}" th:text="${'ждут сети: ' + e.unsent}"></span>
+                </th:block>
+                <span class="muted" th:unless="${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}">веб-админка</span>
+            </td>
+        </tr></tbody>
+    </table></div>
+</section>
+
+<section class="card" th:if="${tab == 'vehicles'}">
+    <div class="card-h"><h2>Машины</h2></div>
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Гос. номер</th><th>Модель</th><th>Экспедитор</th><th th:if="${v.isAll()}">Компания</th></tr></thead>
+        <tbody><tr th:each="m : ${vehicles}">
+            <td class="num"><b th:text="${m.plate}"></b></td>
+            <td th:text="${m.model}"></td>
+            <td th:text="${m.expeditor == null ? '—' : m.expeditor.name}"></td>
+            <td th:if="${v.isAll()}" th:text="${m.company.name}"></td>
+        </tr></tbody>
+    </table></div>
+</section>
+</th:block>
+</body>
+</html>

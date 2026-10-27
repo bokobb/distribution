@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<section class="card">
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Компания</th><th>Директор</th><th>Клиент в CRM</th><th class="r">Агенты</th><th class="r">Экспед.</th><th class="r">Магазины</th><th class="r">Выдано сегодня</th><th></th></tr></thead>
+        <tbody><tr th:each="r : ${rows}">
+            <td><b th:text="${r.company().name}"></b><span class="sub" th:text="${r.company().own ? 'своя доставка производства' : 'склад-дилер'}"></span></td>
+            <td class="hide-m"><th:block th:text="${r.company().director}"></th:block><span class="sub num" th:text="${r.company().phone}"></span></td>
+            <td class="hide-m"><span class="tag" th:classappend="${r.company().crmClient != null} ? 'tag--crm'" th:text="${r.company().crmClient ?: '—'}"></span></td>
+            <td class="r num hide-m" th:text="${r.agents()}"></td>
+            <td class="r num hide-m" th:text="${r.expeditors()}"></td>
+            <td class="r num hide-m" th:text="${r.outlets()}"></td>
+            <td class="r num"><b th:text="${@fmt.money(r.summary().deliveredToday())}"></b></td>
+            <td class="c-acts"><a class="btn btn-soft btn-sm" th:href="@{/admin/scope(company=${r.company().id},back='/admin/dashboard')}">Открыть</a></td>
+        </tr></tbody>
+    </table></div>
+</section>
+
+<form class="card" th:action="@{/admin/companies}" method="post">
+    <div class="card-h"><h2>Новая компания</h2><p>склад-дилер получит свою отдельную админку и приложение для команды</p></div>
+    <div class="card-b form">
+        <label class="field">Название<input class="inp" name="name" required placeholder="Склад-дилер …"></label>
+        <label class="field">Директор (ФИО)<input class="inp" name="director"></label>
+        <label class="field">Телефон директора — вход<input class="inp" name="phone" type="tel"></label>
+        <label class="field">Клиент в CRM<input class="inp" name="crmClient" placeholder="для автоприхода отгрузок"><span class="hint">выбор из клиентов CRM — на этапе 7</span></label>
+    </div>
+    <div class="card-b"><button class="btn btn-primary" type="submit">Создать компанию</button></div>
+</form>
+</th:block>
+</body>
+</html>

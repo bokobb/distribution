@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<nav class="tabs" aria-label="День доставки">
+    <a th:href="@{/admin/orders(day='tomorrow')}" th:attr="aria-current=${day == 'tomorrow'} ? 'true' : null">На завтра (от агентов)</a>
+    <a th:href="@{/admin/orders(day='today')}" th:attr="aria-current=${day == 'today'} ? 'true' : null">Развозят сегодня</a>
+    <a th:href="@{/admin/orders(day='all')}" th:attr="aria-current=${day == 'all'} ? 'true' : null">Все</a>
+</nav>
+
+<div class="tools">
+    <div class="chips" aria-label="Статус">
+        <a class="chip" th:href="@{/admin/orders(day=${day},q=${q})}" th:attr="aria-current=${status == null} ? 'true' : null">Все <span class="cnt" th:text="${total}"></span></a>
+        <th:block th:each="st : ${statuses}">
+            <a class="chip" th:if="${counts.containsKey(st)}" th:href="@{/admin/orders(day=${day},status=${st},q=${q})}" th:attr="aria-current=${st == status} ? 'true' : null"><th:block th:text="${st.label}"></th:block> <span class="cnt" th:text="${counts.get(st)}"></span></a>
+        </th:block>
+    </div>
+    <form class="search" role="search" action="/admin/orders" method="get">
+        <th:block th:utext="${i16['search']}"></th:block>
+        <input type="hidden" name="day" th:value="${day}">
+        <input type="hidden" name="status" th:if="${status != null}" th:value="${status}">
+        <input type="search" name="q" th:value="${q}" placeholder="№, магазин, агент" aria-label="Найти заказ">
+    </form>
+    <span style="flex:1"></span>
+    <a class="btn btn-soft btn-sm" href="/admin/orders/pick"><th:block th:utext="${i16['print']}"></th:block>Лист сборки на завтра</a>
+</div>
+
+<section class="card">
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Заказ</th><th>Магазин</th><th>Агент</th><th>Доставка</th><th>Оплата</th><th class="r">Сумма</th><th>Статус</th></tr></thead>
+        <tbody><tr th:each="o : ${orders}">
+            <td><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a><span class="sub" th:text="${@fmt.when(o.createdAt)}"></span></td>
+            <td><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${o.outlet.address + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
+            <td class="hide-m" th:text="${o.agent.name}"></td>
+            <td class="hide-m" th:text="${@fmt.day(o.deliveryDate)}"></td>
+            <td class="hide-m" th:text="${o.payment.label}"></td>
+            <td class="r num"><b th:text="${@fmt.money(o.total)}"></b></td>
+            <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
+        </tr></tbody>
+        <tfoot th:unless="${orders.isEmpty()}"><tr><td colspan="5" th:text="${'Итого: ' + orders.size() + ' заказов'}"></td><td class="r num" th:text="${@fmt.money(sum)}"></td><td></td></tr></tfoot>
+    </table></div>
+    <p class="empty" th:if="${orders.isEmpty()}">Заказов с такими условиями нет.</p>
+</section>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<section class="kpis">
+    <div class="kpi kpi--main"><span class="kpi-l">Долг магазинов</span><span class="kpi-v num" th:text="${@fmt.money(total)}"></span><span class="kpi-s" th:text="${@fmt.plural(count, 'магазин', 'магазина', 'магазинов')}"></span></div>
+    <div class="kpi kpi--alert"><span class="kpi-l">Просрочено</span><span class="kpi-v num" th:text="${@fmt.money(totalOverdue)}"></span><span class="kpi-s" th:text="${@fmt.plural(countOverdue, 'магазин', 'магазина', 'магазинов')}"></span></div>
+    <div class="kpi"><span class="kpi-l">Сверх лимита</span><span class="kpi-v num" th:text="${countOver}"></span><span class="kpi-s">новые заказы — через разрешение</span></div>
+</section>
+<div class="tools">
+    <div class="chips">
+        <a class="chip" href="/admin/debts" th:attr="aria-current=${!overdueOnly} ? 'true' : null">Все долги</a>
+        <a class="chip" href="/admin/debts?overdue=1" th:attr="aria-current=${overdueOnly} ? 'true' : null">Только просроченные</a>
+    </div>
+</div>
+<section class="card">
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th>Магазин</th><th>Агент</th><th class="r">Долг</th><th>Лимит</th><th class="r">Просрочено</th><th>Последняя оплата</th></tr></thead>
+        <tbody><tr th:each="o : ${outlets}">
+            <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}"></a><span class="sub" th:text="${o.phone + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
+            <td class="hide-m"><th:block th:text="${o.agent.name}"></th:block><span class="sub" th:text="${o.route.name}"></span></td>
+            <td class="r num"><b th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt)}"></b></td>
+            <td class="hide-m" style="min-width:140px"><span class="num small" th:text="${@fmt.money(o.creditLimit)}"></span><span class="meter" th:classappend="${o.overLimit} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span></td>
+            <td class="r num" th:classappend="${o.overdue > 0} ? 'bad'" th:text="${o.overdue > 0 ? @fmt.money(o.overdue) : '—'}"></td>
+            <td class="hide-m" th:text="${o.lastPaymentDate == null ? '—' : @fmt.day(o.lastPaymentDate) + ', ' + @fmt.money(o.lastPaymentSum)}"></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${outlets.isEmpty()}">Долгов нет.</p>
+</section>
+</th:block>
+</body>
+</html>
