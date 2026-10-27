@@ -74,11 +74,11 @@ public class TrackService {
                     || Math.abs(p.lng()) > 180 || p.lat() == 0 && p.lng() == 0) invalid++;
             else valid.add(p);
         }
-        Map<LocalDate, List<LocalDateTime[]>> spans = new HashMap<>();
+        Map<LocalDate, List<Span>> spans = new HashMap<>();
         List<Object[]> points = new ArrayList<>();
         for (PointIn p : valid) {
-            List<LocalDateTime[]> day = spans.computeIfAbsent(p.at().toLocalDate(), d -> workSpans(dayMarks(e.getId(), d), d));
-            if (day.stream().noneMatch(s -> !p.at().isBefore(s[0]) && !p.at().isAfter(s[1]))) {
+            List<Span> day = spans.computeIfAbsent(p.at().toLocalDate(), d -> workSpans(dayMarks(e.getId(), d), d));
+            if (day.stream().noneMatch(s -> s.contains(p.at()))) {
                 outside++;
                 continue;
             }
@@ -96,24 +96,31 @@ public class TrackService {
     public record Mark(LocalDateTime at, AppEventKind kind) {
     }
 
+    /** Рабочий промежуток; не закрыт (closed = false) — до конца даты. */
+    public record Span(LocalDateTime from, LocalDateTime to, boolean closed) {
+        public boolean contains(LocalDateTime t) {
+            return !t.isBefore(from) && !t.isAfter(to);
+        }
+    }
+
     /**
      * Рабочие промежутки за день по отметкам: «Начал день» открывает, «Закончил день» закрывает; второе
      * «Начал» при открытом дне и «Закончил» без начала не считаются. Не закрыт — до конца даты.
      */
-    public static List<LocalDateTime[]> workSpans(List<Mark> marks, LocalDate date) {
+    public static List<Span> workSpans(List<Mark> marks, LocalDate date) {
         List<Mark> sorted = new ArrayList<>(marks);
         sorted.sort(Comparator.comparing(Mark::at));
-        List<LocalDateTime[]> out = new ArrayList<>();
+        List<Span> out = new ArrayList<>();
         LocalDateTime open = null;
         for (Mark m : sorted) {
             if (!m.at().toLocalDate().equals(date)) continue;
             if (m.kind() == AppEventKind.DAY_START && open == null) open = m.at();
             else if (m.kind() == AppEventKind.DAY_END && open != null) {
-                out.add(new LocalDateTime[]{open, m.at()});
+                out.add(new Span(open, m.at(), true));
                 open = null;
             }
         }
-        if (open != null) out.add(new LocalDateTime[]{open, date.atTime(23, 59, 59)});
+        if (open != null) out.add(new Span(open, date.atTime(23, 59, 59), false));
         return out;
     }
 

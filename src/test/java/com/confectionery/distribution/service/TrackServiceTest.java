@@ -127,9 +127,8 @@ class TrackServiceTest {
                 new TrackService.Mark(day.plusHours(9), AppEventKind.DAY_START),
                 new TrackService.Mark(day.plusHours(10), AppEventKind.DAY_START),
                 new TrackService.Mark(day.plusHours(12), AppEventKind.DAY_END));
-        List<LocalDateTime[]> spans = TrackService.workSpans(marks, day.toLocalDate());
-        assertThat(spans).hasSize(2);
-        assertThat(spans.get(0)).containsExactly(day.plusHours(9), day.plusHours(12));
-        assertThat(spans.get(1)).containsExactly(day.plusHours(13), day.toLocalDate().atTime(23, 59, 59));
+        assertThat(TrackService.workSpans(marks, day.toLocalDate())).containsExactly(
+                new TrackService.Span(day.plusHours(9), day.plusHours(12), true),
+                new TrackService.Span(day.plusHours(13), day.toLocalDate().atTime(23, 59, 59), false));
     }
 }

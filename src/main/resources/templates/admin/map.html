@@ -59,7 +59,7 @@
         <ul class="map-people" id="map-people"></ul>
         <p class="empty" id="map-empty" hidden>За этот день отметок нет.</p>
         <p class="note map-note" id="map-note" hidden></p>
-        <p class="note map-note">Путь торгового — по визитам, экспедитора — по выдачам, в порядке времени. Точный трек по GPS появится с приложением.</p>
+        <p class="note map-note">Сплошная линия — трек GPS телефона за рабочий день, точками — где сигнала не было больше 15 минут. Без GPS путь идёт пунктиром по прямой между визитами торгового или выдачами экспедитора.</p>
     </aside>
 </div>
 </th:block>
@@ -67,7 +67,7 @@
 <th:block th:fragment="scripts">
 <link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
 <script src="/admin/assets/leaflet/leaflet.js"></script>
-<script src="/admin/assets/map.js?v=2"></script>
+<script src="/admin/assets/map.js?v=3"></script>
 </th:block>
 </body>
 </html>

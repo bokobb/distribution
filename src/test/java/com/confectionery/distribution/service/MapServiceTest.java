@@ -74,6 +74,26 @@ class MapServiceTest {
     }
 
     @Test
+    void трекGpsСРазрывомИРабочийДень() {
+        LocalDateTime day = data.today().atTime(0, 0);
+        data.event(w.agent(), day.plusHours(8).plusMinutes(30), AppEventKind.DAY_START);
+        data.event(w.agent(), day.plusHours(18), AppEventKind.DAY_END);
+        data.point(w.agent(), day.plusHours(9), 42.3000, 69.5800);
+        data.point(w.agent(), day.plusHours(9).plusMinutes(5), 42.3090, 69.5800);   // ~1 км к северу
+        data.point(w.agent(), day.plusHours(9).plusMinutes(10), 42.3180, 69.5800);  // ещё ~1 км
+        data.point(w.agent(), day.plusHours(9).plusMinutes(40), 42.3180, 69.5900);  // после разрыва в 30 минут
+        data.point(w.agent(), day.plusHours(9).plusMinutes(45), 42.3180, 69.6000);
+
+        MapService.Person agent = day(List.of(w.agent().getId())).people().get(0);
+        assertThat(agent.track()).hasSize(2);
+        assertThat(agent.track().get(0)).hasSize(3);
+        // путь между кусками неизвестен: 2 км + 0,8 км, а не по прямой через разрыв
+        assertThat(agent.km()).isBetween(2.7, 2.9);
+        assertThat(agent.summary()).contains("день 08:30–18:00").contains("2,8 км");
+        assertThat(day(List.of(w.expeditor().getId())).people().get(0).track()).isEmpty();
+    }
+
+    @Test
     void выбранТолькоЭкспедитор() {
         MapService.Day d = day(List.of(w.expeditor().getId()));
         assertThat(d.people()).extracting(MapService.Person::name).containsExactly(w.expeditor().getName());

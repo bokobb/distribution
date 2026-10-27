@@ -1,7 +1,9 @@
 package com.confectionery.distribution.service;
 
 import com.confectionery.distribution.domain.*;
+import com.confectionery.distribution.repository.AppEventRepository;
 import com.confectionery.distribution.repository.DeliveryRepository;
+import com.confectionery.distribution.repository.GpsPointRepository;
 import com.confectionery.distribution.repository.OutletRepository;
 import com.confectionery.distribution.repository.RouteRepository;
 import com.confectionery.distribution.repository.VisitRepository;
@@ -12,11 +14,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Карта дня: магазины (цветом их торгового) и пути людей — торговый по визитам, экспедитор по выдачам,
- * по времени. Точка пути — где был телефон при отметке, без неё — сам магазин. Полный трек по GPS
- * появится вместе с приложением.
+ * Карта дня: магазины (цветом их торгового) и пути людей. Путь — трек GPS телефона за рабочий день; поверх
+ * него визиты торгового и выдачи экспедитора по времени. Точка визита — где был телефон при отметке, без
+ * неё — сам магазин. Нет GPS — путь рисуется по визитам и выдачам.
  */
 @Service
 @RequiredArgsConstructor
@@ -34,13 +37,19 @@ public class MapService {
     private final RouteRepository routes;
     private final VisitRepository visits;
     private final DeliveryRepository deliveries;
+    private final GpsPointRepository gps;
+    private final AppEventRepository events;
 
     /** Точка пути: kind — ORDER, NO_ORDER (визит), DELIVERED, PARTIAL, REFUSED (выдача). */
     public record Stop(double lat, double lng, String time, String outlet, String kind, String note) {
     }
 
-    /** Человек на карте; summary — строка под именем в списке. */
-    public record Person(Long id, String name, String role, String color, List<Stop> stops, String summary) {
+    /**
+     * Человек на карте; track — куски трека GPS (между ними сигнала не было дольше 15 минут), точка —
+     * [широта, долгота]; km — длина трека; summary — строка под именем в списке.
+     */
+    public record Person(Long id, String name, String role, String color, List<Stop> stops, List<List<double[]>> track,
+                         double km, String summary) {
     }
 
     public record Shop(Long id, String name, String address, double lat, double lng, String route, String color) {
@@ -113,6 +122,15 @@ public class MapService {
             track(span, w.id(), d.getDeliveredAt());
         }
 
+        Map<Long, GpsTrack> tracks = new HashMap<>();
+        gps.findByRecordedAtGreaterThanEqualAndRecordedAtLessThanOrderByRecordedAtAsc(from, to).stream()
+                .collect(Collectors.groupingBy(p -> p.getUser().getId()))
+                .forEach((id, list) -> tracks.put(id, GpsTrack.of(list)));
+        Map<Long, List<TrackService.Mark>> marks = new HashMap<>();
+        for (AppEvent ev : events.findByEventAtGreaterThanEqualAndEventAtLessThanOrderByEventAtAsc(from, to))
+            if (ev.getKind() == AppEventKind.DAY_START || ev.getKind() == AppEventKind.DAY_END)
+                marks.computeIfAbsent(ev.getUser().getId(), k -> new ArrayList<>()).add(new TrackService.Mark(ev.getEventAt(), ev.getKind()));
+
         // магазины — цветом их торгового; план визитов — по маршрутам этого дня недели
         Map<Long, Integer> plan = new HashMap<>();
         Map<Long, Who> agentOfOutlet = new HashMap<>();
@@ -144,20 +162,29 @@ public class MapService {
         }
 
         List<Person> people = new ArrayList<>();
+        List<double[]> trackPoints = new ArrayList<>();
         for (Who w : who) {
             List<Stop> list = stops.getOrDefault(w.id(), List.of());
+            GpsTrack track = tracks.get(w.id());
+            boolean gpsOn = track != null && !track.isEmpty();
             boolean chosen = only.contains(w.id());
-            if (list.isEmpty() && !chosen) continue;
+            // выбраны люди — только они; иначе все, у кого за день есть отметки или трек
+            if (only.isEmpty() ? list.isEmpty() && !gpsOn : !chosen) continue;
             int[] c = counts.getOrDefault(w.id(), new int[2]);
+            List<TrackService.Span> work = TrackService.workSpans(marks.getOrDefault(w.id(), List.of()), date);
             LocalDateTime[] t = span.get(w.id());
-            String when = t == null ? "" : " · " + t[0].format(TIME) + "–" + t[1].format(TIME);
-            String summary = list.isEmpty() ? "за день отметок нет"
+            String when = !work.isEmpty() ? " · день " + workDay(work) : t == null ? "" : " · " + t[0].format(TIME) + "–" + t[1].format(TIME);
+            String km = gpsOn ? " · " + km(track.km()) : "";
+            String summary = list.isEmpty() && !gpsOn ? "за день отметок нет"
                     : w.role() == Role.AGENT
-                    ? "визитов " + c[0] + (plan.containsKey(w.id()) ? " из " + plan.get(w.id()) : "") + " · с заказом " + c[1] + when
-                    : "выдач " + c[0] + (c[1] > 0 ? " · отказов " + c[1] : "") + when;
-            people.add(new Person(w.id(), w.name(), w.role().name(), w.color(), list, summary));
+                    ? (c[0] == 0 ? "визитов нет" : "визитов " + c[0] + (plan.containsKey(w.id()) ? " из " + plan.get(w.id()) : "") + " · с заказом " + c[1]) + when + km
+                    : (c[0] == 0 ? "выдач нет" : "выдач " + c[0] + (c[1] > 0 ? " · отказов " + c[1] : "")) + when + km;
+            List<List<double[]>> path = !gpsOn ? List.of() : track.segments().stream()
+                    .map(seg -> seg.stream().map(a -> new double[]{a.lat(), a.lng()}).toList()).toList();
+            path.forEach(trackPoints::addAll);
+            people.add(new Person(w.id(), w.name(), w.role().name(), w.color(), list, path, gpsOn ? Math.round(track.km() * 10) / 10.0 : 0, summary));
         }
-        return new Day(date, center(shops, stops.values()), shops, people, noCoords);
+        return new Day(date, center(shops, stops.values(), trackPoints), shops, people, noCoords);
     }
 
     /** Заказ на карте списка: цвет торгового и цвет экспедитора (серый — ещё не отгружен). */
@@ -225,7 +252,19 @@ public class MapService {
         if (t.isAfter(s[1])) s[1] = t;
     }
 
-    private static double[] center(List<Shop> shops, Collection<List<Stop>> paths) {
+    /** «08:52–18:10», не закрыт — «с 08:52». */
+    private static String workDay(List<TrackService.Span> work) {
+        TrackService.Span last = work.get(work.size() - 1);
+        String start = work.get(0).from().format(TIME);
+        return last.closed() ? start + "–" + last.to().format(TIME) : "с " + start;
+    }
+
+    /** «23,4 км». */
+    static String km(double km) {
+        return String.format(Locale.forLanguageTag("ru"), "%.1f км", km);
+    }
+
+    private static double[] center(List<Shop> shops, Collection<List<Stop>> paths, List<double[]> track) {
         double lat = 0, lng = 0;
         int n = 0;
         for (Shop s : shops) {
@@ -239,6 +278,11 @@ public class MapService {
                 lng += s.lng();
                 n++;
             }
+        for (double[] p : track) {
+            lat += p[0];
+            lng += p[1];
+            n++;
+        }
         return n == 0 ? DEFAULT_CENTER : new double[]{lat / n, lng / n};
     }
 }

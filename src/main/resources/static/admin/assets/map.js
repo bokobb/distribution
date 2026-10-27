@@ -1,5 +1,6 @@
 // Карты «Дистрибуции» (Leaflet + OpenStreetMap). Раздел «Карта»: магазины цветом их торгового и пути
-// людей за день в порядке времени отметок. «Заказы»: по «На карте» — магазины найденных заказов цветом
+// людей за день — трек GPS (сплошная линия, точками — где пропал сигнал) или, без GPS, по прямой между
+// отметками в порядке времени (пунктир). «Заказы»: по «На карте» — магазины найденных заказов цветом
 // торгового или экспедитора. Данные — JSON из data-src с теми же условиями, что у страницы.
 (function () {
   if (!window.L) return;
@@ -69,8 +70,21 @@
       d.people.forEach(function (p) {
         var g = L.featureGroup().addTo(pathLayer);
         var pts = p.stops.map(function (s) { return [s.lat, s.lng]; });
-        if (pts.length > 1) {
-          L.polyline(pts, { color: p.color, weight: 4, opacity: 0.8, dashArray: p.role === 'EXPEDITOR' ? '10 7' : null }).addTo(g);
+        if (p.track.length) {
+          var tip = esc(p.name) + ' · трек GPS · ' + String(p.km).replace('.', ',') + ' км';
+          p.track.forEach(function (seg, i) {
+            if (i > 0) {
+              var prev = p.track[i - 1];
+              L.polyline([prev[prev.length - 1], seg[0]], { color: p.color, weight: 3, opacity: 0.7, dashArray: '1 8', lineCap: 'round' })
+                .bindTooltip(esc(p.name) + ' · сигнала GPS не было больше 15 минут').addTo(g);
+            }
+            if (seg.length > 1) L.polyline(seg, { color: p.color, weight: 4, opacity: 0.85 }).bindTooltip(tip).addTo(g);
+            else L.circleMarker(seg[0], { radius: 3, color: p.color, weight: 2, fillOpacity: 1 }).bindTooltip(tip).addTo(g);
+            seg.forEach(function (x) { all.push(x); });
+          });
+        } else if (pts.length > 1) {
+          L.polyline(pts, { color: p.color, weight: 3, opacity: 0.75, dashArray: '8 7' })
+            .bindTooltip(esc(p.name) + ' · без GPS: по прямой между отметками').addTo(g);
         }
         p.stops.forEach(function (s, i) {
           var ok = s.kind === 'ORDER' || s.kind === 'DELIVERED' || s.kind === 'PARTIAL';
@@ -95,7 +109,7 @@
         });
         li.querySelector('button').addEventListener('click', function () {
           if (!pathLayer.hasLayer(g)) { g.addTo(pathLayer); li.querySelector('input').checked = true; }
-          if (pts.length) map.fitBounds(g.getBounds(), { padding: [40, 40], maxZoom: 16 });
+          if (g.getLayers().length) map.fitBounds(g.getBounds(), { padding: [40, 40], maxZoom: 16 });
         });
         list.appendChild(li);
       });
