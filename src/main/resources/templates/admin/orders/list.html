@@ -77,6 +77,11 @@
     <a class="btn btn-soft btn-sm" href="/admin/orders/pick"><th:block th:utext="${i16['print']}"></th:block>Лист сборки на завтра</a>
 </div>
 
+<div class="al" th:if="${notice != null}" th:classappend="${notice.kind()}" role="status">
+    <div><strong th:text="${notice.title()}"></strong>
+        <p th:each="l : ${notice.lines()}" th:text="${l}"></p></div>
+</div>
+
 <section class="card">
     <div class="tbl-w"><table class="tbl tbl--cards tbl--sel">
         <thead><tr>
@@ -84,7 +89,7 @@
             <th>Заказ</th><th>Магазин</th><th>Торговый</th><th>Доставка</th><th>Оплата</th><th>Экспедитор</th><th class="r">Сумма</th><th>Статус</th>
         </tr></thead>
         <tbody><tr th:each="o : ${p.rows()}">
-            <td class="c-chk"><input type="checkbox" name="ids" th:value="${o.id}" th:attr="data-sum=${o.total}" th:aria-label="${'Выбрать заказ № ' + o.number}"></td>
+            <td class="c-chk"><input type="checkbox" name="ids" form="bulk-bar" th:value="${o.id}" th:attr="data-sum=${o.total}" th:aria-label="${'Выбрать заказ № ' + o.number}"></td>
             <td class="c-ord"><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a><span class="sub" th:text="${@fmt.when(o.createdAt)}"></span></td>
             <td class="c-shop"><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${@fmt.dot(o.outlet.address, o.outlet.region?.name, v.isAll() ? o.company.name : null)}"></span></td>
             <td class="hide-m" th:text="${o.agent?.name}"></td>
@@ -114,9 +119,17 @@
     </nav>
 </section>
 
-<div class="bulk" id="bulk-bar" hidden>
+<form class="bulk" id="bulk-bar" th:action="@{/admin/orders/ship}" method="post" hidden>
+    <input type="hidden" name="back" th:value="${here}">
     <span>Выбрано: <b data-sel-count>0</b> · <b class="num" data-sel-sum>0 ₸</b></span>
-</div>
+    <span class="bulk-sp"></span>
+    <select class="sel" name="expeditor" required aria-label="Экспедитор для отгрузки">
+        <option value="">Экспедитор…</option>
+        <option th:each="e : ${shipTo}" th:value="${e.id}" th:disabled="${e.vehicle == null}"
+                th:text="${@fmt.dot(e.name, e.vehicle != null ? e.vehicle.plate : 'нет машины', v.isAll() ? e.company.name : null)}"></option>
+    </select>
+    <button class="btn btn-primary btn-sm" type="submit" data-confirm="Отгрузить отмеченные заказы этому экспедитору? Товар перейдёт с основного склада в его машину.">Отгрузить</button>
+</form>
 </th:block>
 </body>
 </html>

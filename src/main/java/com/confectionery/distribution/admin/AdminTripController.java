@@ -26,7 +26,7 @@ public class AdminTripController {
     public String list(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
         AdminPage.head(model, "trips", "Рейсы", v.scopeName() + " · " + fmt.longDay(LocalDate.now(clock)));
-        model.addAttribute("trips", trips.current(v.companyId()));
+        model.addAttribute("trips", trips.forPage(v.companyId()));
         return "admin/trips/list";
     }
 

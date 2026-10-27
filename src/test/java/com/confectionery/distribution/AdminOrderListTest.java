@@ -14,7 +14,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** Страница «Заказы»: фильтры из адреса доходят до списка, чужие заказы не видны. */
@@ -80,5 +82,28 @@ class AdminOrderListTest {
         mvc.perform(get("/admin/orders").session(s).param("day", "today"))
                 .andExpect(content().string(containsString(todays.getNumber())))
                 .andExpect(content().string(not(containsString(mine.getNumber()))));
+    }
+
+    @Test
+    void отгрузкаОтмеченныхВозвращаетВТотЖеСписокСИтогом() throws Exception {
+        World w = data.world("Отгрузка страницей");
+        data.stockIn(w, 100);
+        Order a = data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 2, 1000);
+        Order b = data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 3, 1000);
+        MockHttpSession s = login(w.operator());
+        String back = "/admin/orders?agent=" + w.agent().getId() + "&exp=none";
+
+        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Экспедитор…")))
+                .andExpect(content().string(containsString(w.vehicle().getPlate())));
+        mvc.perform(post("/admin/orders/ship").with(csrf()).session(s)
+                        .param("ids", a.getId().toString(), b.getId().toString())
+                        .param("expeditor", w.expeditor().getId().toString()).param("back", back))
+                .andExpect(redirectedUrl(back));
+        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Отгружено 2 заказа экспедитору " + w.expeditor().getName())))
+                .andExpect(content().string(not(containsString(a.getNumber()))));
+
+        // чужой адрес возврата не принимается
+        mvc.perform(post("/admin/orders/ship").with(csrf()).session(s).param("back", "https://example.com"))
+                .andExpect(redirectedUrl("/admin/orders"));
     }
 }

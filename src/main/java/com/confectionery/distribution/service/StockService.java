@@ -95,6 +95,11 @@ public class StockService {
         return movements.save(m);
     }
 
+    /** Остаток товара на складе (строка остатка блокируется до конца транзакции). */
+    public int qty(Warehouse w, Product p) {
+        return balances.findByWarehouseAndProduct(w, p).map(StockBalance::getQty).orElse(0);
+    }
+
     private StockBalance balance(Warehouse w, Product p) {
         return balances.findByWarehouseAndProduct(w, p).orElseGet(() -> {
             StockBalance b = new StockBalance().setWarehouse(w).setProduct(p);

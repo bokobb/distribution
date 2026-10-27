@@ -5,10 +5,12 @@ import com.confectionery.distribution.domain.Employee;
 import com.confectionery.distribution.domain.Order;
 import com.confectionery.distribution.domain.OrderStatus;
 import com.confectionery.distribution.domain.Role;
+import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.OrderSearch;
 import com.confectionery.distribution.service.OrderService;
 import com.confectionery.distribution.service.RouteService;
 import com.confectionery.distribution.service.StaffService;
+import com.confectionery.distribution.service.TripService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -32,6 +35,7 @@ public class AdminOrderController {
     private final OrderService orders;
     private final OrderSearch search;
     private final StaffService staff;
+    private final TripService trips;
     private final RouteService routes;
     private final Fmt fmt;
     private final Clock clock;
@@ -93,6 +97,7 @@ public class AdminOrderController {
         model.addAttribute("expeditors", options(staff.staff(v.companyId(), Role.EXPEDITOR),
                 expeditor == null ? List.of() : List.of(expeditor), v));
         model.addAttribute("exp", exp == null ? "" : exp);
+        model.addAttribute("shipTo", staff.staff(v.companyId(), Role.EXPEDITOR).stream().filter(Employee::isActive).toList());
         model.addAttribute("status", status);
         model.addAttribute("q", q);
         model.addAttribute("statuses", OrderStatus.values());
@@ -136,6 +141,35 @@ public class AdminOrderController {
         model.addAttribute("orders", list);
         model.addAttribute("rows", OrderService.pickList(list));
         return "admin/orders/pick";
+    }
+
+    /** Итог отгрузки над списком: kind — al--info или al--bad, lines — подробности. */
+    public record Notice(String kind, String title, List<String> lines) implements java.io.Serializable {
+    }
+
+    /** Отмеченные галочками заказы — экспедитору (см. TripService.ship); возврат в тот же список. */
+    @PostMapping("/admin/orders/ship")
+    public String ship(@RequestParam(name = "ids", required = false) List<Long> ids,
+                       @RequestParam(required = false) Long expeditor,
+                       @RequestParam(required = false) String back,
+                       HttpSession session, RedirectAttributes ra) {
+        String to = AdminPage.back(back, "/admin/orders");
+        try {
+            TripService.Shipment s = trips.ship(ids, expeditor, ctx.viewer(session).actor());
+            List<String> lines = new java.util.ArrayList<>();
+            s.skipped().forEach((why, numbers) -> lines.add("Не отгружены — " + why + ": № " + String.join(", № ", numbers)));
+            if (s.shipped() == 0) {
+                ra.addFlashAttribute("notice", new Notice("al--bad", "Ничего не отгружено", lines));
+            } else {
+                String tripsText = s.trips().stream().map(t -> t.getNumber() + " (" + fmt.day(t.getDate()) + ")")
+                        .collect(java.util.stream.Collectors.joining(", "));
+                ra.addFlashAttribute("notice", new Notice("al--info", "Отгружено " + fmt.plural(s.shipped(), "заказ", "заказа", "заказов")
+                        + " экспедитору " + s.expeditor().getName() + ": " + (s.trips().size() == 1 ? "рейс " : "рейсы ") + tripsText, lines));
+            }
+        } catch (FormException e) {
+            ra.addFlashAttribute("notice", new Notice("al--bad", e.getMessage(), List.of()));
+        }
+        return "redirect:" + to;
     }
 
     @PostMapping("/admin/orders/{id}/approve")
