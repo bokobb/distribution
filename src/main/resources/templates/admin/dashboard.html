@@ -2,8 +2,6 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<div class="stub" role="note"><th:block th:utext="${i['alert']}"></th:block>
-    <p><b>Данные — заглушки.</b> Компании, магазины, заказы и касса придуманы и пересоздаются при каждом запуске. После выгрузки из Doctor Sales и подключения базы страницы останутся такими же.</p></div>
 
 <section class="kpis" aria-label="Главные цифры">
     <a class="kpi kpi--main" href="/admin/orders?day=today"><span class="kpi-l">Выдано сегодня</span>

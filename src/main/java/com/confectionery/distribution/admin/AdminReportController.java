@@ -1,6 +1,6 @@
 package com.confectionery.distribution.admin;
 
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.DashboardService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -14,7 +14,7 @@ import java.util.List;
 public class AdminReportController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final DashboardService dashboard;
 
     public record ReportCard(String key, String title, String text, boolean ready) {
     }
@@ -38,8 +38,8 @@ public class AdminReportController {
     @GetMapping("/admin/reports/quality")
     public String quality(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        AdminPage.head(model, "reports", "Качество: что возвращают магазины", v.scopeName() + " · по данным заглушек");
-        model.addAttribute("rows", store.quality(v.companyId()));
+        AdminPage.head(model, "reports", "Качество: что возвращают магазины", v.scopeName() + " · за всё время");
+        model.addAttribute("rows", dashboard.quality(v.companyId()));
         return "admin/reports/quality";
     }
 }

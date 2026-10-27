@@ -2,7 +2,8 @@ package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Employee;
 import com.confectionery.distribution.domain.Role;
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.RouteService;
+import com.confectionery.distribution.service.StaffService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -18,21 +19,22 @@ import java.util.List;
 public class AdminStaffController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final StaffService staff;
+    private final RouteService routes;
 
     @GetMapping("/admin/staff")
     public String staff(@RequestParam(defaultValue = "people") String tab, Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        List<Employee> people = store.employees(v.companyId()).stream()
-                .sorted(Comparator.comparing((Employee e) -> e.getCompany().getId()).thenComparing(e -> e.getRole().ordinal())
+        List<Employee> people = staff.employees(v.companyId()).stream()
+                .sorted(Comparator.comparing(Employee::getCompanyId).thenComparing(e -> e.getRole().ordinal())
                         .thenComparing(Employee::getName)).toList();
         AdminPage.head(model, "staff", "Сотрудники и машины", v.scopeName());
         model.addAttribute("tab", "vehicles".equals(tab) ? "vehicles" : "people");
         model.addAttribute("people", people);
-        model.addAttribute("vehicles", store.vehicles(v.companyId()));
+        model.addAttribute("vehicles", staff.vehicles(v.companyId()));
         model.addAttribute("agents", people.stream().filter(e -> e.getRole() == Role.AGENT).count());
         model.addAttribute("expeditors", people.stream().filter(e -> e.getRole() == Role.EXPEDITOR).count());
-        model.addAttribute("routes", store.routes(v.companyId()));
+        model.addAttribute("routes", routes.routes());
         return "admin/staff/list";
     }
 }

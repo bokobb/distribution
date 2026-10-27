@@ -2,7 +2,8 @@ package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Trip;
 import com.confectionery.distribution.domain.TripStatus;
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.CashService;
+import com.confectionery.distribution.service.TripService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 
 /** Приём рейса вечером: оператор пересчитывает наличные и сверяет Kaspi, кладовщик принимает товар. */
@@ -20,24 +23,26 @@ import java.util.List;
 public class AdminCashController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final TripService trips;
+    private final CashService cash;
     private final Fmt fmt;
+    private final Clock clock;
 
     @GetMapping("/admin/cash")
     public String list(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        List<Trip> trips = store.trips(v.companyId());
-        AdminPage.head(model, "cash", "Приём кассы", v.scopeName() + " · " + fmt.longDay(store.today()));
-        model.addAttribute("waiting", trips.stream().filter(t -> t.getStatus() == TripStatus.RETURNED).toList());
-        model.addAttribute("onRoad", trips.stream().filter(t -> t.getStatus() == TripStatus.ON_ROAD || t.getStatus() == TripStatus.LOADING).toList());
-        model.addAttribute("closed", trips.stream().filter(t -> t.getStatus() == TripStatus.CLOSED).toList());
-        model.addAttribute("onHands", trips.stream().filter(t -> t.getStatus().cashOnHands()).mapToLong(Trip::getCash).sum());
+        List<Trip> list = trips.current(v.companyId());
+        AdminPage.head(model, "cash", "Приём кассы", v.scopeName() + " · " + fmt.longDay(LocalDate.now(clock)));
+        model.addAttribute("waiting", list.stream().filter(t -> t.getStatus() == TripStatus.RETURNED).toList());
+        model.addAttribute("onRoad", list.stream().filter(t -> t.getStatus() == TripStatus.ON_ROAD || t.getStatus() == TripStatus.LOADING).toList());
+        model.addAttribute("closed", list.stream().filter(t -> t.getStatus() == TripStatus.CLOSED).toList());
+        model.addAttribute("onHands", list.stream().filter(t -> t.getStatus().cashOnHands()).mapToLong(Trip::getCash).sum());
         return "admin/cash/list";
     }
 
     @GetMapping("/admin/cash/{id}")
     public String accept(@PathVariable Long id, Model model, HttpSession session) {
-        Trip t = AdminTripController.own(store, ctx, id, session);
+        Trip t = trips.get(id);
         AdminPage.head(model, "cash", "Приём рейса " + t.getNumber(),
                 t.getExpeditor().getName() + " · " + t.getVehicle().getPlate() + " · " + fmt.day(t.getDate()));
         model.addAttribute("t", t);
@@ -48,7 +53,6 @@ public class AdminCashController {
     public String doAccept(@PathVariable Long id, @RequestParam String counted,
                            @RequestParam(defaultValue = "false") boolean kaspi,
                            @RequestParam(defaultValue = "false") boolean goods, HttpSession session) {
-        Trip t = AdminTripController.own(store, ctx, id, session);
         long sum;
         try {
             sum = Long.parseLong(counted.replaceAll("[^0-9]", ""));
@@ -56,7 +60,7 @@ public class AdminCashController {
             ctx.toast(session, "Введите пересчитанную сумму наличных");
             return "redirect:/admin/cash/" + id;
         }
-        store.acceptTrip(id, sum, kaspi, goods, ctx.viewer(session).me().getName());
+        Trip t = cash.accept(id, sum, kaspi, goods, ctx.viewer(session).actor());
         if (t.getStatus() == TripStatus.CLOSED) {
             Long diff = t.getCashDiff();
             ctx.toast(session, "Рейс " + t.getNumber() + " закрыт" + (diff != null && diff != 0 ? ", разница " + fmt.signed(diff) : ", касса сошлась"));

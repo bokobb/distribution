@@ -2,7 +2,8 @@ package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Outlet;
 import com.confectionery.distribution.domain.OutletStatus;
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.OutletService;
+import com.confectionery.distribution.service.RouteService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -11,18 +12,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
-
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Controller
 @RequiredArgsConstructor
 public class AdminOutletController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final OutletService outlets;
+    private final RouteService routes;
     private final Fmt fmt;
 
     @GetMapping("/admin/outlets")
@@ -31,7 +30,7 @@ public class AdminOutletController {
                        @RequestParam(required = false) String q,
                        Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        List<Outlet> all = store.outlets(v.companyId());
+        List<Outlet> all = outlets.list(v.companyId());
         Map<OutletStatus, Long> counts = new EnumMap<>(OutletStatus.class);
         for (Outlet o : all) counts.merge(o.getStatus(), 1L, Long::sum);
         String needle = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
@@ -47,7 +46,7 @@ public class AdminOutletController {
         model.addAttribute("total", all.size());
         model.addAttribute("statuses", OutletStatus.values());
         model.addAttribute("status", status);
-        model.addAttribute("regions", store.regions(v.companyId()));
+        model.addAttribute("regions", routes.regions());
         model.addAttribute("region", region);
         model.addAttribute("q", q);
         return "admin/outlets/list";
@@ -55,12 +54,12 @@ public class AdminOutletController {
 
     @GetMapping("/admin/outlets/{id}")
     public String view(@PathVariable Long id, Model model, HttpSession session) {
-        Outlet o = own(id, session);
+        Outlet o = outlets.get(id);
         AdminPage.head(model, "outlets", o.getName(), o.getLegal() + " · " + o.getAddress());
         model.addAttribute("o", o);
-        model.addAttribute("orders", store.ordersOf(o));
-        model.addAttribute("payments", store.paymentsOf(o));
-        model.addAttribute("returns", store.returnsOf(o));
+        model.addAttribute("orders", outlets.ordersOf(o));
+        model.addAttribute("payments", outlets.paymentsOf(o));
+        model.addAttribute("returns", outlets.returnsOf(o));
         return "admin/outlets/view";
     }
 
@@ -68,17 +67,17 @@ public class AdminOutletController {
     public String create(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
         AdminPage.head(model, "outlets", "Новый магазин", v.scopeName());
-        model.addAttribute("o", new Outlet().setPriceType("Опт").setCreditLimit(100_000).setPaymentDays(7));
-        model.addAttribute("routes", store.routes(v.companyId()));
+        model.addAttribute("o", new Outlet().setCreditLimit(100_000).setPaymentDays(7));
+        model.addAttribute("routes", routes.routes());
         return "admin/outlets/form";
     }
 
     @GetMapping("/admin/outlets/{id}/edit")
     public String edit(@PathVariable Long id, Model model, HttpSession session) {
-        Outlet o = own(id, session);
+        Outlet o = outlets.get(id);
         AdminPage.head(model, "outlets", "Изменить магазин", o.getName());
         model.addAttribute("o", o);
-        model.addAttribute("routes", store.routes(o.getCompany().getId()));
+        model.addAttribute("routes", routes.routes());
         return "admin/outlets/form";
     }
 
@@ -91,17 +90,8 @@ public class AdminOutletController {
 
     @PostMapping("/admin/outlets/{id}/approve")
     public String approve(@PathVariable Long id, HttpSession session) {
-        Outlet o = own(id, session);
-        store.approveOutlet(id);
+        Outlet o = outlets.approve(id);
         ctx.toast(session, o.getName() + " — проверен, работает");
         return "redirect:/admin/outlets/" + id;
-    }
-
-    private Outlet own(Long id, HttpSession session) {
-        Outlet o = store.outlet(id);
-        Viewer v = ctx.viewer(session);
-        if (o == null || (!v.isAll() && !o.getCompany().getId().equals(v.companyId())))
-            throw new ResponseStatusException(NOT_FOUND);
-        return o;
     }
 }

@@ -27,9 +27,6 @@
                 <a th:each="s : ${g.items}" class="nav-a" th:href="${s.href()}" th:attr="aria-current=${s.key == sec} ? 'page' : null"><th:block th:utext="${i[s.key]}"></th:block><span th:text="${s.title}">Раздел</span></a>
             </th:block>
         </nav>
-        <div class="side-foot">
-            <p>Данные — заглушки, пока не подключена база.</p>
-        </div>
     </aside>
     <div class="scrim" id="scrim"></div>
 

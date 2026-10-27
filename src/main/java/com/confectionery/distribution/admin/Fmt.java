@@ -1,7 +1,10 @@
 package com.confectionery.distribution.admin;
 
+import com.confectionery.distribution.service.Phones;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -11,6 +14,7 @@ import java.util.Locale;
 
 /** Форматирование для шаблонов: ${@fmt.money(x)}, ${@fmt.day(d)} и т.д. */
 @Component("fmt")
+@RequiredArgsConstructor
 public class Fmt {
 
     private static final Locale RU = Locale.forLanguageTag("ru");
@@ -18,6 +22,8 @@ public class Fmt {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     /** Узкий неразрывный пробел между разрядами: «1 284 000». */
     private static final char NB = '\u202F';
+
+    private final Clock clock;
 
     /** Числа из шаблонов приходят разными типами (int, long, Long) — принимаем любое. */
     public String num(Number n) {
@@ -48,7 +54,7 @@ public class Fmt {
     /** «28 окт», «вчера», «сегодня», «завтра». */
     public String day(LocalDate d) {
         if (d == null) return "—";
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         if (d.equals(today)) return "сегодня";
         if (d.equals(today.minusDays(1))) return "вчера";
         if (d.equals(today.plusDays(1))) return "завтра";
@@ -70,7 +76,7 @@ public class Fmt {
     /** «5 мин назад», «3 ч назад», «2 дн назад». */
     public String ago(LocalDateTime t) {
         if (t == null) return "никогда";
-        long min = Duration.between(t, LocalDateTime.now()).toMinutes();
+        long min = Duration.between(t, LocalDateTime.now(clock)).toMinutes();
         if (min < 1) return "только что";
         if (min < 60) return min + " мин назад";
         if (min < 48 * 60) return (min / 60) + " ч назад";
@@ -85,7 +91,8 @@ public class Fmt {
         return num(n) + " " + w;
     }
 
+    /** «+77011234567» → «+7 701 123 45 67»; пусто — «—». */
     public String phone(String p) {
-        return p == null || p.isBlank() ? "—" : p;
+        return p == null || p.isBlank() ? "—" : Phones.format(p);
     }
 }

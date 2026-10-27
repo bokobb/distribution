@@ -1,12 +1,15 @@
 package com.confectionery.distribution.admin;
 
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.CompanyService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /** Общее для всех страниц админки: кто смотрит, меню по роли, список компаний, значки, всплывающая строка. */
@@ -15,7 +18,8 @@ import java.util.Map;
 public class AdminModelAdvice {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final CompanyService companies;
+    private final Clock clock;
     private final AdminIcons icons;
     private Map<String, String> i20, i16;
 
@@ -27,10 +31,11 @@ public class AdminModelAdvice {
         model.addAttribute("here", request.getRequestURI() + (q == null ? "" : "?" + q));
         model.addAttribute("v", v);
         model.addAttribute("menu", AdminSections.menu(v.role()));
-        model.addAttribute("companies", store.companies());
+        // список компаний — только владельцу, остальным — их компания
+        model.addAttribute("companies", v.owner() ? companies.all() : v.company() == null ? List.of() : List.of(v.company()));
         model.addAttribute("roles", java.util.Arrays.stream(com.confectionery.distribution.domain.Role.values())
                 .filter(com.confectionery.distribution.domain.Role::webAdmin).toList());
-        model.addAttribute("today", store.today());
+        model.addAttribute("today", LocalDate.now(clock));
         if (i20 == null) {
             i20 = icons.all(20);
             i16 = icons.all(16);

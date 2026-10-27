@@ -1,7 +1,9 @@
 package com.confectionery.distribution.admin;
 
+import com.confectionery.distribution.domain.Company;
 import com.confectionery.distribution.domain.Product;
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.CatalogService;
+import com.confectionery.distribution.service.CompanyService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -18,17 +20,20 @@ import java.util.stream.Collectors;
 public class AdminCatalogController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final CatalogService catalog;
+    private final CompanyService companies;
     private final Fmt fmt;
 
     @GetMapping("/admin/products")
     public String products(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        List<Product> list = store.products(v.companyId());
+        // в режиме «Все компании» каталог показываем по первой компании: у каждой свой прайс
+        Company first = v.isAll() ? companies.first() : null;
+        List<Product> list = catalog.products(v.isAll() ? (first == null ? -1L : first.getId()) : v.companyId());
         Map<String, List<Product>> byCat = list.stream()
                 .collect(Collectors.groupingBy(Product::getCategory, TreeMap::new, Collectors.toList()));
         AdminPage.head(model, "products", "Товары и прайс",
-                (v.isAll() ? store.companies().get(0).getName() + " (у каждой компании свой прайс)" : v.scopeName())
+                (v.isAll() ? (first == null ? "—" : first.getName()) + " (у каждой компании свой прайс)" : v.scopeName())
                         + " · " + fmt.plural(list.size(), "товар", "товара", "товаров"));
         model.addAttribute("byCat", byCat);
         model.addAttribute("fromCrm", list.stream().filter(p -> p.getCrmCode() != null).count());

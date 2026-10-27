@@ -1,37 +1,36 @@
 package com.confectionery.distribution.admin;
 
-import com.confectionery.distribution.domain.Trip;
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.DashboardService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import java.util.Comparator;
-import java.util.List;
+import java.time.Clock;
+import java.time.LocalDate;
 
 @Controller
 @RequiredArgsConstructor
 public class AdminDashboardController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final DashboardService dashboard;
     private final Fmt fmt;
+    private final Clock clock;
 
     @GetMapping("/admin/dashboard")
     public String dashboard(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        AdminPage.head(model, "dashboard", v.scopeName() + " · сегодня", fmt.longDay(store.today()));
+        AdminPage.head(model, "dashboard", v.scopeName() + " · сегодня", fmt.longDay(LocalDate.now(clock)));
         Long cid = v.companyId();
-        model.addAttribute("s", store.summary(cid));
-        model.addAttribute("alerts", store.alerts(cid));
-        model.addAttribute("agents", store.agentsToday(cid));
-        List<Trip> trips = store.trips(cid).stream()
-                .sorted(Comparator.comparing((Trip t) -> t.getStatus().ordinal())).toList();
-        model.addAttribute("trips", trips);
-        model.addAttribute("quality", store.quality(cid).stream().limit(5).toList());
-        if (v.isAll()) model.addAttribute("companyRows", store.companyRows());
+        DashboardService.Snapshot s = dashboard.snapshot();
+        model.addAttribute("s", s.summary(cid));
+        model.addAttribute("alerts", s.alerts(cid));
+        model.addAttribute("agents", s.agents(cid));
+        model.addAttribute("trips", s.trips(cid));
+        model.addAttribute("quality", s.quality(cid).stream().limit(5).toList());
+        if (v.isAll()) model.addAttribute("companyRows", s.companyRows());
         return "admin/dashboard";
     }
 }

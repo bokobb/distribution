@@ -1,7 +1,7 @@
 package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Outlet;
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.OutletService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -17,12 +17,12 @@ import java.util.List;
 public class AdminDebtController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final OutletService outlets;
 
     @GetMapping("/admin/debts")
     public String list(@RequestParam(defaultValue = "0") int overdue, Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
-        List<Outlet> withDebt = store.outlets(v.companyId()).stream().filter(o -> o.getDebt() > 0).toList();
+        List<Outlet> withDebt = outlets.list(v.companyId()).stream().filter(o -> o.getDebt() > 0).toList();
         List<Outlet> list = withDebt.stream().filter(o -> overdue == 0 || o.getOverdue() > 0)
                 .sorted(Comparator.comparingLong(Outlet::getOverdue).reversed().thenComparing(Comparator.comparingLong(Outlet::getDebt).reversed()))
                 .toList();

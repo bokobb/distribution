@@ -44,7 +44,7 @@
             <div class="card-b"><dl class="kv">
                 <dt>Магазин</dt><dd><a class="link" th:href="${'/admin/outlets/' + o.outlet.id}" th:text="${o.outlet.name}"></a></dd>
                 <dt>Адрес</dt><dd th:text="${o.outlet.address}"></dd>
-                <dt>Агент</dt><dd th:text="${o.agent.name}"></dd>
+                <dt>Агент</dt><dd th:text="${o.agent?.name}"></dd>
                 <dt>Оформлен</dt><dd th:text="${@fmt.when(o.createdAt)}"></dd>
                 <dt>Доставка</dt><dd th:text="${@fmt.day(o.deliveryDate)}"></dd>
                 <dt>Оплата</dt><dd th:text="${o.payment.label}"></dd>
@@ -58,7 +58,7 @@
         <section class="card">
             <div class="card-h"><h2>История</h2></div>
             <div class="card-b"><ol class="timeline">
-                <li th:each="e : ${o.events}"><time th:text="${@fmt.when(e.at())}"></time><span><b th:text="${e.text()}"></b><span class="muted small" th:text="${e.who()}"></span></span></li>
+                <li th:each="e : ${o.events}"><time th:text="${@fmt.when(e.at)}"></time><span><b th:text="${e.text}"></b><span class="muted small" th:text="${e.who}"></span></span></li>
             </ol></div>
         </section>
 

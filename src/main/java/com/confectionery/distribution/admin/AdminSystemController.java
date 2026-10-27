@@ -1,6 +1,7 @@
 package com.confectionery.distribution.admin;
 
-import com.confectionery.distribution.stub.StubStore;
+import com.confectionery.distribution.service.DashboardService;
+import com.confectionery.distribution.service.SettingsService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -16,7 +17,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdminSystemController {
 
     private final AdminContext ctx;
-    private final StubStore store;
+    private final DashboardService dashboard;
+    private final SettingsService settings;
 
     @GetMapping("/admin/import")
     public String importPage(@RequestParam(defaultValue = "1") int step, Model model, HttpSession session) {
@@ -37,7 +39,7 @@ public class AdminSystemController {
     @GetMapping("/admin/companies")
     public String companies(Model model) {
         AdminPage.head(model, "companies", "Компании", "Своя доставка и склады-дилеры · данные каждой отделены");
-        model.addAttribute("rows", store.companyRows());
+        model.addAttribute("rows", dashboard.snapshot().companyRows());
         return "admin/companies/list";
     }
 
@@ -51,6 +53,7 @@ public class AdminSystemController {
     public String settings(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
         AdminPage.head(model, "settings", "Настройки", v.isAll() ? "Выберите компанию в шапке, чтобы изменить её настройки" : v.scopeName());
+        model.addAttribute("st", settings.of(v.companyId()));
         return "admin/settings";
     }
 

@@ -1,5 +1,14 @@
 package com.confectionery.distribution.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -10,27 +19,46 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Рейс: машина + экспедитор на день, заказы по порядку точек. */
+@Entity
+@Table(name = "trips")
 @Getter
 @Setter
 @Accessors(chain = true)
-public class Trip {
-    private Long id;
+public class Trip extends CompanyEntity {
     private String number;
-    private Company company;
+    @Column(name = "trip_date")
     private LocalDate date;
+    @ManyToOne(fetch = FetchType.LAZY)
     private Employee expeditor;
+    @ManyToOne(fetch = FetchType.LAZY)
     private Vehicle vehicle;
+    @Enumerated(EnumType.STRING)
     private TripStatus status;
     private LocalDateTime startedAt;
+    private LocalDateTime returnedAt;
     private LocalDateTime closedAt;
-    private List<Order> orders = new ArrayList<>();
+    /** Заказы рейса по порядку точек (getStops() — их число, для страниц). */
+    @OneToMany(mappedBy = "trip")
+    @OrderBy("position")
+    private List<TripOrder> tripOrders = new ArrayList<>();
+    @OneToMany(mappedBy = "trip")
+    @OrderBy("at")
     private List<Payment> payments = new ArrayList<>();
+    @OneToMany(mappedBy = "trip")
+    @OrderBy("id")
     private List<ProductReturn> returns = new ArrayList<>();
-    /** Приём кассы: пересчитано наличных; null — ещё не пересчитали. */
-    private Long cashCounted;
-    private boolean kaspiChecked;
-    private boolean goodsChecked;
-    private String acceptedBy;
+    /** Приём кассы (не больше одного на рейс). */
+    @OneToMany(mappedBy = "trip")
+    private List<CashHandover> handovers = new ArrayList<>();
+
+    /** Заказы по порядку точек. */
+    public List<Order> getOrders() {
+        return tripOrders.stream().map(TripOrder::getOrder).toList();
+    }
+
+    public CashHandover getHandover() {
+        return handovers.isEmpty() ? null : handovers.get(0);
+    }
 
     private long sum(PaymentMethod m) {
         return payments.stream().filter(p -> p.getMethod() == m).mapToLong(Payment::getAmount).sum();
@@ -45,8 +73,8 @@ public class Trip {
     }
 
     public long getCredit() {
-        return orders.stream().filter(o -> o.getStatus().delivered() && o.getPayment() == PaymentMethod.CREDIT)
-                .mapToLong(o -> o.getDeliveredTotal()).sum();
+        return getOrders().stream().filter(o -> o.getStatus().delivered() && o.getPayment() == PaymentMethod.CREDIT)
+                .mapToLong(Order::getDeliveredTotal).sum();
     }
 
     public long getOldDebtCollected() {
@@ -54,11 +82,11 @@ public class Trip {
     }
 
     public long getLoadedTotal() {
-        return orders.stream().mapToLong(Order::getTotal).sum();
+        return getOrders().stream().mapToLong(Order::getTotal).sum();
     }
 
     public long getDeliveredTotal() {
-        return orders.stream().mapToLong(Order::getDeliveredTotal).sum();
+        return getOrders().stream().mapToLong(Order::getDeliveredTotal).sum();
     }
 
     public long getReturnsTotal() {
@@ -70,21 +98,21 @@ public class Trip {
     }
 
     public int getStops() {
-        return orders.size();
+        return tripOrders.size();
     }
 
     public int getDoneStops() {
-        return (int) orders.stream().filter(o -> o.getStatus().delivered() || o.getStatus() == OrderStatus.REFUSED).count();
+        return (int) getOrders().stream().filter(o -> o.getStatus().delivered() || o.getStatus() == OrderStatus.REFUSED).count();
     }
 
     public int getProgress() {
-        return orders.isEmpty() ? 0 : getDoneStops() * 100 / orders.size();
+        return tripOrders.isEmpty() ? 0 : getDoneStops() * 100 / tripOrders.size();
     }
 
     /** Невыданный товар (штук), который возвращается на основной склад. */
     public int getUndeliveredQty() {
         int n = 0;
-        for (Order o : orders) {
+        for (Order o : getOrders()) {
             for (OrderLine l : o.getLines()) {
                 if (o.getStatus() == OrderStatus.REFUSED) n += l.getQty();
                 else if (l.getDelivered() != null) n += l.getQty() - l.getDelivered();
@@ -93,8 +121,34 @@ public class Trip {
         return n;
     }
 
+    // приём кассы — из CashHandover
+
+    /** Пересчитано наличных; null — ещё не пересчитали. */
+    public Long getCashCounted() {
+        CashHandover h = getHandover();
+        return h == null ? null : h.getCountedCash();
+    }
+
+    public boolean isKaspiChecked() {
+        CashHandover h = getHandover();
+        return h != null && h.isKaspiChecked();
+    }
+
+    public boolean isGoodsChecked() {
+        CashHandover h = getHandover();
+        return h != null && h.isGoodsChecked();
+    }
+
+    /** Кто принял кассу — имя для страницы. */
+    public String getAcceptedBy() {
+        CashHandover h = getHandover();
+        return h == null || h.getAcceptedBy() == null ? null : h.getAcceptedBy().getName();
+    }
+
     /** Разница кассы: пересчитано − ожидается; минус — недостача. */
     public Long getCashDiff() {
-        return cashCounted == null ? null : cashCounted - getCash();
+        CashHandover h = getHandover();
+        if (h == null || h.getCountedCash() == null) return null;
+        return h.getCashDiff() != null ? h.getCashDiff() : h.getCountedCash() - getCash();
     }
 }

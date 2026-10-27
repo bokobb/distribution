@@ -17,7 +17,7 @@
         <tbody><tr th:each="e : ${people}">
             <td><b th:text="${e.name}"></b><span class="sub" th:if="${v.isAll()}" th:text="${e.company.name}"></span></td>
             <td th:text="${e.role.label}"></td>
-            <td class="num hide-m" th:text="${e.phone}"></td>
+            <td class="num hide-m" th:text="${@fmt.phone(e.phone)}"></td>
             <td class="hide-m small">
                 <th:block th:if="${e.role.name() == 'AGENT'}"><th:block th:each="r, it : ${routes}" th:if="${r.agent == e}" th:text="${r.name + ' (' + r.days + ') '}"></th:block></th:block>
                 <th:block th:if="${e.vehicle != null}" th:text="${e.vehicle.model + ' · ' + e.vehicle.plate}"></th:block>

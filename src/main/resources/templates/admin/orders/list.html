@@ -31,7 +31,7 @@
         <tbody><tr th:each="o : ${orders}">
             <td><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a><span class="sub" th:text="${@fmt.when(o.createdAt)}"></span></td>
             <td><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${o.outlet.address + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
-            <td class="hide-m" th:text="${o.agent.name}"></td>
+            <td class="hide-m" th:text="${o.agent?.name}"></td>
             <td class="hide-m" th:text="${@fmt.day(o.deliveryDate)}"></td>
             <td class="hide-m" th:text="${o.payment.label}"></td>
             <td class="r num"><b th:text="${@fmt.money(o.total)}"></b></td>
