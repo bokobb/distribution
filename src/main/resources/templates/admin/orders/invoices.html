@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--/* Накладные для печати (A4), без меню админки. total = false — на каждый заказ своя накладная на
+     отдельном листе; total = true — общая накладная: товар по всем заказам и список магазинов. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title th:text="${total ? 'Общая накладная' : (orders.size() == 1 ? 'Накладная № ' + orders[0].number : 'Накладные по магазинам')}">Накладные</title>
+    <link rel="icon" href="/admin/assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&display=swap">
+    <style>
+        :root{color-scheme:light;--ink:#1d1d1d;--soft:#5c5c5c;--line:#9a9a9a;--paper:#e9e8e3}
+        *{box-sizing:border-box}
+        body{margin:0;background:var(--paper);color:var(--ink);font:400 12.5px/1.4 "Golos Text","Segoe UI",system-ui,sans-serif}
+        h1{font-size:17px;margin:0 0 2px}
+        h2{font-size:13.5px;margin:14px 0 6px}
+        p{margin:0}
+        .tools{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 16px;background:#fff;border-bottom:1px solid #d6d4cc;font-size:14px}
+        .tools span{flex:1;min-width:0}
+        .tools button{min-height:40px;padding:0 18px;border:0;border-radius:999px;background:#B9203C;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+        .sheet{width:min(210mm,100% - 32px);margin:16px auto;padding:12mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.12)}
+        .meta{color:var(--soft)}
+        .parties{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:6px 18px;margin:10px 0 12px}
+        .parties dt{color:var(--soft);font-size:11px}
+        .parties dd{margin:0}
+        table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+        th,td{border:1px solid var(--line);padding:4px 6px;vertical-align:top;text-align:left}
+        th{font-size:11px;font-weight:600;background:#f3f3f1}
+        .r{text-align:right;white-space:nowrap}
+        .n{width:1%;text-align:right;white-space:nowrap}
+        tfoot td{font-weight:700}
+        .words{margin-top:8px}
+        .pays{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px}
+        .sign{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+        .sign div{border-top:1px solid var(--ink);padding-top:3px;color:var(--soft);font-size:11px}
+        .empty{padding:40px 16px;text-align:center;color:var(--soft);font-size:15px}
+        @page{size:A4;margin:10mm}
+        @media print{
+            body{background:#fff}
+            .tools{display:none}
+            .sheet{width:auto;margin:0;padding:0;box-shadow:none;break-after:page}
+            .sheet:last-of-type{break-after:auto}
+            thead{display:table-header-group}
+            tr{break-inside:avoid}
+        }
+    </style>
+</head>
+<body>
+<div class="tools">
+    <span th:text="${(total ? 'Общая накладная' : 'Накладные по магазинам') + ' · ' + @fmt.plural(orders.size(), 'заказ', 'заказа', 'заказов') + ' · ' + @fmt.money(sum)}">Накладные</span>
+    <button type="button" onclick="window.print()" th:if="${!orders.isEmpty()}">Печать</button>
+</div>
+
+<p class="empty" th:if="${orders.isEmpty()}">Не выбрано ни одного заказа. Отметьте заказы галочками в списке и нажмите кнопку накладной ещё раз.</p>
+
+<!--/* ---------- по магазинам: заказ = накладная на своём листе ---------- */-->
+<th:block th:if="${!total}">
+<section class="sheet" th:each="o : ${orders}" th:with="disc=${!o.lines.?[discount != null and discount > 0].isEmpty()}">
+    <h1 th:text="${'Накладная № ' + o.number + ' от ' + @fmt.date(o.deliveryDate)}">Накладная</h1>
+    <p class="meta" th:text="${@fmt.dot('Оплата: ' + o.payment.label, o.agent != null ? 'торговый: ' + o.agent.name : null,
+            o.trip != null ? 'экспедитор: ' + o.trip.expeditor.name + ', рейс ' + o.trip.number : null)}"></p>
+    <dl class="parties">
+        <div><dt>Поставщик</dt>
+            <dd><b th:text="${o.company.name}"></b><br><span th:if="${o.company.phone != null}" th:text="${'тел. ' + o.company.phone}"></span></dd></div>
+        <div><dt>Покупатель</dt>
+            <dd><b th:text="${o.outlet.legal != null and !#strings.isEmpty(o.outlet.legal) ? o.outlet.legal : o.outlet.name}"></b>
+                <span th:if="${o.outlet.legal != null and !#strings.isEmpty(o.outlet.legal)}" th:text="${'(' + o.outlet.name + ')'}"></span>
+                <br th:if="${o.outlet.bin != null and !#strings.isEmpty(o.outlet.bin)}"><span th:if="${o.outlet.bin != null and !#strings.isEmpty(o.outlet.bin)}" th:text="${'БИН/ИИН ' + o.outlet.bin}"></span>
+                <br><span th:text="${@fmt.dot(o.outlet.address, o.outlet.phone)}"></span></dd></div>
+    </dl>
+    <table>
+        <thead><tr><th class="n">№</th><th>Товар</th><th>Ед.</th><th class="r">Кол-во</th><th class="r">Цена, ₸</th><th class="r" th:if="${disc}">Скидка, ₸</th><th class="r">Сумма, ₸</th></tr></thead>
+        <tbody><tr th:each="l, st : ${o.lines}">
+            <td class="n" th:text="${st.count}"></td>
+            <td th:text="${l.product.name}"></td>
+            <td th:text="${l.product.unit}"></td>
+            <td class="r" th:text="${@fmt.amount(l.qty)}"></td>
+            <td class="r" th:text="${@fmt.amount(l.price)}"></td>
+            <td class="r" th:if="${disc}" th:text="${l.discount != null and l.discount > 0 ? @fmt.amount(l.discount) : ''}"></td>
+            <td class="r" th:text="${@fmt.amount(l.sum)}"></td>
+        </tr></tbody>
+        <tfoot><tr><td colspan="3">Итого</td><td class="r" th:text="${@fmt.amount(o.qty)}"></td><td th:colspan="${disc ? 2 : 1}"></td><td class="r" th:text="${@fmt.amount(o.total)}"></td></tr></tfoot>
+    </table>
+    <p class="words" th:text="${'Всего наименований ' + o.lines.size() + ' на сумму: ' + @fmt.words(o.total)}"></p>
+    <div class="sign"><div>Отпустил (подпись, ФИО)</div><div>Получил (подпись, ФИО)</div></div>
+</section>
+</th:block>
+
+<!--/* ---------- общая: товар по всем заказам и магазины ---------- */-->
+<section class="sheet" th:if="${total and !orders.isEmpty()}">
+    <h1 th:text="${'Общая накладная на ' + days}">Общая накладная</h1>
+    <p class="meta" th:text="${@fmt.dot(@fmt.plural(orders.size(), 'заказ', 'заказа', 'заказов'), @fmt.plural(shops, 'магазин', 'магазина', 'магазинов'),
+            v.isAll() ? null : v.scopeName())}"></p>
+    <p class="meta" th:if="${!#strings.isEmpty(tripsText)}" th:text="${'Рейс: ' + tripsText}"></p>
+
+    <h2>Товар</h2>
+    <table>
+        <thead><tr><th class="n">№</th><th>Товар</th><th>Ед.</th><th class="r">Кол-во</th><th class="r">Коробок + шт</th><th class="r">Сумма, ₸</th></tr></thead>
+        <tbody><tr th:each="r, st : ${rows}">
+            <td class="n" th:text="${st.count}"></td>
+            <td th:text="${r.product().name}"></td>
+            <td th:text="${r.product().unit}"></td>
+            <td class="r" th:text="${@fmt.amount(r.qty())}"></td>
+            <td class="r" th:text="${(r.boxes() > 0 ? r.boxes() + ' кор. × ' + r.product().perBox : '') + (r.boxes() > 0 and r.pieces() > 0 ? ' + ' : '') + (r.pieces() > 0 ? r.pieces() + ' шт' : '')}"></td>
+            <td class="r" th:text="${@fmt.amount(r.sum())}"></td>
+        </tr></tbody>
+        <tfoot><tr><td colspan="3">Итого</td><td class="r" th:text="${@fmt.amount(qty)}"></td><td></td><td class="r" th:text="${@fmt.amount(sum)}"></td></tr></tfoot>
+    </table>
+
+    <h2>Магазины</h2>
+    <table>
+        <thead><tr><th class="n">№</th><th>Магазин, адрес</th><th>Заказ</th><th>Торговый</th><th>Оплата</th><th class="r">Сумма, ₸</th></tr></thead>
+        <tbody><tr th:each="o, st : ${orders}">
+            <td class="n" th:text="${st.count}"></td>
+            <td><b th:text="${o.outlet.name}"></b><br><span class="meta" th:text="${@fmt.dot(o.outlet.address, o.outlet.phone)}"></span></td>
+            <td th:text="${o.number}"></td>
+            <td th:text="${o.agent?.name}"></td>
+            <td th:text="${o.payment.label}"></td>
+            <td class="r" th:text="${@fmt.amount(o.total)}"></td>
+        </tr></tbody>
+    </table>
+    <p class="pays"><span th:each="e : ${byPayment}" th:text="${e.key.label + ': ' + @fmt.amount(e.value) + ' ₸'}"></span></p>
+    <p class="words" th:text="${'Всего на сумму: ' + @fmt.words(sum)}"></p>
+    <div class="sign"><div>Отпустил со склада (подпись, ФИО)</div><div>Принял экспедитор (подпись, ФИО)</div></div>
+</section>
+</body>
+</html>

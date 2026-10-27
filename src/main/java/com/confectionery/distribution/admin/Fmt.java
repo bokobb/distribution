@@ -33,6 +33,11 @@ public class Fmt {
         return v < 0 ? "−" + s : s;
     }
 
+    /** Число для печати: обычный неразрывный пробел между разрядами — узкий на бумаге почти не виден. */
+    public String amount(Number n) {
+        return num(n).replace(NB, '\u00A0');
+    }
+
     public String money(Number v) {
         return v == null ? "—" : num(v) + "\u00A0₸";
     }
@@ -92,6 +97,11 @@ public class Fmt {
             b.append(p);
         }
         return b.toString();
+    }
+
+    /** Сумма прописью для накладной: «Сто двенадцать тысяч четыреста сорок тенге». */
+    public String words(Number v) {
+        return v == null ? "" : MoneyWords.tenge(v.longValue());
     }
 
     /** Склонение: plural(5, "магазин", "магазина", "магазинов"). */

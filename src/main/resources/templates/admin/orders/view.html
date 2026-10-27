@@ -2,7 +2,11 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<a class="back" href="/admin/orders"><th:block th:utext="${i16['back']}"></th:block>Заказы</a>
+<div class="acts">
+    <a class="back" href="/admin/orders"><th:block th:utext="${i16['back']}"></th:block>Заказы</a>
+    <span style="flex:1"></span>
+    <a class="btn btn-soft btn-sm" th:href="${'/admin/orders/' + o.id + '/invoice'}" target="_blank"><th:block th:utext="${i16['print']}"></th:block>Накладная</a>
+</div>
 
 <section class="card" th:if="${o.status.name() == 'NEEDS_APPROVAL'}" style="border-color:var(--warn)">
     <div class="card-h"><h2>Нужно разрешение: долг сверх лимита</h2></div>

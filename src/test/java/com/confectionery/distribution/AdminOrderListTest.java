@@ -106,4 +106,33 @@ class AdminOrderListTest {
         mvc.perform(post("/admin/orders/ship").with(csrf()).session(s).param("back", "https://example.com"))
                 .andExpect(redirectedUrl("/admin/orders"));
     }
+
+    @Test
+    void накладныеПоМагазинамИОбщая() throws Exception {
+        World w = data.world("Накладные");
+        Outlet outlet2 = data.outletInNewRegion(w, w.agent());
+        Order a = data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 2, 1000);
+        Order b = data.order(w, outlet2, w.agent(), data.today().plusDays(1), PaymentMethod.KASPI, 3, 500);
+        Order foreign = data.order(data.world("Чужая"), data.today().plusDays(1), PaymentMethod.CASH, 1, 1000);
+        MockHttpSession s = login(w.operator());
+
+        mvc.perform(post("/admin/orders/invoices").with(csrf()).session(s).param("kind", "shop")
+                        .param("ids", a.getId().toString(), b.getId().toString(), foreign.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Накладная № " + a.getNumber())))
+                .andExpect(content().string(containsString("Накладная № " + b.getNumber())))
+                .andExpect(content().string(containsString("Две тысячи тенге")))
+                .andExpect(content().string(not(containsString(foreign.getNumber()))));
+
+        mvc.perform(post("/admin/orders/invoices").with(csrf()).session(s).param("kind", "total")
+                        .param("ids", a.getId().toString(), b.getId().toString()))
+                .andExpect(content().string(containsString("Общая накладная")))
+                .andExpect(content().string(containsString(w.product().getName())))
+                .andExpect(content().string(containsString("Три тысячи пятьсот тенге")))
+                .andExpect(content().string(containsString("Kaspi: 1")));
+
+        mvc.perform(get("/admin/orders/" + a.getId() + "/invoice").session(s))
+                .andExpect(content().string(containsString("Накладная № " + a.getNumber())));
+        mvc.perform(get("/admin/orders/" + foreign.getId() + "/invoice").session(s)).andExpect(status().isNotFound());
+    }
 }

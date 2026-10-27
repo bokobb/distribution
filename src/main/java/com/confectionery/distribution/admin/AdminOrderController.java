@@ -172,6 +172,42 @@ public class AdminOrderController {
         return "redirect:" + to;
     }
 
+    /**
+     * Накладные по отмеченным заказам, страница для печати: kind = shop — на каждый магазин своя
+     * накладная (отдельный лист), total — общая: товар по всем заказам и список магазинов.
+     */
+    @PostMapping("/admin/orders/invoices")
+    public String invoices(@RequestParam(name = "ids", required = false) List<Long> ids,
+                           @RequestParam(defaultValue = "shop") String kind, Model model) {
+        return invoicePage(orders.forInvoices(ids), kind, model);
+    }
+
+    @GetMapping("/admin/orders/{id}/invoice")
+    public String invoice(@PathVariable Long id, Model model) {
+        return invoicePage(List.of(orders.get(id)), "shop", model);
+    }
+
+    private String invoicePage(List<Order> list, String kind, Model model) {
+        boolean total = "total".equals(kind);
+        java.util.Map<com.confectionery.distribution.domain.PaymentMethod, Long> byPayment =
+                new java.util.EnumMap<>(com.confectionery.distribution.domain.PaymentMethod.class);
+        for (Order o : list) byPayment.merge(o.getPayment(), o.getTotal(), Long::sum);
+        java.util.Set<LocalDate> days = new java.util.TreeSet<>();
+        list.forEach(o -> days.add(o.getDeliveryDate()));
+        model.addAttribute("total", total);
+        model.addAttribute("orders", list);
+        model.addAttribute("rows", OrderService.sumList(list));
+        model.addAttribute("byPayment", byPayment);
+        model.addAttribute("sum", list.stream().mapToLong(Order::getTotal).sum());
+        model.addAttribute("qty", list.stream().mapToInt(Order::getQty).sum());
+        model.addAttribute("shops", list.stream().map(Order::getOutlet).distinct().count());
+        model.addAttribute("days", days.stream().map(fmt::date).collect(java.util.stream.Collectors.joining(", ")));
+        model.addAttribute("tripsText", list.stream().map(Order::getTrip).filter(java.util.Objects::nonNull).distinct()
+                .map(t -> t.getNumber() + " — " + t.getExpeditor().getName() + ", " + t.getVehicle().getPlate())
+                .collect(java.util.stream.Collectors.joining("; ")));
+        return "admin/orders/invoices";
+    }
+
     @PostMapping("/admin/orders/{id}/approve")
     public String approve(@PathVariable Long id, HttpSession session) {
         Order o = orders.approve(id, ctx.viewer(session).actor());

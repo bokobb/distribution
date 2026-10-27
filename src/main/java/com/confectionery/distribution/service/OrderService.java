@@ -59,6 +59,36 @@ public class OrderService {
                 }).toList();
     }
 
+    /** Строка общей накладной: товар, штук, коробок + штук, сумма по всем заказам. */
+    public record SumRow(Product product, int qty, int boxes, int pieces, long sum) {
+    }
+
+    public static List<SumRow> sumList(List<Order> list) {
+        Map<Product, long[]> m = new LinkedHashMap<>();
+        for (Order o : list)
+            for (OrderLine l : o.getLines()) {
+                long[] r = m.computeIfAbsent(l.getProduct(), p -> new long[2]);
+                r[0] += l.getQty();
+                r[1] += l.getSum();
+            }
+        return m.entrySet().stream()
+                .sorted(Comparator.comparing(e -> e.getKey().getName()))
+                .map(e -> {
+                    int qty = (int) e.getValue()[0], per = Math.max(1, e.getKey().getPerBox());
+                    return new SumRow(e.getKey(), qty, qty / per, qty % per, e.getValue()[1]);
+                }).toList();
+    }
+
+    /** Заказы для накладных: только видимые (своей компании), по рейсам, маршрутам и магазинам. */
+    public List<Order> forInvoices(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return orders.findAllById(ids).stream()
+                .sorted(Comparator.comparing((Order o) -> o.getTrip() == null ? "" : o.getTrip().getNumber())
+                        .thenComparing(o -> o.getOutlet().getRoute() == null ? "" : o.getOutlet().getRoute().getName())
+                        .thenComparing(o -> o.getOutlet().getName()))
+                .toList();
+    }
+
     @Transactional
     public Order approve(Long id, Actor actor) {
         Order o = orders.findById(id).orElseThrow(NotFoundException::new);

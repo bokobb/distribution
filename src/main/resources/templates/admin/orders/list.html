@@ -129,6 +129,10 @@
                 th:text="${@fmt.dot(e.name, e.vehicle != null ? e.vehicle.plate : 'нет машины', v.isAll() ? e.company.name : null)}"></option>
     </select>
     <button class="btn btn-primary btn-sm" type="submit" data-confirm="Отгрузить отмеченные заказы этому экспедитору? Товар перейдёт с основного склада в его машину.">Отгрузить</button>
+    <span class="bulk-g" role="group" aria-label="Накладные">
+        <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/invoices" formtarget="_blank" formnovalidate name="kind" value="shop" th:utext="${i16['print'] + 'По магазинам'}">По магазинам</button>
+        <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/invoices" formtarget="_blank" formnovalidate name="kind" value="total" th:utext="${i16['print'] + 'Общая накладная'}">Общая накладная</button>
+    </span>
 </form>
 </th:block>
 </body>
