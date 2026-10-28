@@ -151,6 +151,8 @@ class FakeServer {
         ].where((o) => o['id'] == body['outletId']);
         if (!debtPayments.containsKey(uuid)) {
           debtPayments[uuid] = body;
+          _addCash(body['tripId'] as int, body['method'] == 'KASPI' ? 'kaspi' : 'cash', body['amount'] as int);
+          _addCash(body['tripId'] as int, 'oldDebt', body['amount'] as int);
           for (final o in outlets) {
             o['debt'] = (o['debt'] as int) - (body['amount'] as int);
           }
@@ -170,6 +172,9 @@ class FakeServer {
         });
         if (!returns.containsKey(uuid)) {
           returns[uuid] = body;
+          _addCash(body['tripId'] as int, 'returnsQty',
+              (body['lines'] as List).fold<int>(0, (a, l) => a + ((l as Map)['qty'] as int)));
+          _addCash(body['tripId'] as int, 'returnsTotal', total);
           for (final o in outlets) {
             o['debt'] = (o['debt'] as int) - total;
           }
@@ -200,10 +205,13 @@ class FakeServer {
 
   /// Выдача — как сервер: статус и суммы заказа в данных экспедитора.
   Map<String, dynamic> _deliver(Map<String, dynamic> body) {
-    final order = [
-      for (final t in expeditorData['trips'] as List)
-        for (final s in (t as Map)['stops'] as List) (s as Map)['order'] as Map<String, dynamic>
-    ].firstWhere((o) => o['id'] == body['orderId']);
+    final trip = (expeditorData['trips'] as List).cast<Map<String, dynamic>>().firstWhere(
+        (t) => (t['stops'] as List).any((s) => ((s as Map)['order'] as Map)['id'] == body['orderId']));
+    final order = [for (final s in trip['stops'] as List) (s as Map)['order'] as Map<String, dynamic>]
+        .firstWhere((o) => o['id'] == body['orderId']);
+    for (final p in (body['payments'] as List).cast<Map<String, dynamic>>()) {
+      _addCash(trip['id'] as int, p['method'] == 'KASPI' ? 'kaspi' : 'cash', p['amount'] as int);
+    }
     final items = {for (final i in body['items'] as List) (i as Map)['productId'] as int: i['qty'] as int};
     final refused = body['refused'] as bool;
     var total = 0;
@@ -222,6 +230,13 @@ class FakeServer {
     return {'uuid': body['uuid'], 'orderId': order['id'], 'status': status, 'statusLabel': label, 'total': total, 'paid': paid};
   }
 
+  /// Касса рейса — как на сервере.
+  void _addCash(int tripId, String key, int amount) {
+    final trip = (expeditorData['trips'] as List).cast<Map<String, dynamic>>().firstWhere((t) => t['id'] == tripId);
+    final cash = trip['cash'] as Map<String, dynamic>;
+    cash[key] = (cash[key] as int) + amount;
+  }
+
   /// JWT истёк или сервер перезапускался: прежний больше не принимается.
   void expireJwt() => _jwt = null;
 
@@ -238,6 +253,8 @@ class FakeServer {
   static http.Response _json(Object body, int status) =>
       http.Response.bytes(utf8.encode(jsonEncode(body)), status, headers: {'content-type': 'application/json'});
 }
+
+Map<String, dynamic> _noCash() => {'cash': 0, 'kaspi': 0, 'oldDebt': 0, 'returnsQty': 0, 'returnsTotal': 0};
 
 String _day(DateTime x) => '${x.year}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
 
@@ -280,7 +297,7 @@ Map<String, dynamic> sampleExpeditorData({DateTime? now}) {
     'trips': [
       {
         'id': 1, 'number': 'Р-281026-1', 'date': _day(t), 'status': 'ON_ROAD', 'statusLabel': 'В пути',
-        'vehicle': '245 AKS 02',
+        'vehicle': '245 AKS 02', 'cash': _noCash(),
         'stops': [
           {
             'position': 0,
@@ -301,7 +318,7 @@ Map<String, dynamic> sampleExpeditorData({DateTime? now}) {
       },
       {
         'id': 2, 'number': 'Р-291026-1', 'date': _day(t.add(const Duration(days: 1))), 'status': 'ON_ROAD',
-        'statusLabel': 'В пути', 'vehicle': '245 AKS 02',
+        'statusLabel': 'В пути', 'vehicle': '245 AKS 02', 'cash': _noCash(),
         'stops': [
           {
             'position': 0,

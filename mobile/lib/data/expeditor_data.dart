@@ -64,7 +64,8 @@ class TripInfo {
       required this.date,
       required this.statusLabel,
       this.vehicle,
-      required this.stops});
+      required this.stops,
+      this.cash = const TripCash()});
 
   final int id;
   final String number;
@@ -77,6 +78,9 @@ class TripInfo {
   /// Точки по порядку объезда.
   final List<Stop> stops;
 
+  /// Деньги и возвраты рейса на сервере.
+  final TripCash cash;
+
   /// Сколько точек пройдено (выдано или отказ).
   int get done => stops.where((s) => s.order.done).length;
 
@@ -87,6 +91,27 @@ class TripInfo {
         statusLabel: j['statusLabel'] as String,
         vehicle: j['vehicle'] as String?,
         stops: [for (final s in j['stops'] as List) Stop.fromJson(s as Map<String, dynamic>)],
+        cash: j['cash'] == null ? const TripCash() : TripCash.fromJson(j['cash'] as Map<String, dynamic>),
+      );
+}
+
+/// Деньги и возвраты рейса на сервере — как их увидит касса: наличные и Kaspi — все оплаты (за заказы и в счёт
+/// долгов), oldDebt — из них оплаты долгов; возвраты негодного — штук и на сколько уменьшили долги.
+class TripCash {
+  const TripCash({this.cash = 0, this.kaspi = 0, this.oldDebt = 0, this.returnsQty = 0, this.returnsTotal = 0});
+
+  final int cash;
+  final int kaspi;
+  final int oldDebt;
+  final int returnsQty;
+  final int returnsTotal;
+
+  factory TripCash.fromJson(Map<String, dynamic> j) => TripCash(
+        cash: j['cash'] as int? ?? 0,
+        kaspi: j['kaspi'] as int? ?? 0,
+        oldDebt: j['oldDebt'] as int? ?? 0,
+        returnsQty: j['returnsQty'] as int? ?? 0,
+        returnsTotal: j['returnsTotal'] as int? ?? 0,
       );
 }
 

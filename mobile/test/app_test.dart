@@ -704,4 +704,40 @@ void main() {
     expect(find.textContaining('аванс ${money(1300)}'), findsOneWidget); // долга не было
     expect((server.returns.values.single['lines'] as List).map((l) => (l as Map)['reason']), ['EXPIRED', 'EXPIRED']);
   });
+
+  testWidgets('экспедитор: «Итог дня» — что сдать в кассу, долг магазинам, товар в машине', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+    server.offline = true;
+    await t.tap(find.text('Магазин «Береке»'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Оплата долга'));
+    await t.pumpAndSettle();
+    await t.enterText(find.widgetWithText(TextField, 'Наличными'), '4000');
+    await t.pump();
+    await t.tap(find.text('Принять ${money(4000)}'));
+    await t.pumpAndSettle();
+    await t.pageBack();
+    await t.pumpAndSettle();
+
+    await t.tap(find.byTooltip('Итог дня'));
+    await t.pumpAndSettle();
+    expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02'), findsOneWidget);
+    expect(find.text('Пройдено 1 из 2'), findsOneWidget);
+    expect(find.text('выдано 1 · не пройдено 1'), findsOneWidget);
+    expect(find.text(money(4000)), findsWidgets); // наличные и из них в счёт долгов
+    expect(find.text('из них в счёт долгов'), findsOneWidget);
+    expect(find.text('29 шт'), findsOneWidget);
+    expect(find.textContaining('Не отправлено на сервер: 1 запись'), findsOneWidget);
+
+    server.offline = false;
+    await t.tap(find.text('Отправить сейчас'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Не отправлено'), findsNothing);
+    expect(server.debtPayments, hasLength(1));
+  });
 }

@@ -55,6 +55,12 @@ class DeliveryBook extends ChangeNotifier {
     return _payments.where((p) => p.outletId == outletId && !p.paidAt.isBefore(from)).toList();
   }
 
+  /// Оплаты долга рейса на телефоне, которые сервер не отклонил.
+  List<DebtPayment> paymentsIn(int tripId) => _payments.where((p) => p.tripId == tripId && p.error == null).toList();
+
+  /// Возвраты рейса на телефоне, которые сервер не отклонил.
+  List<DefectReturn> returnsIn(int tripId) => _returns.where((r) => r.tripId == tripId && r.error == null).toList();
+
   /// Возвраты негодного у магазина за сегодня на телефоне — и непринятые сервером.
   List<DefectReturn> returnsAt(int outletId) {
     final from = _today();

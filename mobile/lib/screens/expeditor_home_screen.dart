@@ -10,6 +10,7 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
+import 'day_summary_screen.dart';
 import 'home_parts.dart';
 import 'stop_screen.dart';
 
@@ -40,6 +41,9 @@ class ExpeditorHomeScreen extends StatefulWidget {
 
 class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   ExpeditorData? _data;
+
+  /// Те же данные для «Итога дня»: он открыт поверх и обновляется вместе с «Рейсом».
+  final _shared = ValueNotifier<ExpeditorData?>(null);
   bool _loading = true;
   String? _syncError;
   late int _sent;
@@ -55,6 +59,7 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   @override
   void dispose() {
     widget.deliveries.outbox.removeListener(_onOutbox);
+    _shared.dispose();
     super.dispose();
   }
 
@@ -92,6 +97,7 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
 
   void _show(ExpeditorData? data) {
     setState(() => _data = data);
+    _shared.value = data;
     if (data != null) widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
   }
 
@@ -108,6 +114,14 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
               for (final st in t.stops) st.outlet.id: st.outlet.name
           },
           onRefresh: _pull,
+          actions: [
+            IconButton(
+              tooltip: 'Итог дня',
+              icon: const Icon(Icons.summarize_outlined),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => DaySummaryScreen(data: _shared, deliveries: widget.deliveries))),
+            ),
+          ],
           onLogout: widget.onLogout),
       body: RefreshIndicator(
         onRefresh: _pull,
