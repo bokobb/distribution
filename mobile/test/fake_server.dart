@@ -19,6 +19,9 @@ class FakeServer {
   /// Что сервер отдаёт агенту: сегодня маршрут «Центр» из двух магазинов, у второго долг с просрочкой.
   Map<String, dynamic> agentData = sampleAgentData();
 
+  /// Что сервер отдаёт экспедитору: рейс сегодня на две точки (вторая выдана) и рейс на завтра.
+  Map<String, dynamic> expeditorData = sampleExpeditorData();
+
   /// Что пришло на /api/mobile/track.
   final trackEvents = <Map<String, dynamic>>[];
   final trackPoints = <Map<String, dynamic>>[];
@@ -117,6 +120,10 @@ class FakeServer {
       case '/api/mobile/agent/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(agentData, 200);
+      case '/api/mobile/expeditor/data':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
+        return _json(expeditorData, 200);
     }
     return http.Response('', 404);
   });
@@ -153,15 +160,86 @@ class FakeServer {
       http.Response.bytes(utf8.encode(jsonEncode(body)), status, headers: {'content-type': 'application/json'});
 }
 
+String _day(DateTime x) => '${x.year}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+
+Map<String, dynamic> _outlet(int id, String name, {int debt = 0, int overdue = 0}) => {
+      'id': id, 'uuid': '00000000-0000-0000-0000-00000000000$id', 'name': name, 'legal': 'ИП $name', 'owner': null,
+      'phone': '+77010000000', 'phone2': null, 'address': 'ул. Байтурсынова, $id', 'landmark': null,
+      'lat': 42.3, 'lng': 69.6, 'priceKind': 'WHOLESALE', 'creditLimit': 100000, 'paymentDays': 7,
+      'status': 'ACTIVE', 'debt': debt, 'overdue': overdue, 'lastPaymentDate': null, 'lastPaymentSum': 0,
+    };
+
+final _products = [
+  {'id': 1, 'name': 'Печенье овсяное', 'category': 'Печенье', 'unit': 'шт', 'perBox': 12, 'barcode': null,
+    'wholesale': 500, 'retail': 600},
+  {'id': 2, 'name': 'Вафли сливочные', 'category': 'Вафли', 'unit': 'шт', 'perBox': 20, 'barcode': '4870001',
+    'wholesale': 300, 'retail': 350},
+  {'id': 3, 'name': 'Торт «Наполеон»', 'category': 'Торты', 'unit': 'шт', 'perBox': 1, 'barcode': null,
+    'wholesale': 0, 'retail': 0},
+];
+
+/// Рейс сегодня: «Арай» — 24 печенья и 5 вафель за наличные (13 500 ₸), «Береке» — выдан, в долг; на завтра —
+/// «Сайрам» по Kaspi.
+Map<String, dynamic> sampleExpeditorData({DateTime? now}) {
+  final t = now ?? DateTime.now();
+  Map<String, dynamic> line(int id, String name, int perBox, int qty, int price, {int? delivered}) => {
+        'productId': id, 'name': name, 'unit': 'шт', 'perBox': perBox, 'qty': qty, 'price': price, 'delivered': delivered,
+      };
+  Map<String, dynamic> order(int id, String number, String payment, List<Map<String, dynamic>> lines,
+          {String status = 'IN_TRIP', String label = 'В рейсе', int paid = 0}) =>
+      {
+        'id': id, 'uuid': '00000000-0000-0000-0000-0000000000$id', 'number': number, 'agent': 'Айгерим',
+        'deliveryDate': _day(t), 'payment': payment, 'comment': null, 'status': status, 'statusLabel': label,
+        'total': lines.fold<int>(0, (a, l) => a + (l['qty'] as int) * (l['price'] as int)), 'paid': paid, 'lines': lines,
+      };
+  return {
+    'date': _day(t),
+    'syncedAt': '${_day(t)}T07:30:00',
+    'company': {'name': 'Своя доставка', 'phone': '+7 700 000 01 00'},
+    'settings': {'acceptKaspi': true, 'allowCredit': true, 'gpsInterval': 5},
+    'products': _products,
+    'trips': [
+      {
+        'id': 1, 'number': 'Р-281026-1', 'date': _day(t), 'status': 'ON_ROAD', 'statusLabel': 'В пути',
+        'vehicle': '245 AKS 02',
+        'stops': [
+          {
+            'position': 0,
+            'outlet': _outlet(1, 'Магазин «Арай»', debt: 45000, overdue: 12000),
+            'order': {
+              ...order(11, 'З-271026-1', 'CASH',
+                  [line(1, 'Печенье овсяное', 12, 24, 500), line(2, 'Вафли сливочные', 20, 5, 300)]),
+              'comment': 'после обеда',
+            },
+          },
+          {
+            'position': 1,
+            'outlet': _outlet(2, 'Магазин «Береке»'),
+            'order': order(12, 'З-271026-2', 'CREDIT', [line(1, 'Печенье овсяное', 12, 10, 500, delivered: 10)],
+                status: 'DELIVERED', label: 'Доставлен'),
+          },
+        ],
+      },
+      {
+        'id': 2, 'number': 'Р-291026-1', 'date': _day(t.add(const Duration(days: 1))), 'status': 'ON_ROAD',
+        'statusLabel': 'В пути', 'vehicle': '245 AKS 02',
+        'stops': [
+          {
+            'position': 0,
+            'outlet': _outlet(3, 'Магазин «Сайрам»'),
+            'order': order(13, 'З-281026-5', 'KASPI', [line(2, 'Вафли сливочные', 20, 40, 300)]),
+          },
+        ],
+      },
+    ],
+  };
+}
+
 Map<String, dynamic> sampleAgentData({DateTime? now}) {
   final t = now ?? DateTime.now();
-  String d(DateTime x) => '${x.year}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
-  Map<String, dynamic> outlet(int id, String name, {int debt = 0, int overdue = 0}) => {
-        'id': id, 'uuid': '00000000-0000-0000-0000-00000000000$id', 'name': name, 'legal': 'ИП $name', 'owner': null,
-        'phone': '+77010000000', 'phone2': null, 'address': 'ул. Байтурсынова, $id', 'landmark': null,
-        'lat': 42.3, 'lng': 69.6, 'priceKind': 'WHOLESALE', 'creditLimit': 100000, 'paymentDays': 7,
-        'status': 'ACTIVE', 'debt': debt, 'overdue': overdue, 'lastPaymentDate': null, 'lastPaymentSum': 0,
-      };
+  String d(DateTime x) => _day(x);
+  Map<String, dynamic> outlet(int id, String name, {int debt = 0, int overdue = 0}) =>
+      _outlet(id, name, debt: debt, overdue: overdue);
   return {
     'date': d(t),
     'syncedAt': '${d(t)}T09:15:00',
@@ -169,14 +247,7 @@ Map<String, dynamic> sampleAgentData({DateTime? now}) {
       'visitRadius': 200, 'shelfPhotoRequired': false, 'refuseReasonRequired': true, 'deliveryDays': 1,
       'allowCredit': true, 'approvalOverLimit': true, 'agentDiscount': false, 'acceptKaspi': true, 'gpsInterval': 5,
     },
-    'products': [
-      {'id': 1, 'name': 'Печенье овсяное', 'category': 'Печенье', 'unit': 'шт', 'perBox': 12, 'barcode': null,
-        'wholesale': 500, 'retail': 600},
-      {'id': 2, 'name': 'Вафли сливочные', 'category': 'Вафли', 'unit': 'шт', 'perBox': 20, 'barcode': '4870001',
-        'wholesale': 300, 'retail': 350},
-      {'id': 3, 'name': 'Торт «Наполеон»', 'category': 'Торты', 'unit': 'шт', 'perBox': 1, 'barcode': null,
-        'wholesale': 0, 'retail': 0},
-    ],
+    'products': _products,
     'routes': [
       {'id': 1, 'name': 'Центр', 'region': 'Шымкент', 'days': [t.weekday], 'outlets': [2, 1]},
       {'id': 2, 'name': 'Сайрам', 'region': 'Сайрам', 'days': [t.weekday % 7 + 1], 'outlets': [3]},

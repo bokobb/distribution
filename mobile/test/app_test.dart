@@ -3,6 +3,7 @@ import 'package:distribution_mobile/format.dart';
 import 'package:distribution_mobile/main.dart';
 import 'package:distribution_mobile/session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -496,5 +497,43 @@ void main() {
     await t.tap(find.text('Открыть магазин'));
     await t.pumpAndSettle();
     expect(find.text('Начать визит'), findsOneWidget);
+  });
+
+  testWidgets('экспедитор: рейс по точкам, карточка точки — состав, долг, звонок и маршрут', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    expect(find.text('Рейс'), findsOneWidget);
+    expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02 · пройдено 1 из 2'), findsOneWidget);
+    expect(find.text('З-271026-1 · ${money(13500)} · Наличные'), findsOneWidget);
+    expect(find.text('Доставлен'), findsOneWidget);
+    expect(find.text('долг ${money(45000)}, просрочено ${money(12000)}'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Магазин «Сайрам»'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('· Р-291026-1 · 245 AKS 02 · 1 точка'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Магазин «Арай»'), -200, scrollable: find.byType(Scrollable).first);
+
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    expect(find.text('Заказ З-271026-1'), findsOneWidget);
+    expect(find.text('Комментарий: после обеда'), findsOneWidget);
+    expect(find.text('24 шт × ${money(500)} · 2 кор.'), findsOneWidget);
+    expect(find.text(money(12000)), findsOneWidget);
+    expect(find.text('Долг ${money(45000)}'), findsOneWidget);
+    expect(find.text('Позвонить'), findsOneWidget);
+
+    final opened = <String>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/url_launcher'),
+        (call) async {
+      opened.add((call.arguments as Map)['url'] as String);
+      return opened.length == 1; // звонок открылся, карт на телефоне нет
+    });
+    await t.tap(find.text('Позвонить'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Маршрут'));
+    await t.pumpAndSettle();
+    expect(opened, ['tel:+77010000000', 'geo:42.3,69.6?q=42.3,69.6(${Uri.encodeComponent('Магазин «Арай»')})']);
+    expect(find.text('На телефоне нет приложения карт'), findsOneWidget);
   });
 }

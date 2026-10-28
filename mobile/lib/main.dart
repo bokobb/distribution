@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'camera.dart';
 import 'data/agent_repo.dart';
+import 'data/expeditor_repo.dart';
 import 'data/local_store.dart';
 import 'device.dart';
 import 'location.dart';
@@ -63,6 +64,7 @@ class DistributionApp extends StatefulWidget {
 class _DistributionAppState extends State<DistributionApp> with WidgetsBindingObserver {
   late Session? _session = widget.session;
   late final _agent = AgentRepo(widget.api, widget.local);
+  late final _expeditor = ExpeditorRepo(widget.api, widget.local);
   late final _location = widget.location ?? DeviceLocation();
   late final _camera = widget.camera ?? DeviceCamera();
 
@@ -169,7 +171,7 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
                       onSession: _signedIn,
                       onLogout: _logout)
                   : ExpeditorHomeScreen(
-                      api: widget.api, session: s, workday: _workday!, onSession: _signedIn, onLogout: _logout),
+                      repo: _expeditor, session: s, workday: _workday!, onSession: _signedIn, onLogout: _logout),
     );
   }
 }
