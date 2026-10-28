@@ -123,6 +123,13 @@ public class MobileAccounts {
                 keepRaw == null ? "" : hash(keepRaw.strip()));
     }
 
+    /** Телефон вышел на связь; unsent — сколько записей на нём ещё ждут отправки (null — не менять). */
+    public void touch(Long userId, Integer unsent) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (unsent == null) jdbc.update("update users set last_sync = ? where id = ?", now, userId);
+        else jdbc.update("update users set last_sync = ?, unsent = ? where id = ?", now, Math.max(0, unsent), userId);
+    }
+
     /** Запись журнала приложения от сервера: вход и выход. */
     public void journal(MobileUser user, AppEventKind kind, String appVersion, String device) {
         LocalDateTime now = LocalDateTime.now(clock);
