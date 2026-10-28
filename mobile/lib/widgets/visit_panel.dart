@@ -171,7 +171,8 @@ class _VisitPanelState extends State<VisitPanel> {
             if (v.photo != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(File(v.photo!), height: 160, fit: BoxFit.cover),
+                child: Image.file(File(v.photo!), height: 160, fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox(height: 160, child: Icon(Icons.broken_image_outlined))),
               ),
             OutlinedButton.icon(
               onPressed: _busy ? null : () => _run(widget.visits.takePhoto),

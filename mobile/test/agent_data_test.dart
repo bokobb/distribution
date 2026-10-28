@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:distribution_mobile/data/agent_data.dart';
 import 'package:distribution_mobile/data/local_store.dart';
+import 'package:distribution_mobile/data/new_outlet.dart';
 import 'package:distribution_mobile/data/order.dart';
 import 'package:distribution_mobile/data/track.dart';
 import 'package:distribution_mobile/data/visit.dart';
@@ -169,5 +170,62 @@ void main() {
     expect(await store.read('order-draft'), isNull);
     await store.close();
   });
-}
 
+  test('SQLite: новые магазины — ждут отправки, фото, непринятые, стирание отправленного', () async {
+    sqfliteFfiInit();
+    final store = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
+    final o = NewOutlet(
+        uuid: 'н1', createdAt: DateTime(2026, 10, 28, 11), routeId: 2, name: 'Магазин «Нур»', bin: '123456789012',
+        phone: '+7 701 555 44 33', address: 'ул. Абая, 5', lat: 42.31, lng: 69.59, accuracy: 9, priceKind: 'RETAIL',
+        photo: '/фото/н1.jpg');
+    await store.saveNewOutlet(o);
+    expect(await store.unsentCount(), 2);
+    var p = await store.pending();
+    expect([p.outlets, p.photos], [1, 1]);
+    final back = (await store.newOutlets()).single;
+    expect(back.toJson(), o.toJson());
+    expect([back.accuracy, back.photo], [9, '/фото/н1.jpg']);
+
+    back.sent = true;
+    await store.saveNewOutlet(back);
+    expect(await store.unsentCount(), 1);
+    expect(await store.pruneNewOutlets(DateTime(2026, 11, 1)), isEmpty); // фото ещё не ушло
+    back.photoSent = true;
+    await store.saveNewOutlet(back);
+    expect(await store.unsentCount(), 0);
+
+    await store.saveNewOutlet(NewOutlet(
+        uuid: 'н2', createdAt: DateTime(2026, 10, 28, 12), name: 'Киоск', phone: '87015554433', landmark: 'остановка')
+      ..error = 'Нет маршрута');
+    p = await store.pending();
+    expect(p.total, 0);
+    expect(p.rejectedOutlets.single.error, 'Нет маршрута');
+
+    expect(await store.pruneNewOutlets(DateTime(2026, 10, 28)), isEmpty);
+    expect(await store.pruneNewOutlets(DateTime(2026, 11, 1)), ['/фото/н1.jpg']);
+    expect((await store.newOutlets()).map((n) => n.uuid), ['н2']);
+    await store.deleteNewOutlet('н2');
+    expect(await store.newOutlets(), isEmpty);
+    await store.close();
+  });
+
+  test('SQLite: база версии 4 обновляется — появляются новые магазины, заказы на месте', () async {
+    sqfliteFfiInit();
+    final path = '${Directory.systemTemp.createTempSync('db').path}/v4.db';
+    var store = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    await store.saveOrder(Order(
+        uuid: 'з1', outletId: 1, createdAt: DateTime(2026, 10, 28, 10), deliveryDate: DateTime(2026, 10, 29),
+        payment: 'CASH', items: {1: 1}, total: 500));
+    await store.close();
+    final db = await databaseFactoryFfi.openDatabase(path);
+    await db.execute('drop table new_outlets');
+    await db.setVersion(4);
+    await db.close();
+
+    store = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    expect(await store.unsentCount(), 1);
+    await store.saveNewOutlet(NewOutlet(uuid: 'н', createdAt: DateTime(2026, 10, 28), name: 'М', phone: '7011234567'));
+    expect(await store.unsentCount(), 2);
+    await store.close();
+  });
+}

@@ -148,7 +148,7 @@ class VisitBook extends ChangeNotifier {
     if (v == null) return null;
     final String? path;
     try {
-      path = await camera.shelf(v.uuid);
+      path = await camera.photo(v.uuid);
     } on Exception {
       return 'Не удалось открыть камеру';
     }

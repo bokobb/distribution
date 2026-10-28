@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import 'new_outlet.dart';
 import 'order.dart';
 import 'track.dart';
 import 'visit.dart';
@@ -14,18 +15,26 @@ class Pending {
       this.visits = 0,
       this.photos = 0,
       this.orders = 0,
+      this.outlets = 0,
       this.rejectedVisits = const [],
-      this.rejectedOrders = const []});
+      this.rejectedOrders = const [],
+      this.rejectedOutlets = const []});
 
   /// Записи журнала и точки GPS.
   final int track;
   final int visits;
+
+  /// Фото полки и фасада.
   final int photos;
   final int orders;
+
+  /// Новые магазины.
+  final int outlets;
   final List<Visit> rejectedVisits;
   final List<Order> rejectedOrders;
+  final List<NewOutlet> rejectedOutlets;
 
-  int get total => track + visits + photos + orders;
+  int get total => track + visits + photos + orders + outlets;
 }
 
 /// Хранилище на телефоне: данные с сервера для работы без сети (по ключу, целиком JSON) и записи, которые ждут
@@ -82,6 +91,17 @@ abstract class LocalStore {
 
   Future<void> deleteOrder(String uuid);
 
+  /// Записать новый магазин агента (новый или с отметкой отправки).
+  Future<void> saveNewOutlet(NewOutlet o);
+
+  /// Новые магазины на телефоне, по порядку: ждущие отправки, не принятые и недавно отправленные.
+  Future<List<NewOutlet>> newOutlets();
+
+  Future<void> deleteNewOutlet(String uuid);
+
+  /// Стереть отправленные целиком (с фото) магазины, добавленные раньше before; вернуть их файлы фото.
+  Future<List<String>> pruneNewOutlets(DateTime before);
+
   Future<Pending> pending();
 
   /// Стереть всё — при выходе: данные одного сотрудника не должны достаться следующему.
@@ -99,17 +119,19 @@ class SqliteStore implements LocalStore {
     final db = await f.openDatabase(
       path ?? p.join(await f.getDatabasesPath(), 'distribution.db'),
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 5,
         onCreate: (db, version) async {
           await db.execute('create table snapshot (key text primary key, json text not null, saved_at text not null)');
           await _createTrack(db);
           await _createVisits(db);
           await _createOrders(db);
+          await _createNewOutlets(db);
         },
         onUpgrade: (db, from, to) async {
           if (from < 2) await _createTrack(db);
           if (from < 3) await _createVisits(db);
           if (from < 4) await _createOrders(db);
+          if (from < 5) await _createNewOutlets(db);
         },
       ),
     );
@@ -141,6 +163,12 @@ class SqliteStore implements LocalStore {
         'items text not null, total integer not null, sent integer not null default 0, error text, number text, '
         'status text, status_label text, note text)');
     await db.execute('create index orders_created on orders (created_at)');
+  }
+
+  /// Версия 5: новые магазины агента до отправки; поля — одной строкой JSON, отметки отправки — отдельно.
+  static Future<void> _createNewOutlets(Database db) async {
+    await db.execute('create table new_outlets (uuid text primary key, created_at text not null, json text not null, '
+        'photo text, sent integer not null default 0, photo_sent integer not null default 0, error text)');
   }
 
   @override
@@ -218,7 +246,9 @@ class SqliteStore implements LocalStore {
         '+ (select count(*) from visits where finished_at is not null and error is null and sent = 0) '
         '+ (select count(*) from visits where finished_at is not null and error is null and photo is not null '
         'and photo_sent = 0) '
-        '+ (select count(*) from orders where sent = 0 and error is null) as n');
+        '+ (select count(*) from orders where sent = 0 and error is null) '
+        '+ (select count(*) from new_outlets where error is null and sent = 0) '
+        '+ (select count(*) from new_outlets where error is null and photo is not null and photo_sent = 0) as n');
     return rows.first['n'] as int;
   }
 
@@ -316,17 +346,55 @@ class SqliteStore implements LocalStore {
   Future<void> deleteOrder(String uuid) => _db.delete('orders', where: 'uuid = ?', whereArgs: [uuid]);
 
   @override
+  Future<void> saveNewOutlet(NewOutlet o) => _db.insert(
+        'new_outlets',
+        {
+          'uuid': o.uuid,
+          'created_at': o.createdAt.toIso8601String(),
+          'json': o.encode(),
+          'photo': o.photo,
+          'sent': o.sent ? 1 : 0,
+          'photo_sent': o.photoSent ? 1 : 0,
+          'error': o.error,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+  @override
+  Future<List<NewOutlet>> newOutlets() async =>
+      (await _db.query('new_outlets', columns: ['json'], orderBy: 'created_at'))
+          .map((r) => NewOutlet.decode(r['json'] as String))
+          .toList();
+
+  @override
+  Future<void> deleteNewOutlet(String uuid) => _db.delete('new_outlets', where: 'uuid = ?', whereArgs: [uuid]);
+
+  @override
+  Future<List<String>> pruneNewOutlets(DateTime before) => _db.transaction((tx) async {
+        const done = 'sent = 1 and (photo is null or photo_sent = 1) and created_at < ?';
+        final args = [before.toIso8601String()];
+        final rows = await tx.query('new_outlets', columns: ['photo'], where: '$done and photo is not null', whereArgs: args);
+        await tx.delete('new_outlets', where: done, whereArgs: args);
+        return [for (final r in rows) r['photo'] as String];
+      });
+
+  @override
   Future<Pending> pending() async {
     Future<int> count(String sql) async => (await _db.rawQuery(sql)).first['n'] as int;
     return Pending(
       track: await count('select (select count(*) from journal where sent = 0) '
           '+ (select count(*) from gps where sent = 0) as n'),
       visits: await count('select count(*) as n from visits where finished_at is not null and error is null and sent = 0'),
-      photos: await count('select count(*) as n from visits where finished_at is not null and error is null '
-          'and photo is not null and photo_sent = 0'),
+      photos: await count('select (select count(*) from visits where finished_at is not null and error is null '
+          'and photo is not null and photo_sent = 0) '
+          '+ (select count(*) from new_outlets where error is null and photo is not null and photo_sent = 0) as n'),
       orders: await count('select count(*) as n from orders where sent = 0 and error is null'),
+      outlets: await count('select count(*) as n from new_outlets where error is null and sent = 0'),
       rejectedVisits: (await _db.query('visits', where: 'error is not null', orderBy: 'started_at')).map(_visit).toList(),
       rejectedOrders: (await _db.query('orders', where: 'error is not null', orderBy: 'created_at')).map(_order).toList(),
+      rejectedOutlets: (await _db.query('new_outlets', columns: ['json'], where: 'error is not null', orderBy: 'created_at'))
+          .map((r) => NewOutlet.decode(r['json'] as String))
+          .toList(),
     );
   }
 
@@ -337,6 +405,7 @@ class SqliteStore implements LocalStore {
         await tx.delete('gps');
         await tx.delete('visits');
         await tx.delete('orders');
+        await tx.delete('new_outlets');
       });
 
   Future<void> close() => _db.close();

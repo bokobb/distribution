@@ -5,11 +5,12 @@ import 'package:flutter/foundation.dart';
 
 import 'api/api_client.dart';
 import 'data/local_store.dart';
+import 'data/new_outlet.dart';
 import 'data/order.dart';
 import 'data/visit.dart';
 
-/// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), законченные визиты, фото полки
-/// и заказы. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
+/// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), новые магазины с фото фасада,
+/// законченные визиты, фото полки и заказы. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
 /// раза: отправка повторяется сама раз в [retry], пока есть что отправить ([start]), и при возврате в
 /// приложение. Повтор не задваивает: у записей журнала, визитов и заказов uuid телефона, у точек — время.
 class Outbox extends ChangeNotifier {
@@ -30,6 +31,10 @@ class Outbox extends ChangeNotifier {
 
   /// Отправка идёт.
   bool get sending => _sending;
+
+  /// Сколько новых магазинов сервер принял за это время: вырос — данные агента пора обновить (там они уже
+  /// в маршруте «на проверке»).
+  int outletsAdded = 0;
 
   static const _batch = 500;
 
@@ -61,6 +66,7 @@ class Outbox extends ChangeNotifier {
       do {
         _again = false;
         await _track();
+        await _outlets();
         await _visits(); // визит раньше заказа: заказ ссылается на него
         await _orders();
       } while (_again);
@@ -116,12 +122,37 @@ class Outbox extends ChangeNotifier {
         await store.saveVisit(v);
       }
     }
-    for (final photo in await store.pruneVisits(DateTime.now().subtract(keep))) {
+    for (final photo in await store.pruneVisits(_now().subtract(keep))) {
+      await _deleteFile(photo);
+    }
+  }
+
+  /// Новый магазин, потом фото фасада. Не принят — помечаем и идём дальше.
+  Future<void> _outlets() async {
+    for (final o in await store.newOutlets()) {
+      if (o.error != null || o.sent && (o.photo == null || o.photoSent)) continue;
       try {
-        await File(photo).delete();
-      } on FileSystemException {
-        // уже нет
+        if (!o.sent) {
+          await api.newOutlet(o.toJson());
+          o.sent = true;
+          outletsAdded++;
+          await store.saveNewOutlet(o);
+        }
+        final photo = o.photo;
+        if (photo != null && !o.photoSent) {
+          final file = File(photo);
+          if (await file.exists()) await api.outletPhoto(o.uuid, await file.readAsBytes());
+          o.photoSent = true;
+          await store.saveNewOutlet(o);
+        }
+      } on ApiException catch (e) {
+        if (!_rejected(e)) rethrow;
+        o.error = e.message;
+        await store.saveNewOutlet(o);
       }
+    }
+    for (final photo in await store.pruneNewOutlets(_now().subtract(keep))) {
+      await _deleteFile(photo);
     }
   }
 
@@ -136,20 +167,29 @@ class Outbox extends ChangeNotifier {
       }
       await store.saveOrder(o);
     }
-    await store.pruneOrders(DateTime.now().subtract(keep));
+    await store.pruneOrders(_now().subtract(keep));
   }
 
   /// Убрать с телефона визит, который сервер не принял (с фото).
   Future<void> dropVisit(Visit v) async {
     await store.deleteVisit(v.uuid);
-    if (v.photo != null) {
-      try {
-        await File(v.photo!).delete();
-      } on FileSystemException {
-        // уже нет
-      }
-    }
+    if (v.photo != null) await _deleteFile(v.photo!);
     await count();
+  }
+
+  /// Убрать с телефона новый магазин, который сервер не принял (с фото).
+  Future<void> dropOutlet(NewOutlet o) async {
+    await store.deleteNewOutlet(o.uuid);
+    if (o.photo != null) await _deleteFile(o.photo!);
+    await count();
+  }
+
+  static Future<void> _deleteFile(String path) async {
+    try {
+      await File(path).delete();
+    } on FileSystemException {
+      // уже нет
+    }
   }
 
   /// Убрать с телефона заказ, который сервер не принял.

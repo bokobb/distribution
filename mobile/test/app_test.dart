@@ -19,6 +19,23 @@ Future<void> logIn(WidgetTester t, {String password = 'пароль'}) async {
   await t.pumpAndSettle();
 }
 
+/// Прокрутить к виджету и нажать. Сначала дать полю ввода прокрутить к курсору — иначе оно уведёт прокрутку обратно.
+Future<void> tapVisible(WidgetTester t, Finder f) async {
+  await t.pumpAndSettle();
+  await t.ensureVisible(f);
+  await t.pump();
+  await t.tap(f);
+}
+
+/// Дать отработать настоящему вводу-выводу (файл фото): каждый его шаг ждёт кадра.
+Future<void> settleIo(WidgetTester t) async {
+  for (var i = 0; i < 5; i++) {
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    await t.pump();
+  }
+  await t.pumpAndSettle();
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -373,5 +390,76 @@ void main() {
     expect(find.text('Всё отправлено'), findsOneWidget);
     expect(server.trackEvents.map((e) => e['kind']), containsAll(['APP_OPEN', 'DAY_START']));
   });
-}
 
+  testWidgets('новый магазин: форма, без сети — «ждёт отправки», после отправки — в маршруте «на проверке»', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    await t.tap(find.text('Магазин'));
+    await t.pumpAndSettle();
+    expect(find.text('Новый магазин'), findsOneWidget);
+    expect(find.text('Точка отмечена, точность 12 м'), findsOneWidget);
+
+    final save = find.text('Сохранить магазин');
+    await tapVisible(t, save);
+    await t.pumpAndSettle();
+    expect(find.text('Введите название'), findsOneWidget);
+    expect(find.text('Введите телефон'), findsOneWidget);
+
+    await t.enterText(find.widgetWithText(TextFormField, 'Название *'), 'Магазин «Нур»');
+    await t.enterText(find.widgetWithText(TextFormField, 'Телефон *'), '8 701 555 44');
+    await t.enterText(find.widgetWithText(TextFormField, 'БИН / ИИН'), '1234');
+    await tapVisible(t, save);
+    await t.pumpAndSettle();
+    expect(find.text('+7 и 10 цифр, например +7 701 123 45 67'), findsOneWidget);
+    expect(find.text('12 цифр'), findsOneWidget);
+
+    await t.enterText(find.widgetWithText(TextFormField, 'Телефон *'), '8 701 555 44 33');
+    await t.enterText(find.widgetWithText(TextFormField, 'БИН / ИИН'), '123456789012');
+    await tapVisible(t, save);
+    await t.pump();
+    expect(find.text('Укажите адрес или ориентир'), findsOneWidget);
+
+    await t.enterText(find.widgetWithText(TextFormField, 'Ориентир (в селе вместо адреса)'), 'у мечети');
+    await tapVisible(t, find.text('Розница'));
+    await tapVisible(t, find.text('Фото фасада'));
+    await settleIo(t);
+    expect(find.text('Переснять фасад'), findsOneWidget);
+
+    server.offline = true;
+    await tapVisible(t, save);
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+    expect(find.text('Мой день'), findsOneWidget);
+    expect(find.text('Магазин сохранён. После отправки он появится в маршруте «на проверке»'), findsOneWidget);
+    expect(find.text('Новые магазины'), findsOneWidget);
+    expect(find.text('Ждёт отправки · у мечети'), findsOneWidget);
+
+    await t.tap(find.byTooltip('Меню'));
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('Отправка · ждут'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+    expect(find.text('Новые магазины'), findsOneWidget);
+    expect(find.text('Фото'), findsOneWidget);
+
+    server.offline = false;
+    await t.tap(find.text('Отправить сейчас'));
+    await settleIo(t);
+    expect(find.text('Всё отправлено'), findsOneWidget);
+    final sent = server.outlets.values.single;
+    expect([sent['name'], sent['phone'], sent['bin'], sent['landmark'], sent['priceKind'], sent['routeId'], sent['lat']],
+        ['Магазин «Нур»', '8 701 555 44 33', '123456789012', 'у мечети', 'RETAIL', 1, 42.3]);
+    expect(server.facades.values.single, FakeCamera.jpeg);
+
+    await t.pageBack();
+    await settleIo(t);
+    expect(find.text('Новые магазины'), findsNothing);
+    await t.scrollUntilVisible(find.text('Магазин «Нур»'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('на проверке'), findsOneWidget);
+    expect(find.text('Центр · Шымкент · 3 магазина'), findsOneWidget);
+  });
+}

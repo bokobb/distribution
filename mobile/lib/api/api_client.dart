@@ -90,6 +90,14 @@ class ApiClient {
   Future<Map<String, dynamic>> order(Map<String, dynamic> order) =>
       _authed('POST', '/api/mobile/agent/orders', body: order);
 
+  /// Новый магазин агента; в ответе — магазин, как в данных агента (id, «на проверке»).
+  Future<Map<String, dynamic>> newOutlet(Map<String, dynamic> outlet) =>
+      _authed('POST', '/api/mobile/agent/outlets', body: outlet);
+
+  /// Фото фасада к уже отправленному новому магазину — JPEG.
+  Future<void> outletPhoto(String uuid, List<int> jpeg) =>
+      _authed('PUT', '/api/mobile/agent/outlets/$uuid/photo', bytes: jpeg, contentType: 'image/jpeg');
+
   /// Фото полки к уже отправленному визиту — JPEG.
   Future<void> visitPhoto(String uuid, List<int> jpeg) =>
       _authed('PUT', '/api/mobile/agent/visits/$uuid/photo', bytes: jpeg, contentType: 'image/jpeg');

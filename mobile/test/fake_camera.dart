@@ -15,9 +15,9 @@ class FakeCamera implements PhotoSource {
   static const jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3];
 
   @override
-  Future<String?> shelf(String visitUuid) async {
+  Future<String?> photo(String id) async {
     if (cancel) return null;
-    final f = File('${dir.path}/$visitUuid-${++_n}.jpg');
+    final f = File('${dir.path}/$id-${++_n}.jpg');
     await f.writeAsBytes(jpeg);
     return f.path;
   }

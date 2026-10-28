@@ -4,10 +4,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// Фото полки: камера телефона и папка с фото до отправки — отдельно от визитов, чтобы проверять их без камеры.
+/// Фото полки и фасада: камера телефона и папка с фото до отправки — отдельно от визитов и магазинов, чтобы
+/// проверять их без камеры.
 abstract class PhotoSource {
-  /// Снять фото полки для визита; вернуть путь к новому файлу на телефоне. Отменили съёмку — null.
-  Future<String?> shelf(String visitUuid);
+  /// Снять фото для визита или магазина (id — его uuid); вернуть путь к новому файлу на телефоне.
+  /// Отменили съёмку — null.
+  Future<String?> photo(String id);
 
   /// Стереть все фото — при выходе.
   Future<void> clear();
@@ -20,14 +22,14 @@ class DeviceCamera implements PhotoSource {
   static Future<Directory> _dir() async => Directory(p.join((await getApplicationDocumentsDirectory()).path, 'photos'));
 
   @override
-  Future<String?> shelf(String visitUuid) async {
+  Future<String?> photo(String id) async {
     final shot = await _picker.pickImage(
         source: ImageSource.camera, maxWidth: 1600, maxHeight: 1600, imageQuality: 75);
     if (shot == null) return null;
     final dir = await _dir();
     await dir.create(recursive: true);
     // новое имя на каждый снимок: переснятое фото не покажется старым из кеша картинок
-    final path = p.join(dir.path, '$visitUuid-${DateTime.now().millisecondsSinceEpoch}.jpg');
+    final path = p.join(dir.path, '$id-${DateTime.now().millisecondsSinceEpoch}.jpg');
     await File(shot.path).copy(path);
     try {
       await File(shot.path).delete();

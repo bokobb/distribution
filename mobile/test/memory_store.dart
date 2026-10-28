@@ -1,4 +1,5 @@
 import 'package:distribution_mobile/data/local_store.dart';
+import 'package:distribution_mobile/data/new_outlet.dart';
 import 'package:distribution_mobile/data/order.dart';
 import 'package:distribution_mobile/data/track.dart';
 import 'package:distribution_mobile/data/visit.dart';
@@ -13,6 +14,7 @@ class MemoryStore implements LocalStore {
   /// Визиты по uuid — копиями, как в базе: изменение без saveVisit сюда не попадёт.
   final visits = <String, Visit>{};
   final orders = <String, Order>{};
+  final newOutletsByUuid = <String, NewOutlet>{};
 
   @override
   Future<Map<String, dynamic>?> read(String key) async => data[key];
@@ -55,7 +57,30 @@ class MemoryStore implements LocalStore {
         points.where((x) => !sent.contains(x.at)).length +
         done.where((v) => !v.sent).length +
         done.where((v) => v.photo != null && !v.photoSent).length +
-        orders.values.where((o) => !o.sent && o.error == null).length;
+        orders.values.where((o) => !o.sent && o.error == null).length +
+        newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length +
+        newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length;
+  }
+
+  @override
+  Future<void> saveNewOutlet(NewOutlet o) async => newOutletsByUuid[o.uuid] = o.copy();
+
+  @override
+  Future<List<NewOutlet>> newOutlets() async =>
+      [for (final o in newOutletsByUuid.values) o.copy()]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+  @override
+  Future<void> deleteNewOutlet(String uuid) async => newOutletsByUuid.remove(uuid);
+
+  @override
+  Future<List<String>> pruneNewOutlets(DateTime before) async {
+    final old = newOutletsByUuid.values
+        .where((o) => o.sent && (o.photo == null || o.photoSent) && o.createdAt.isBefore(before))
+        .toList();
+    for (final o in old) {
+      newOutletsByUuid.remove(o.uuid);
+    }
+    return [for (final o in old) ?o.photo];
   }
 
   @override
@@ -109,10 +134,13 @@ class MemoryStore implements LocalStore {
     return Pending(
       track: events.where((x) => !sent.contains(x.uuid)).length + points.where((x) => !sent.contains(x.at)).length,
       visits: done.where((v) => !v.sent).length,
-      photos: done.where((v) => v.photo != null && !v.photoSent).length,
+      photos: done.where((v) => v.photo != null && !v.photoSent).length +
+          newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length,
       orders: orders.values.where((o) => !o.sent && o.error == null).length,
+      outlets: newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length,
       rejectedVisits: _sorted(visits.values.where((v) => v.error != null)),
       rejectedOrders: [for (final o in orders.values) if (o.error != null) o.copy()],
+      rejectedOutlets: [for (final o in newOutletsByUuid.values) if (o.error != null) o.copy()],
     );
   }
 
@@ -124,6 +152,7 @@ class MemoryStore implements LocalStore {
     sent.clear();
     visits.clear();
     orders.clear();
+    newOutletsByUuid.clear();
   }
 
   static List<Visit> _sorted(Iterable<Visit> vs) =>

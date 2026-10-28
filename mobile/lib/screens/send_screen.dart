@@ -5,9 +5,9 @@ import '../format.dart';
 import '../outbox.dart';
 import '../theme.dart';
 
-/// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, визиты, фото, заказы), когда последний раз всё
-/// ушло и почему не уходит; «Отправить сейчас». Визиты и заказы, которые сервер не принял, — с причиной;
-/// их можно убрать с телефона.
+/// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, новые магазины, визиты, фото, заказы), когда
+/// последний раз всё ушло и почему не уходит; «Отправить сейчас». То, что сервер не принял, — с причиной;
+/// это можно убрать с телефона.
 class SendScreen extends StatefulWidget {
   const SendScreen({super.key, required this.outbox, this.outletNames = const {}});
 
@@ -89,8 +89,9 @@ class _SendScreenState extends State<SendScreen> {
                           const SizedBox(height: 8),
                           for (final (label, n) in [
                             ('Журнал и точки GPS', p.track),
+                            ('Новые магазины', p.outlets),
                             ('Визиты', p.visits),
-                            ('Фото полки', p.photos),
+                            ('Фото', p.photos),
                             ('Заказы', p.orders),
                           ])
                             if (n > 0)
@@ -107,11 +108,19 @@ class _SendScreenState extends State<SendScreen> {
                       ),
                     ),
                   ),
-                  if (p.rejectedVisits.isNotEmpty || p.rejectedOrders.isNotEmpty) ...[
+                  if (p.rejectedVisits.isNotEmpty || p.rejectedOrders.isNotEmpty || p.rejectedOutlets.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
                       child: Text('Сервер не принял', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.crimson)),
                     ),
+                    for (final n in p.rejectedOutlets)
+                      _Rejected(
+                        title: 'Новый магазин · ${n.name} · ${when(n.createdAt)}',
+                        error: n.error!,
+                        onDrop: () async {
+                          if (await _confirmDrop('магазин')) await o.dropOutlet(n);
+                        },
+                      ),
                     for (final v in p.rejectedVisits)
                       _Rejected(
                         title: 'Визит · ${_outlet(v.outletId)} · ${when(v.startedAt)}',

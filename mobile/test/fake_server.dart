@@ -35,6 +35,13 @@ class FakeServer {
   final orders = <String, Map<String, dynamic>>{};
   bool needsApproval = false;
 
+  /// Новые магазины по uuid и фото фасада — что пришло; принятый сразу попадает в данные агента «на проверке».
+  final outlets = <String, Map<String, dynamic>>{};
+  final facades = <String, List<int>>{};
+
+  /// Сервер не принимает новые магазины — с этим текстом.
+  String? rejectOutlets;
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -48,6 +55,13 @@ class FakeServer {
       if (!authed) return _json({'message': 'Войдите заново'}, 401);
       if (!visits.containsKey(photo[1])) return _json({'message': 'Не найдено'}, 404);
       photos[photo[1]!] = r.bodyBytes;
+      return http.Response('', 204);
+    }
+    final facade = RegExp(r'^/api/mobile/agent/outlets/([^/]+)/photo$').firstMatch(r.url.path);
+    if (facade != null) {
+      if (!authed) return _json({'message': 'Войдите заново'}, 401);
+      if (!outlets.containsKey(facade[1])) return _json({'message': 'Не найдено'}, 404);
+      facades[facade[1]!] = r.bodyBytes;
       return http.Response('', 204);
     }
     final body = r.body.isEmpty ? <String, dynamic>{} : jsonDecode(r.body) as Map<String, dynamic>;
@@ -96,12 +110,31 @@ class FakeServer {
           'note': needsApproval ? 'Долг сверх лимита — ждёт разрешения оператора' : null,
           'total': qty * 500, 'lines': [],
         }, 200);
+      case '/api/mobile/agent/outlets':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        if (rejectOutlets != null) return _json({'message': rejectOutlets}, 400);
+        return _json(outlets.putIfAbsent(body['uuid'] as String, () => _addOutlet(body)), 200);
       case '/api/mobile/agent/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(agentData, 200);
     }
     return http.Response('', 404);
   });
+
+  /// Магазин «на проверке» в конец маршрута агента — как сервер.
+  Map<String, dynamic> _addOutlet(Map<String, dynamic> body) {
+    final all = agentData['outlets'] as List;
+    final routes = (agentData['routes'] as List).cast<Map<String, dynamic>>();
+    final id = 100 + outlets.length;
+    final o = {
+      ...body, 'id': id, 'creditLimit': 0, 'paymentDays': 0, 'status': 'PENDING', 'debt': 0, 'overdue': 0,
+      'lastPaymentDate': null, 'lastPaymentSum': 0,
+    };
+    all.add(o);
+    final route = routes.firstWhere((r) => r['id'] == body['routeId'], orElse: () => routes.first);
+    route['outlets'] = [...route['outlets'] as List, id];
+    return o;
+  }
 
   /// JWT истёк или сервер перезапускался: прежний больше не принимается.
   void expireJwt() => _jwt = null;

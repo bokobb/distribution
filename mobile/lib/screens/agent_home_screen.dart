@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../data/agent_data.dart';
 import '../data/agent_repo.dart';
+import '../data/new_outlet.dart';
 import '../data/visit.dart';
 import '../format.dart';
 import '../session.dart';
@@ -12,11 +13,13 @@ import '../widgets/visit_panel.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
 import 'home_parts.dart';
+import 'new_outlet_screen.dart';
 import 'outlet_screen.dart';
 
 /// «Мой день» торгового агента: маршруты выбранного дня (по умолчанию сегодня) и магазины по порядку обхода
 /// с долгами и отметкой визита. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи —
-/// работает с тем, что есть.
+/// работает с тем, что есть. «Магазин» — новый магазин; пока он не ушёл на сервер, он в списке «Новые магазины»,
+/// а когда сервер принял — данные обновляются, и он в маршруте «на проверке».
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen(
       {super.key,
@@ -44,15 +47,60 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   String? _syncError;
   int _weekday = DateTime.now().weekday;
 
+  /// Новые магазины на телефоне, которые ещё не на сервере (или сервер не принял).
+  List<NewOutlet> _newOutlets = const [];
+  /// Сколько новых магазинов сервер уже принял, когда экран последний раз брал данные.
+  late int _outletsAdded;
+
   @override
   void initState() {
     super.initState();
+    _outletsAdded = widget.visits.outbox.outletsAdded;
+    widget.visits.outbox.addListener(_outboxChanged);
     _start();
+  }
+
+  @override
+  void dispose() {
+    widget.visits.outbox.removeListener(_outboxChanged);
+    super.dispose();
+  }
+
+  /// Отправка прошла: обновить «Новые магазины»; сервер принял магазин — забрать данные, он уже в маршруте.
+  Future<void> _outboxChanged() async {
+    await _loadNewOutlets();
+    final added = widget.visits.outbox.outletsAdded;
+    if (added != _outletsAdded && mounted) {
+      _outletsAdded = added;
+      await _pull();
+    }
+  }
+
+  Future<void> _loadNewOutlets() async {
+    final list = [for (final o in await widget.visits.outbox.store.newOutlets()) if (!o.sent || o.error != null) o];
+    if (mounted) setState(() => _newOutlets = list);
+  }
+
+  Future<void> _addOutlet(AgentData data) async {
+    final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => NewOutletScreen(
+                data: data, visits: widget.visits, routeId: data.routesOn(_weekday).firstOrNull?.id)));
+    if (saved != true || !mounted) return;
+    await _loadNewOutlets();
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar() // подсказка формы, если осталась
+        ..showSnackBar(
+            const SnackBar(content: Text('Магазин сохранён. После отправки он появится в маршруте «на проверке»')));
+    }
   }
 
   Future<void> _start() async {
     final local = await widget.repo.local();
     if (mounted) _show(local);
+    await _loadNewOutlets();
     await _pull();
     if (mounted) checkSession(widget.repo.api, widget.session, widget.onSession);
   }
@@ -93,14 +141,22 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
           outletNames: {for (final o in data?.outlets.values ?? const <Outlet>[]) o.id: o.name},
           onRefresh: _pull,
           onLogout: widget.onLogout),
+      floatingActionButton: data == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _addOutlet(data),
+              icon: const Icon(Icons.add_business_outlined),
+              label: const Text('Магазин'),
+            ),
       body: RefreshIndicator(
         onRefresh: _pull,
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 88), // под кнопкой «Магазин»
           children: [
             Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), child: WorkdayCard(workday: widget.workday)),
             _days(),
             _status(data),
+            if (_newOutlets.isNotEmpty) ..._pendingOutlets(),
             if (data == null && !_loading)
               const EmptyState(
                 icon: Icons.cloud_off_outlined,
@@ -166,6 +222,26 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
       ),
     );
   }
+
+  List<Widget> _pendingOutlets() => [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Text('Новые магазины', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkSoft)),
+        ),
+        for (final o in _newOutlets)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Card(
+              child: ListTile(
+                leading: Icon(o.error != null ? Icons.error_outline : Icons.cloud_upload_outlined,
+                    color: o.error != null ? AppColors.crimson : AppColors.inkSoft),
+                title: Text(o.name),
+                subtitle: Text(o.error != null ? 'Сервер не принял: ${o.error}' : 'Ждёт отправки · ${o.address ?? o.landmark ?? o.phone}',
+                    style: TextStyle(color: o.error != null ? AppColors.crimson : AppColors.inkSoft)),
+              ),
+            ),
+          ),
+      ];
 
   List<Widget> _routes(AgentData data) {
     final routes = data.routesOn(_weekday);
