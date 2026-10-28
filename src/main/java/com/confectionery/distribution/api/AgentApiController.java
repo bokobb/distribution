@@ -4,10 +4,13 @@ import com.confectionery.distribution.security.MobileAccounts;
 import com.confectionery.distribution.security.MobileUser;
 import com.confectionery.distribution.service.AgentDataService;
 import com.confectionery.distribution.service.AgentDataService.AgentData;
+import com.confectionery.distribution.service.AgentDataService.OutletDto;
 import com.confectionery.distribution.service.FileStore;
 import com.confectionery.distribution.service.MobileOrderService;
 import com.confectionery.distribution.service.MobileOrderService.OrderIn;
 import com.confectionery.distribution.service.MobileOrderService.OrderOut;
+import com.confectionery.distribution.service.OutletService;
+import com.confectionery.distribution.service.OutletService.AgentOutletIn;
 import com.confectionery.distribution.service.VisitService;
 import com.confectionery.distribution.service.VisitService.VisitIn;
 import com.confectionery.distribution.service.VisitService.VisitOut;
@@ -34,6 +37,7 @@ public class AgentApiController {
     private final AgentDataService data;
     private final VisitService visits;
     private final MobileOrderService orders;
+    private final OutletService outlets;
     private final MobileAccounts accounts;
 
     /** Данные для работы без сети: настройки, товары и цены, маршруты агента, магазины с долгами, визиты и заказы за сегодня. */
@@ -49,6 +53,20 @@ public class AgentApiController {
         return orders.save(me.id(), in);
     }
 
+    /** Новый магазин от агента — «на проверке», в конце его маршрута; повтор с тем же uuid возвращает уже добавленный. */
+    @PostMapping("/api/mobile/agent/outlets")
+    public OutletDto outlet(@AuthenticationPrincipal MobileUser me, @RequestBody AgentOutletIn in) {
+        return AgentDataService.outlet(outlets.addByAgent(me.id(), in));
+    }
+
+    /** Фото фасада нового магазина — JPEG телом запроса, после самого магазина. */
+    @PutMapping("/api/mobile/agent/outlets/{uuid}/photo")
+    public ResponseEntity<Void> facade(@AuthenticationPrincipal MobileUser me, @PathVariable UUID uuid,
+                                       HttpServletRequest request) throws IOException {
+        outlets.facadeByAgent(me.id(), uuid, photo(request));
+        return ResponseEntity.noContent().build();
+    }
+
     /** Законченный визит; повтор с тем же uuid возвращает уже записанный. */
     @PostMapping("/api/mobile/agent/visits")
     public VisitOut visit(@AuthenticationPrincipal MobileUser me, @RequestBody VisitIn in) {
@@ -59,9 +77,13 @@ public class AgentApiController {
     @PutMapping("/api/mobile/agent/visits/{uuid}/photo")
     public ResponseEntity<Void> photo(@AuthenticationPrincipal MobileUser me, @PathVariable UUID uuid,
                                       HttpServletRequest request) throws IOException {
+        visits.photo(me.id(), uuid, photo(request));
+        return ResponseEntity.noContent().build();
+    }
+
+    private static byte[] photo(HttpServletRequest request) throws IOException {
         byte[] jpeg = request.getInputStream().readNBytes(FileStore.MAX_PHOTO + 1);
         if (jpeg.length > FileStore.MAX_PHOTO) throw new ApiException(HttpStatus.CONTENT_TOO_LARGE, "Фото больше 5 МБ");
-        visits.photo(me.id(), uuid, jpeg);
-        return ResponseEntity.noContent().build();
+        return jpeg;
     }
 }

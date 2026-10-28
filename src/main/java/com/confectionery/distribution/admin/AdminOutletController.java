@@ -5,12 +5,18 @@ import com.confectionery.distribution.domain.OutletStatus;
 import com.confectionery.distribution.domain.PriceKind;
 import com.confectionery.distribution.repository.PriceTypeRepository;
 import com.confectionery.distribution.service.FormException;
+import com.confectionery.distribution.service.NotFoundException;
 import com.confectionery.distribution.service.OutletForm;
 import com.confectionery.distribution.service.OutletService;
 import com.confectionery.distribution.service.RouteService;
 import com.confectionery.distribution.service.SettingsService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +25,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -71,6 +79,14 @@ public class AdminOutletController {
         model.addAttribute("payments", outlets.paymentsOf(o));
         model.addAttribute("returns", outlets.returnsOf(o));
         return "admin/outlets/view";
+    }
+
+    /** Фото фасада, которое снял агент. */
+    @GetMapping("/admin/outlets/{id}/photo")
+    public ResponseEntity<Resource> photo(@PathVariable Long id) {
+        Path file = outlets.facadeFile(outlets.get(id)).orElseThrow(NotFoundException::new);
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG)
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate()).body(new FileSystemResource(file));
     }
 
     @GetMapping("/admin/outlets/new")

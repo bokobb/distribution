@@ -20,7 +20,10 @@
                 <dt>БИН / ИИН</dt><dd th:text="${o.bin}"></dd>
                 <dt>Владелец</dt><dd th:text="${o.owner}"></dd>
                 <dt>Телефон</dt><dd><a class="link num" th:if="${o.phone != null}" th:href="${'tel:' + o.phone.replace(' ', '')}" th:text="${o.phone}"></a></dd>
+                <dt th:if="${o.phone2 != null}">Телефон 2</dt><dd th:if="${o.phone2 != null}"><a class="link num" th:href="${'tel:' + o.phone2.replace(' ', '')}" th:text="${o.phone2}"></a></dd>
                 <dt>Адрес</dt><dd th:text="${o.address}"></dd>
+                <dt th:if="${o.landmark != null}">Ориентир</dt><dd th:if="${o.landmark != null}" th:text="${o.landmark}"></dd>
+                <dt th:if="${o.facadePhoto != null}">Фасад</dt><dd th:if="${o.facadePhoto != null}"><a class="link" th:href="${'/admin/outlets/' + o.id + '/photo'}" target="_blank" rel="noopener">Фото фасада</a></dd>
                 <dt>Регион, маршрут</dt><dd th:text="${o.route == null ? 'без маршрута' : o.region.name + ' · ' + o.route.name + ' (' + o.route.days + ')'}"></dd>
                 <dt>Агент</dt><dd th:text="${o.agent?.name ?: '—'}"></dd>
                 <dt>Тип цен</dt><dd th:text="${o.priceType}"></dd>

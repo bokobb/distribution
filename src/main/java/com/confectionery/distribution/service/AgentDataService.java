@@ -57,6 +57,15 @@ public class AgentDataService {
                             List<MobileOrderService.OrderOut> orders) {
     }
 
+    /** Магазин для телефона; долг и последняя оплата — если заполнены (DebtService). */
+    public static OutletDto outlet(Outlet o) {
+        return new OutletDto(o.getId(), o.getUuid(), o.getName(), o.getLegal(), o.getOwner(), o.getPhone(), o.getPhone2(),
+                o.getAddress(), o.getLandmark(), o.getLat(), o.getLng(),
+                o.getPriceType() == null ? PriceKind.WHOLESALE.name() : o.getPriceType().getCode().name(),
+                o.getCreditLimit(), o.getPaymentDays(), o.getStatus().name(), o.getDebt(), o.getOverdue(),
+                o.getLastPaymentDate(), o.getLastPaymentSum());
+    }
+
     @Transactional(readOnly = true)
     public AgentData of(Long agentId, Long companyId) {
         CompanySettings s = settings.of(companyId);
@@ -87,11 +96,7 @@ public class AgentDataService {
                 active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
                         p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
                 routeDtos,
-                outlets.values().stream().map(o -> new OutletDto(o.getId(), o.getUuid(), o.getName(), o.getLegal(), o.getOwner(),
-                        o.getPhone(), o.getPhone2(), o.getAddress(), o.getLandmark(), o.getLat(), o.getLng(),
-                        o.getPriceType() == null ? PriceKind.WHOLESALE.name() : o.getPriceType().getCode().name(),
-                        o.getCreditLimit(), o.getPaymentDays(), o.getStatus().name(), o.getDebt(), o.getOverdue(),
-                        o.getLastPaymentDate(), o.getLastPaymentSum())).toList(),
+                outlets.values().stream().map(AgentDataService::outlet).toList(),
                 visits.of(agentId, today), orders.of(agentId, today));
     }
 }

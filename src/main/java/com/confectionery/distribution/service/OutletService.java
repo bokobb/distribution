@@ -6,9 +6,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /** Магазины компании: список с долгами, карточка, проверка новых, добавление и правка. */
 @Service
@@ -24,7 +27,16 @@ public class OutletService {
     private final RouteOutletRepository routeOutlets;
     private final PriceTypeRepository priceTypes;
     private final CompanyRepository companies;
+    private final EmployeeRepository employees;
+    private final SettingsService settings;
+    private final FileStore files;
     private final Clock clock;
+
+    /** Новый магазин с телефона агента; priceKind — WHOLESALE или RETAIL; lat/lng — где агент его отметил. */
+    public record AgentOutletIn(UUID uuid, Long routeId, String name, String legal, String bin, String owner,
+                                String phone, String phone2, String address, String landmark, Double lat, Double lng,
+                                String priceKind) {
+    }
 
     /** Все магазины (с долгами); companyId = null — все видимые. */
     public List<Outlet> list(Long companyId) {
@@ -58,6 +70,66 @@ public class OutletService {
         Outlet o = outlets.findById(id).orElseThrow(NotFoundException::new);
         if (o.getStatus() == OutletStatus.PENDING) o.setStatus(OutletStatus.ACTIVE);
         return o;
+    }
+
+    /**
+     * Магазин от агента с телефона: «на проверке» у оператора (до проверки агент уже может в нём работать),
+     * в конце обхода его маршрута; лимит долга — как у нового магазина в настройках компании. Повтор с тем же
+     * uuid возвращает уже добавленный.
+     */
+    @Transactional
+    public Outlet addByAgent(Long agentId, AgentOutletIn in) {
+        if (in.uuid() == null) throw new FormException("Магазин без uuid — обновите приложение");
+        Employee agent = employees.findById(agentId).orElseThrow(NotFoundException::new);
+        Outlet was = outlets.findByUuid(in.uuid()).orElse(null);
+        if (was != null) return was;
+        String name = Forms.required(in.name(), "Название", 200);
+        String phone = phone(Forms.required(in.phone(), "Телефон", 64), "Телефон");
+        String phone2 = in.phone2() == null || in.phone2().isBlank() ? null : phone(in.phone2(), "Телефон 2");
+        String bin = Forms.text(in.bin(), "БИН / ИИН", 20);
+        if (bin != null && !bin.matches("\\d{12}")) throw new FormException("БИН / ИИН — 12 цифр");
+        String address = Forms.text(in.address(), "Адрес", 300);
+        String landmark = Forms.text(in.landmark(), "Ориентир", 300);
+        if (address == null && landmark == null) throw new FormException("Укажите адрес или ориентир");
+        Double lat = in.lat(), lng = in.lng();
+        if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) lat = lng = null;
+        PriceKind kind = "RETAIL".equals(in.priceKind()) ? PriceKind.RETAIL : PriceKind.WHOLESALE;
+        PriceType priceType = priceTypes.findByCompanyIdAndCode(agent.getCompanyId(), kind)
+                .orElseThrow(() -> new FormException("В компании нет типа цен «" + kind.name() + "» — обратитесь к оператору"));
+        List<Route> mine = routes.findAllByOrderByNameAsc().stream()
+                .filter(r -> r.isActive() && r.getAgent() != null && r.getAgent().getId().equals(agent.getId())).toList();
+        Route route = mine.stream().filter(r -> r.getId().equals(in.routeId())).findFirst()
+                .orElse(mine.isEmpty() ? null : mine.get(0));
+        if (route == null) throw new FormException("У вас нет маршрута — магазин добавит оператор");
+
+        Outlet o = new Outlet().setUuid(in.uuid()).setStatus(OutletStatus.PENDING).setCreatedAt(LocalDate.now(clock))
+                .setCreatedBy(agent.getName()).setName(name).setLegal(Forms.text(in.legal(), "ИП / ТОО", 200)).setBin(bin)
+                .setOwner(Forms.text(in.owner(), "Владелец", 200)).setPhone(phone).setPhone2(phone2).setAddress(address)
+                .setLandmark(landmark).setLat(lat).setLng(lng).setPriceType(priceType)
+                .setCreditLimit(settings.of(agent.getCompanyId()).getDefaultCreditLimit()).setPaymentDays(0);
+        o.setCompany(agent.getCompany());
+        o = outlets.save(o);
+        placeOnRoute(o, route);
+        return o;
+    }
+
+    /** Фото фасада к магазину на маршруте агента; повтор заменяет файл. */
+    @Transactional
+    public void facadeByAgent(Long agentId, UUID uuid, byte[] jpeg) {
+        Outlet o = outlets.findByUuid(uuid).filter(x -> x.getAgent() != null && x.getAgent().getId().equals(agentId))
+                .orElseThrow(NotFoundException::new);
+        o.setFacadePhoto(files.savePhoto(o.getCompanyId(), "outlets", uuid, jpeg));
+    }
+
+    /** Файл фото фасада — для админки. */
+    public Optional<Path> facadeFile(Outlet o) {
+        return files.find(o.getFacadePhoto());
+    }
+
+    private static String phone(String raw, String field) {
+        String p = Phones.normalize(raw);
+        if (p == null) throw new FormException(field + " — +7 и 10 цифр, например +7 701 123 45 67");
+        return Phones.format(p);
     }
 
     /**
