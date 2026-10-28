@@ -33,8 +33,8 @@ public class AdminCashController {
         Viewer v = ctx.viewer(session);
         List<Trip> list = trips.current(v.companyId());
         AdminPage.head(model, "cash", "Приём кассы", v.scopeName() + " · " + fmt.longDay(LocalDate.now(clock)));
-        model.addAttribute("waiting", list.stream().filter(t -> t.getStatus() == TripStatus.RETURNED).toList());
-        model.addAttribute("onRoad", list.stream().filter(t -> t.getStatus() == TripStatus.ON_ROAD || t.getStatus() == TripStatus.LOADING).toList());
+        model.addAttribute("waiting", list.stream().filter(Trip::isWaitingCash).toList());
+        model.addAttribute("onRoad", list.stream().filter(t -> t.isOpen() && !t.isWaitingCash()).toList());
         model.addAttribute("closed", list.stream().filter(t -> t.getStatus() == TripStatus.CLOSED).toList());
         model.addAttribute("onHands", list.stream().filter(t -> t.getStatus().cashOnHands()).mapToLong(Trip::getCash).sum());
         return "admin/cash/list";

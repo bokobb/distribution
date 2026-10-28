@@ -76,7 +76,7 @@
         <section class="card">
             <div class="card-h"><h2>Рейсы сегодня</h2><a class="link" href="/admin/trips">Все рейсы</a></div>
             <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
-                <a th:each="t : ${trips}" th:href="${t.status.name() == 'RETURNED' ? '/admin/cash/' + t.id : '/admin/trips/' + t.id}" style="text-decoration:none;display:flex;flex-direction:column;gap:6px">
+                <a th:each="t : ${trips}" th:href="${t.waitingCash ? '/admin/cash/' + t.id : '/admin/trips/' + t.id}" style="text-decoration:none;display:flex;flex-direction:column;gap:6px">
                     <span style="display:flex;justify-content:space-between;gap:8px;align-items:center">
                         <b th:text="${t.expeditor.name + ' · ' + t.vehicle.plate}">Экспедитор</b>
                         <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span></span>

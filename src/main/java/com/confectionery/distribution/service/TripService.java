@@ -31,18 +31,23 @@ public class TripService {
     private final StockService stock;
     private final Clock clock;
 
+    /** Не закрытые: касса и невыданный товар ещё у экспедитора. */
+    private static final Set<TripStatus> OPEN = EnumSet.of(TripStatus.LOADING, TripStatus.ON_ROAD, TripStatus.RETURNED);
+
     /** Рейсы сегодня и незакрытые прошлых дней (касса ещё у экспедитора); companyId = null — все видимые. */
     public List<Trip> current(Long companyId) {
-        return trips.findByDateOrStatusIn(LocalDate.now(clock), EnumSet.of(TripStatus.ON_ROAD, TripStatus.RETURNED)).stream()
+        LocalDate today = LocalDate.now(clock);
+        return trips.findByDateOrStatusIn(today, OPEN).stream()
+                .filter(t -> !t.getDate().isAfter(today))
                 .filter(t -> companyId == null || companyId.equals(t.getCompanyId()))
                 .sorted(Comparator.comparing((Trip t) -> t.getStatus().ordinal()).thenComparing(Trip::getNumber))
                 .toList();
     }
 
-    /** Для страницы «Рейсы»: текущие и загружаемые на следующие дни. */
+    /** Для страницы «Рейсы»: текущие и отгруженные на следующие дни. */
     public List<Trip> forPage(Long companyId) {
         List<Trip> out = new ArrayList<>(current(companyId));
-        trips.findByStatusAndDateAfter(TripStatus.LOADING, LocalDate.now(clock)).stream()
+        trips.findByStatusInAndDateAfter(OPEN, LocalDate.now(clock)).stream()
                 .filter(t -> companyId == null || companyId.equals(t.getCompanyId()))
                 .sorted(Comparator.comparing(Trip::getDate).thenComparing(Trip::getNumber))
                 .forEach(out::add);
@@ -58,9 +63,9 @@ public class TripService {
     }
 
     /**
-     * Отгрузить заказы экспедитору: каждый день доставки — в его рейс на этот день (рейс, который ещё
-     * загружается, дополняется, иначе создаётся новый), товар — с основного склада в машину, заказы — «В
-     * рейсе». Уходят только принятые и собранные; остальные остаются как были и попадают в skipped. Если
+     * Отгрузить заказы экспедитору: каждый день доставки — в его рейс на этот день (незакрытый рейс
+     * дополняется, иначе создаётся новый — сразу «В пути»: отдельной кнопки «В путь» нет), товар — с основного
+     * склада в машину, заказы — «В рейсе». Уходят только принятые и собранные; остальные остаются как были и попадают в skipped. Если
      * на основном складе чего-то не хватает, не отгружается ничего.
      */
     @Transactional
@@ -109,8 +114,8 @@ public class TripService {
                 o -> o.getDeliveryDate().isBefore(today) ? today : o.getDeliveryDate(), TreeMap::new, Collectors.toList()));
         List<Trip> used = new ArrayList<>();
         byDay.forEach((day, list) -> {
-            Trip t = trips.findFirstByExpeditorAndDateAndStatusOrderByIdDesc(exp, day, TripStatus.LOADING)
-                    .orElseGet(() -> newTrip(exp, car, day));
+            Trip t = trips.findFirstByExpeditorAndDateAndStatusInOrderByIdDesc(exp, day, EnumSet.of(TripStatus.LOADING, TripStatus.ON_ROAD))
+                    .orElseGet(() -> newTrip(exp, car, day, now));
             Warehouse carStock = stock.warehouse(t.getVehicle());
             int pos = t.getTripOrders().stream().mapToInt(TripOrder::getPosition).max().orElse(-1) + 1;
             list.sort(Comparator.comparing((Order o) -> o.getOutlet().getRoute() == null ? "" : o.getOutlet().getRoute().getName())
@@ -129,11 +134,12 @@ public class TripService {
         return new Shipment(exp, used, ok.size(), skipped);
     }
 
-    private Trip newTrip(Employee exp, Vehicle car, LocalDate day) {
+    private Trip newTrip(Employee exp, Vehicle car, LocalDate day, LocalDateTime now) {
         String base = "Р-" + day.format(NUMBER_DATE) + "-";
         int n = 1;
         while (trips.existsByCompanyIdAndNumber(exp.getCompanyId(), base + n)) n++;
-        Trip t = new Trip().setNumber(base + n).setDate(day).setExpeditor(exp).setVehicle(car).setStatus(TripStatus.LOADING);
+        Trip t = new Trip().setNumber(base + n).setDate(day).setExpeditor(exp).setVehicle(car).setStatus(TripStatus.ON_ROAD)
+                .setStartedAt(now);
         t.setCompany(exp.getCompany());
         return trips.save(t);
     }

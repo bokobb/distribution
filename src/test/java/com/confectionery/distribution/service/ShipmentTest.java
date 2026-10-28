@@ -71,7 +71,8 @@ class ShipmentTest {
         assertThat(s.trips()).hasSize(1);
         Trip t = s.trips().get(0);
         assertThat(t.getDate()).isEqualTo(tomorrow);
-        assertThat(t.getStatus()).isEqualTo(TripStatus.LOADING);
+        assertThat(t.getStatus()).isEqualTo(TripStatus.ON_ROAD); // кнопки «В путь» нет
+        assertThat(t.getStartedAt()).isNotNull();
         assertThat(t.getNumber()).startsWith("Р-");
         assertThat(s.skipped()).containsEntry("ждут разрешения (долг сверх лимита)", List.of(wait.getNumber()))
                 .containsEntry("отменены", List.of(cancelled.getNumber()));
@@ -104,6 +105,13 @@ class ShipmentTest {
         assertThat(s.trips().get(1).getDate()).isEqualTo(tomorrow.plusDays(1));
         assertThat(jdbc.queryForList("select position from trip_orders where trip_id = ? order by position", Integer.class, t1.getId()))
                 .containsExactly(0, 1);
+
+        // касса принята — рейс закрыт, следующая отгрузка на тот же день — новый рейс
+        jdbc.update("update trips set status = 'CLOSED' where id = ?", t1.getId());
+        Order afterClose = data.order(w, tomorrow, PaymentMethod.CASH, 1, 100);
+        Trip t3 = ship(w, w.expeditor().getId(), afterClose).trips().get(0);
+        assertThat(t3.getId()).isNotEqualTo(t1.getId());
+        assertThat(t3.getDate()).isEqualTo(tomorrow);
     }
 
     @Test

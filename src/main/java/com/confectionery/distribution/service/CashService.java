@@ -14,7 +14,8 @@ import java.util.Map;
 
 /**
  * Приём рейса вечером: оператор пересчитывает наличные и сверяет Kaspi, кладовщик принимает товар.
- * Рейс закрывается, когда отмечены Kaspi и товар; разница наличных записывается на экспедитора.
+ * Рейс закрывается, когда отмечены Kaspi и товар; разница наличных записывается на экспедитора. Принять можно
+ * любой незакрытый рейс — экспедитор рейс не закрывает.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +29,7 @@ public class CashService {
     @Transactional
     public Trip accept(Long tripId, long counted, boolean kaspi, boolean goods, Actor actor) {
         Trip t = trips.findById(tripId).orElseThrow(NotFoundException::new);
-        if (t.getStatus() != TripStatus.RETURNED) return t;
+        if (!t.isOpen()) return t;
         LocalDateTime now = LocalDateTime.now(clock);
         CashHandover h = t.getHandover();
         if (h == null) {

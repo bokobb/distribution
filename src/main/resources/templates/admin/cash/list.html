@@ -4,7 +4,7 @@
 <th:block th:fragment="content">
 <section class="kpis">
     <div class="kpi kpi--main"><span class="kpi-l">Наличные на руках у экспедиторов</span><span class="kpi-v num" th:text="${@fmt.money(onHands)}"></span><span class="kpi-s">пока рейс не закрыт</span></div>
-    <div class="kpi" th:classappend="${!waiting.isEmpty()} ? 'kpi--alert'"><span class="kpi-l">Ждут приёма</span><span class="kpi-v num" th:text="${waiting.size()}"></span><span class="kpi-s" th:text="${waiting.isEmpty() ? 'все приняты' : 'рейсы вернулись'}"></span></div>
+    <div class="kpi" th:classappend="${!waiting.isEmpty()} ? 'kpi--alert'"><span class="kpi-l">Ждут приёма</span><span class="kpi-v num" th:text="${waiting.size()}"></span><span class="kpi-s" th:text="${waiting.isEmpty() ? 'все приняты' : 'все точки пройдены'}"></span></div>
     <div class="kpi"><span class="kpi-l">В пути</span><span class="kpi-v num" th:text="${onRoad.size()}"></span></div>
     <div class="kpi"><span class="kpi-l">Закрыты</span><span class="kpi-v num" th:text="${closed.size()}"></span></div>
 </section>
@@ -31,6 +31,7 @@
             <tbody><tr th:each="t : ${onRoad}">
                 <td><a class="rl" th:href="${'/admin/trips/' + t.id}" th:text="${t.expeditor.name}"></a><span class="sub" th:text="${t.doneStops + ' из ' + t.stops + ' точек'}"></span></td>
                 <td class="r num"><b th:text="${@fmt.money(t.cash)}"></b><span class="sub">на руках</span></td>
+                <td class="c-acts"><a class="btn btn-soft btn-sm" th:href="${'/admin/cash/' + t.id}">Принять</a></td>
             </tr></tbody>
         </table></div>
         <p class="empty" th:if="${onRoad.isEmpty()}">Никого в пути.</p>

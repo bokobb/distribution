@@ -105,6 +105,16 @@ public class Trip extends CompanyEntity {
         return (int) getOrders().stream().filter(o -> o.getStatus().delivered() || o.getStatus() == OrderStatus.REFUSED).count();
     }
 
+    /** Рейс не закрыт: касса и невыданный товар ещё у экспедитора. */
+    public boolean isOpen() {
+        return status != TripStatus.CLOSED;
+    }
+
+    /** Касса ждёт приёма: все точки пройдены (выдано или отказ) или рейс уже отмечен вернувшимся (старые рейсы). */
+    public boolean isWaitingCash() {
+        return status == TripStatus.RETURNED || isOpen() && !tripOrders.isEmpty() && getDoneStops() == tripOrders.size();
+    }
+
     public int getProgress() {
         return tripOrders.isEmpty() ? 0 : getDoneStops() * 100 / tripOrders.size();
     }

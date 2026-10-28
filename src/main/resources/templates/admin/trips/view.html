@@ -6,7 +6,7 @@
     <a class="back" href="/admin/trips"><th:block th:utext="${i16['back']}"></th:block>Рейсы</a>
     <span style="flex:1"></span>
     <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
-    <a class="btn btn-primary btn-sm" th:if="${t.status.name() == 'RETURNED'}" th:href="${'/admin/cash/' + t.id}">Принять кассу</a>
+    <a class="btn btn-primary btn-sm" th:if="${t.open and !t.date.isAfter(today)}" th:href="${'/admin/cash/' + t.id}">Принять кассу</a>
 </div>
 <section class="kpis">
     <div class="kpi"><span class="kpi-l">Точки</span><span class="kpi-v num" th:text="${t.doneStops + ' / ' + t.stops}"></span><span class="kpi-s" th:text="${t.progress + '% пройдено'}"></span></div>

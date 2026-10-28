@@ -146,9 +146,9 @@ public class DashboardService {
                 out.add(new Alert("warn", "Заказы ждут разрешения: долг сверх лимита", String.valueOf(s.needsApproval()), "/admin/orders?day=all&status=NEEDS_APPROVAL"));
             if (s.pendingOutlets() > 0)
                 out.add(new Alert("info", "Новые магазины на проверке", String.valueOf(s.pendingOutlets()), "/admin/outlets?status=PENDING"));
-            long returned = of(tripList, cid).stream().filter(t -> t.getStatus() == TripStatus.RETURNED).count();
-            if (returned > 0)
-                out.add(new Alert("warn", "Рейсы вернулись, касса не принята", String.valueOf(returned), "/admin/cash"));
+            long waiting = of(tripList, cid).stream().filter(Trip::isWaitingCash).count();
+            if (waiting > 0)
+                out.add(new Alert("warn", "Рейсы пройдены, касса не принята", String.valueOf(waiting), "/admin/cash"));
             long drafts = of(receiptList, cid).stream().filter(r -> r.getStatus() == ReceiptStatus.DRAFT).count();
             if (drafts > 0)
                 out.add(new Alert("info", "Приходы из CRM ждут подтверждения", String.valueOf(drafts), "/admin/stock?tab=receipts"));

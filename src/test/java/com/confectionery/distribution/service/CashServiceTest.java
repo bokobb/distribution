@@ -118,6 +118,24 @@ class CashServiceTest {
     }
 
     @Test
+    void рейсВПутиПринимаетсяБезВернулся() {
+        data.setTripStatus(trip, TripStatus.ON_ROAD);
+        as(() -> {
+            Trip t = trips.get(trip.getId());
+            assertThat(t.isWaitingCash()).isTrue(); // единственная точка пройдена
+            return null;
+        });
+        as(() -> cash.accept(trip.getId(), 8_000, true, true, operator()));
+        as(() -> {
+            Trip t = trips.get(trip.getId());
+            assertThat(t.getStatus()).isEqualTo(TripStatus.CLOSED);
+            assertThat(t.isOpen()).isFalse();
+            assertThat(t.isWaitingCash()).isFalse();
+            return null;
+        });
+    }
+
+    @Test
     void закрытыйРейсНеМеняется() {
         as(() -> cash.accept(trip.getId(), 8_000, true, true, operator()));
         as(() -> cash.accept(trip.getId(), 1, true, true, operator()));

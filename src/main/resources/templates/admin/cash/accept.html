@@ -9,7 +9,7 @@
     <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
 </div>
 
-<p class="note" th:if="${t.status.name() == 'ON_ROAD' or t.status.name() == 'LOADING'}" th:text="${'Рейс ещё в пути: пройдено ' + t.doneStops + ' из ' + t.stops + ' точек. Принять кассу можно, когда экспедитор закроет рейс в приложении.'}"></p>
+<p class="note" th:if="${t.open and !t.waitingCash}" th:text="${'Пройдено ' + t.doneStops + ' из ' + t.stops + ' точек: не все заказы выданы или отмечены отказом. Невыданный товар при приёме вернётся на основной склад.'}"></p>
 
 <form th:action="@{'/admin/cash/' + ${t.id}}" method="post" class="grid">
     <section class="card">
@@ -47,8 +47,8 @@
                 <dt>Отдано в долг</dt><dd class="num" th:text="${@fmt.money(t.credit)}"></dd>
                 <dt>Возвраты</dt><dd class="num" th:text="${@fmt.money(t.returnsTotal)}"></dd>
             </dl>
-            <button class="btn btn-primary" type="submit" th:if="${t.status.name() == 'RETURNED'}">Закрыть рейс</button>
-            <p class="hint" th:if="${t.status.name() == 'RETURNED'}">Рейс закроется, когда отмечены Kaspi и товар. После закрытия изменить его сможет только директор.</p>
+            <button class="btn btn-primary" type="submit" th:if="${t.open}">Закрыть рейс</button>
+            <p class="hint" th:if="${t.open}">Рейс закроется, когда отмечены Kaspi и товар. После закрытия изменить его сможет только директор.</p>
             <p class="diff" th:if="${t.status.name() == 'CLOSED'}" th:classappend="${t.cashDiff < 0} ? 'diff--bad' : 'diff--ok'">
                 <span th:text="${'Закрыт ' + @fmt.time(t.closedAt) + ', принял ' + t.acceptedBy}"></span><span class="num" th:text="${t.cashDiff == 0 ? 'сошлось' : @fmt.signed(t.cashDiff)}"></span></p>
         </div>

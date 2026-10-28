@@ -14,10 +14,10 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     /** Рейсы дня и все незакрытые (касса ещё у экспедитора). */
     List<Trip> findByDateOrStatusIn(LocalDate date, Collection<TripStatus> statuses);
 
-    /** Рейсы, которые ещё загружаются, на будущие дни. */
-    List<Trip> findByStatusAndDateAfter(TripStatus status, LocalDate date);
+    /** Незакрытые рейсы на будущие дни. */
+    List<Trip> findByStatusInAndDateAfter(Collection<TripStatus> statuses, LocalDate date);
 
-    Optional<Trip> findFirstByExpeditorAndDateAndStatusOrderByIdDesc(Employee expeditor, LocalDate date, TripStatus status);
+    Optional<Trip> findFirstByExpeditorAndDateAndStatusInOrderByIdDesc(Employee expeditor, LocalDate date, Collection<TripStatus> statuses);
 
     boolean existsByCompanyIdAndNumber(Long companyId, String number);
 }
