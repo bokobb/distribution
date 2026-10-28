@@ -11,6 +11,9 @@ class FakeLocation implements LocationSource {
   Duration? interval;
   int tracking = 0;
 
+  /// Где телефон сейчас (у магазинов из sampleAgentData); null — GPS не ответил.
+  Fix? here = Fix(at: DateTime(2026, 10, 28, 10), lat: 42.3, lng: 69.6, accuracy: 12);
+
   @override
   Future<String?> ensureAccess() async => problem;
 
@@ -20,6 +23,9 @@ class FakeLocation implements LocationSource {
     tracking++;
     return fixes.stream;
   }
+
+  @override
+  Future<Fix?> current() async => here;
 
   @override
   Stream<bool> serviceStatus() => status.stream;

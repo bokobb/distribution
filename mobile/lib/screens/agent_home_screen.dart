@@ -3,28 +3,34 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../data/agent_data.dart';
 import '../data/agent_repo.dart';
+import '../data/visit.dart';
 import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
+import '../visits.dart';
+import '../widgets/visit_panel.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
 import 'home_parts.dart';
 import 'outlet_screen.dart';
 
 /// «Мой день» торгового агента: маршруты выбранного дня (по умолчанию сегодня) и магазины по порядку обхода
-/// с долгами. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем, что есть.
+/// с долгами и отметкой визита. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи —
+/// работает с тем, что есть.
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen(
       {super.key,
       required this.repo,
       required this.session,
       required this.workday,
+      required this.visits,
       required this.onSession,
       required this.onLogout});
 
   final AgentRepo repo;
   final Session session;
   final Workday workday;
+  final VisitBook visits;
   final ValueChanged<Session> onSession;
   final VoidCallback onLogout;
 
@@ -68,10 +74,12 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
     }
   }
 
-  /// Данные на экран; интервал GPS — из настроек компании.
+  /// Данные на экран; интервал GPS — из настроек компании, визиты с сервера — к телефонным.
   void _show(AgentData? data) {
     setState(() => _data = data);
-    if (data != null) widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
+    if (data == null) return;
+    widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
+    widget.visits.serverVisits(data);
   }
 
   @override
@@ -98,7 +106,11 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
                 title: 'Нет данных',
                 text: 'Подключитесь к интернету и потяните экран вниз, чтобы получить маршруты и товары.',
               ),
-            if (data != null) ..._routes(data),
+            if (data != null)
+              ListenableBuilder(
+                listenable: widget.visits,
+                builder: (context, _) => Column(children: _routes(data)),
+              ),
           ],
         ),
       ),
@@ -177,7 +189,12 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
             child: _OutletTile(
               number: i + 1,
               outlet: o,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OutletScreen(outlet: o, data: data))),
+              visit: _weekday == DateTime.now().weekday ? widget.visits.lastAt(o.id) : null,
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => OutletScreen(
+                          outlet: o, data: data, routeId: r.id, visits: widget.visits, workday: widget.workday))),
             ),
           ),
       ],
@@ -186,10 +203,13 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
 }
 
 class _OutletTile extends StatelessWidget {
-  const _OutletTile({required this.number, required this.outlet, required this.onTap});
+  const _OutletTile({required this.number, required this.outlet, this.visit, required this.onTap});
 
   final int number;
   final Outlet outlet;
+
+  /// Последний визит сегодня.
+  final Visit? visit;
   final VoidCallback onTap;
 
   @override
@@ -207,9 +227,15 @@ class _OutletTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 15,
-                backgroundColor: AppColors.paperDeep,
-                foregroundColor: AppColors.ink,
-                child: Text('$number', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                backgroundColor: visit == null
+                    ? AppColors.paperDeep
+                    : visit!.open
+                        ? AppColors.yolk
+                        : AppColors.ok,
+                foregroundColor: visit == null || visit!.open ? AppColors.ink : AppColors.cream,
+                child: visit != null && !visit!.open
+                    ? const Icon(Icons.check, size: 18)
+                    : Text('$number', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -218,6 +244,9 @@ class _OutletTile extends StatelessWidget {
                   children: [
                     Text(o.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     if (place != null) Text(place, style: const TextStyle(color: AppColors.inkSoft)),
+                    if (visit != null)
+                      Text(visit!.open ? 'Визит идёт с ${time(visit!.startedAt)}' : '${time(visit!.startedAt)} — ${visitResult(visit!)}',
+                          style: TextStyle(color: visit!.error != null ? AppColors.crimson : AppColors.ink)),
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: 10,

@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_camera.dart';
 import 'fake_location.dart';
 import 'fake_server.dart';
 import 'memory_store.dart';
@@ -25,7 +26,7 @@ void main() {
 
   testWidgets('пустые поля: подсказки, на сервер не идём', (t) async {
     final server = FakeServer();
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
 
     await t.tap(find.text('Войти'));
     await t.pump();
@@ -37,7 +38,7 @@ void main() {
 
   testWidgets('агент входит — «Мой день», ключ устройства сохранён', (t) async {
     final store = SessionStore();
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: store));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: store));
 
     await logIn(t);
 
@@ -49,7 +50,7 @@ void main() {
 
   testWidgets('экспедитор входит — «Рейс»', (t) async {
     final api = ApiClient(baseUrl: 'http://s', client: FakeServer(role: 'EXPEDITOR').client);
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: api, store: SessionStore()));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: SessionStore()));
 
     await logIn(t);
 
@@ -59,7 +60,7 @@ void main() {
   testWidgets('отказ сервера показывается, вход не запоминается', (t) async {
     final store = SessionStore();
     final api = ApiClient(baseUrl: 'http://s', client: FakeServer(role: 'OPERATOR').client);
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: api, store: store));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: store));
 
     await logIn(t);
 
@@ -70,7 +71,7 @@ void main() {
   testWidgets('временный пароль — сначала свой, потом «Мой день»', (t) async {
     final server = FakeServer(mustChange: true);
     final store = SessionStore();
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: store));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: store));
 
     await logIn(t);
     expect(find.text('Иван, придумайте свой пароль'), findsOneWidget);
@@ -99,7 +100,7 @@ void main() {
     await store.saveDeviceToken('ключ');
     final api = ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ');
 
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: api, store: store, session: s));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: store, session: s));
     await t.pumpAndSettle();
 
     expect(find.text('Вход на этом телефоне закрыт — войдите с паролем'), findsOneWidget);
@@ -113,7 +114,7 @@ void main() {
     const s = Session(userId: 1, name: 'Иван', role: 'AGENT', company: 'Своя доставка');
     final api = ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ');
 
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: api, store: SessionStore(), session: s));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: SessionStore(), session: s));
     await t.pumpAndSettle();
 
     expect(find.text('Мой день'), findsOneWidget);
@@ -126,7 +127,7 @@ void main() {
     await store.save(s);
     await store.saveDeviceToken('ключ');
     final api = ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ');
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: api, store: store, session: s));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: store, session: s));
     await t.pumpAndSettle();
 
     await t.tap(find.byTooltip('Меню'));
@@ -144,7 +145,7 @@ void main() {
 
   testWidgets('«Мой день»: маршрут сегодня, магазины по порядку, долг и просрочка', (t) async {
     final local = MemoryStore();
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: local, api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: local, api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
 
     await logIn(t);
 
@@ -170,7 +171,7 @@ void main() {
     final server = FakeServer()..offline = true;
     final local = MemoryStore()..data['agent'] = sampleAgentData();
     const s = Session(userId: 1, name: 'Иван', role: 'AGENT');
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: local, api: ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ'), store: SessionStore(), session: s));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: local, api: ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ'), store: SessionStore(), session: s));
     await t.pumpAndSettle();
 
     expect(find.text('Магазин «Арай»'), findsOneWidget);
@@ -178,7 +179,7 @@ void main() {
   });
 
   testWidgets('карточка магазина: долг, лимит, прайс, адрес', (t) async {
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
     await logIn(t);
 
     await t.tap(find.text('Магазин «Арай»'));
@@ -195,7 +196,7 @@ void main() {
   testWidgets('выход стирает данные с телефона', (t) async {
     final local = MemoryStore()..data['agent'] = sampleAgentData();
     const s = Session(userId: 1, name: 'Иван', role: 'AGENT');
-    await t.pumpWidget(DistributionApp(location: FakeLocation(), local: local, api: ApiClient(baseUrl: 'http://s', client: FakeServer().client, deviceToken: 'ключ'), store: SessionStore(), session: s));
+    await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: local, api: ApiClient(baseUrl: 'http://s', client: FakeServer().client, deviceToken: 'ключ'), store: SessionStore(), session: s));
     await t.pumpAndSettle();
 
     await t.tap(find.byTooltip('Меню'));
@@ -212,7 +213,7 @@ void main() {
     final server = FakeServer();
     final local = MemoryStore();
     await t.pumpWidget(DistributionApp(
-        location: FakeLocation(), local: local, api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+        location: FakeLocation(), camera: FakeCamera(), local: local, api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
     expect(find.text('Рабочий день не начат'), findsOneWidget);
 
@@ -239,7 +240,7 @@ void main() {
   testWidgets('нет доступа к местоположению — подсказка, день не начат', (t) async {
     final gps = FakeLocation()..problem = 'Разрешите приложению доступ к местоположению в настройках телефона';
     await t.pumpWidget(DistributionApp(
-        location: gps, local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
+        location: gps, camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
     await logIn(t);
 
     await t.tap(find.text('Начать день'));
@@ -248,4 +249,45 @@ void main() {
     expect(find.text('Разрешите приложению доступ к местоположению в настройках телефона'), findsOneWidget);
     expect(find.text('Рабочий день не начат'), findsOneWidget);
   });
+
+  testWidgets('визит: начать день, магазин, «Начать визит», «Без заказа» с причиной — на сервер', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Начать визит'));
+    await t.pump();
+    expect(find.text('Сначала начните рабочий день на главном экране'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Начать визит'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Визит с '), findsOneWidget);
+    expect(find.text('0 м от магазина'), findsOneWidget);
+
+    await t.tap(find.text('Без заказа'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Хозяина нет на месте'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+
+    expect(find.textContaining('Сегодня был в '), findsOneWidget);
+    expect(find.text('Начать визит ещё раз'), findsOneWidget);
+    expect(find.text('Ждёт отправки'), findsNothing);
+    expect(server.visits.values.single['refuseReason'], 'Хозяина нет на месте');
+
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.textContaining('без заказа: Хозяина нет на месте'), findsOneWidget);
+  });
 }
+

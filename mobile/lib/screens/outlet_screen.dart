@@ -3,13 +3,22 @@ import 'package:flutter/material.dart';
 import '../data/agent_data.dart';
 import '../format.dart';
 import '../theme.dart';
+import '../visits.dart';
+import '../widgets/visit_panel.dart';
+import '../workday.dart';
 
-/// Карточка магазина: кто, где, прайс, лимит и долг на день синхронизации. Визит и заказ — следующие шаги.
+/// Карточка магазина: визит, кто, где, прайс, лимит и долг на день синхронизации.
 class OutletScreen extends StatelessWidget {
-  const OutletScreen({super.key, required this.outlet, required this.data});
+  const OutletScreen(
+      {super.key, required this.outlet, required this.data, this.routeId, required this.visits, required this.workday});
 
   final Outlet outlet;
   final AgentData data;
+
+  /// С какого маршрута открыли — визит записывается на него.
+  final int? routeId;
+  final VisitBook visits;
+  final Workday workday;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +28,8 @@ class OutletScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          VisitPanel(outlet: o, data: data, routeId: routeId, visits: visits, workday: workday),
+          const SizedBox(height: 16),
           if (o.pending)
             const Padding(
               padding: EdgeInsets.only(bottom: 12),

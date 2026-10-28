@@ -83,6 +83,13 @@ class ApiClient {
       });
 
   /// Свой пароль вместо временного; вход на остальных телефонах сотрудника закрывается.
+  /// Законченный визит; повтор с тем же uuid сервер не задвоит.
+  Future<void> visit(Map<String, dynamic> visit) => _authed('POST', '/api/mobile/agent/visits', body: visit);
+
+  /// Фото полки к уже отправленному визиту — JPEG.
+  Future<void> visitPhoto(String uuid, List<int> jpeg) =>
+      _authed('PUT', '/api/mobile/agent/visits/$uuid/photo', bytes: jpeg, contentType: 'image/jpeg');
+
   Future<Session> changePassword(String current, String password, String confirm) async =>
       Session.fromJson(await _authed('POST', '/api/mobile/auth/password',
           body: {'current': current, 'password': password, 'confirm': confirm, 'deviceToken': deviceToken}));
@@ -100,15 +107,16 @@ class ApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> _authed(String method, String path, {Object? body}) async {
+  Future<Map<String, dynamic>> _authed(String method, String path,
+      {Object? body, List<int>? bytes, String? contentType}) async {
     if (_jwt == null) await refresh();
     try {
-      return await _send(method, path, body: body, jwt: _jwt);
+      return await _send(method, path, body: body, bytes: bytes, contentType: contentType, jwt: _jwt);
     } on ApiException catch (e) {
       if (e.status != 401) rethrow;
       // JWT истёк или сервер перезапускался — новый по ключу и ещё раз
       await refresh();
-      return _send(method, path, body: body, jwt: _jwt);
+      return _send(method, path, body: body, bytes: bytes, contentType: contentType, jwt: _jwt);
     }
   }
 
@@ -125,7 +133,9 @@ class ApiClient {
     return SessionClosedException(message);
   }
 
-  Future<Map<String, dynamic>> _send(String method, String path, {Object? body, String? jwt}) async {
+  /// body — JSON; bytes — файл как есть (contentType).
+  Future<Map<String, dynamic>> _send(String method, String path,
+      {Object? body, List<int>? bytes, String? contentType, String? jwt}) async {
     final http.Response r;
     try {
       final request = http.Request(method, Uri.parse('$baseUrl$path'))
@@ -134,6 +144,9 @@ class ApiClient {
       if (body != null) {
         request.headers['Content-Type'] = 'application/json; charset=utf-8';
         request.body = jsonEncode(body);
+      } else if (bytes != null) {
+        request.headers['Content-Type'] = contentType ?? 'application/octet-stream';
+        request.bodyBytes = bytes;
       }
       r = await _http.send(request).then(http.Response.fromStream).timeout(timeout);
     } on TimeoutException {

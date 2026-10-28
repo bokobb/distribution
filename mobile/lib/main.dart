@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 
 import 'api/api_client.dart';
+import 'camera.dart';
 import 'data/agent_repo.dart';
 import 'data/local_store.dart';
 import 'device.dart';
 import 'location.dart';
+import 'outbox.dart';
 import 'screens/agent_home_screen.dart';
 import 'screens/expeditor_home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/password_screen.dart';
 import 'session.dart';
 import 'theme.dart';
+import 'visits.dart';
 import 'workday.dart';
 
 /// Приложение «Дистрибуция» для торгового агента и экспедитора. Сервер — проект distribution, адреса /api/mobile.
@@ -30,7 +33,13 @@ Future<void> main() async {
 
 class DistributionApp extends StatefulWidget {
   const DistributionApp(
-      {super.key, required this.api, required this.store, required this.local, this.location, this.session});
+      {super.key,
+      required this.api,
+      required this.store,
+      required this.local,
+      this.location,
+      this.camera,
+      this.session});
 
   final ApiClient api;
   final SessionStore store;
@@ -40,6 +49,9 @@ class DistributionApp extends StatefulWidget {
 
   /// GPS телефона; null — настоящий (в тестах — подставной).
   final LocationSource? location;
+
+  /// Камера для фото полки; null — настоящая.
+  final PhotoSource? camera;
 
   /// Кто вошёл в прошлый раз; null — показать вход.
   final Session? session;
@@ -51,9 +63,13 @@ class DistributionApp extends StatefulWidget {
 class _DistributionAppState extends State<DistributionApp> {
   late Session? _session = widget.session;
   late final _agent = AgentRepo(widget.api, widget.local);
+  late final _location = widget.location ?? DeviceLocation();
+  late final _camera = widget.camera ?? DeviceCamera();
 
-  /// Рабочий день и GPS — пока вошёл сотрудник со своим паролем.
+  /// Отправка на сервер, рабочий день с GPS и визиты — пока вошёл сотрудник со своим паролем.
+  Outbox? _outbox;
   Workday? _workday;
+  VisitBook? _visits;
 
   /// Почему снова вход: сервер закрыл вход на этом телефоне.
   String? _notice;
@@ -67,14 +83,20 @@ class _DistributionAppState extends State<DistributionApp> {
   }
 
   void _startWorkday() {
-    _workday = Workday(api: widget.api, store: widget.local, location: widget.location ?? DeviceLocation())..restore();
+    final outbox = _outbox = Outbox(api: widget.api, store: widget.local);
+    _workday = Workday(outbox: outbox, store: widget.local, location: _location)..restore();
+    _visits = VisitBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
   }
 
   Future<void> _stopWorkday() async {
-    final w = _workday;
+    final w = _workday, v = _visits, o = _outbox;
     _workday = null;
+    _visits = null;
+    _outbox = null;
     await w?.stop();
     w?.dispose();
+    v?.dispose();
+    o?.dispose();
   }
 
   Future<void> _signedIn(Session s) async {
@@ -108,6 +130,7 @@ class _DistributionAppState extends State<DistributionApp> {
     await _stopWorkday();
     await widget.store.clear();
     await widget.local.clear();
+    await _camera.clear();
   }
 
   @override
@@ -123,7 +146,12 @@ class _DistributionAppState extends State<DistributionApp> {
               ? PasswordScreen(api: widget.api, session: s, onDone: _signedIn, onLogout: _logout)
               : s.isAgent
                   ? AgentHomeScreen(
-                      repo: _agent, session: s, workday: _workday!, onSession: _signedIn, onLogout: _logout)
+                      repo: _agent,
+                      session: s,
+                      workday: _workday!,
+                      visits: _visits!,
+                      onSession: _signedIn,
+                      onLogout: _logout)
                   : ExpeditorHomeScreen(
                       api: widget.api, session: s, workday: _workday!, onSession: _signedIn, onLogout: _logout),
     );

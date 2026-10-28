@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:distribution_mobile/data/agent_data.dart';
 import 'package:distribution_mobile/data/local_store.dart';
 import 'package:distribution_mobile/data/track.dart';
+import 'package:distribution_mobile/data/visit.dart';
 import 'package:distribution_mobile/format.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -69,6 +72,68 @@ void main() {
     expect((await store.eventsSince(DateTime(2026, 10, 28))).single.uuid, 'u1');
     await store.clear();
     expect(await store.unsentCount(), 0);
+    await store.close();
+  });
+
+  test('SQLite: визиты — идущий, ждущие отправки, фото, стирание отправленного', () async {
+    sqfliteFfiInit();
+    final store = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
+    final today = DateTime(2026, 10, 28);
+    final yesterday = Visit(uuid: 'вчера', outletId: 1, startedAt: today.subtract(const Duration(hours: 5)));
+    final done = Visit(
+        uuid: 'утро', outletId: 2, routeId: 1, startedAt: today.add(const Duration(hours: 9)), lat: 42.3, lng: 69.6,
+        accuracy: 12, distance: 35, photo: '/фото/утро.jpg')
+      ..finishedAt = today.add(const Duration(hours: 9, minutes: 7))
+      ..result = 'NO_ORDER'
+      ..reason = 'Нет денег';
+    await store.saveVisit(yesterday);
+    await store.saveVisit(done);
+
+    // незаконченный вчерашний виден, чтобы его закончить или отменить; не отправляется
+    expect((await store.visitsSince(today)).map((v) => v.uuid), ['вчера', 'утро']);
+    final toSend = await store.visitsToSend();
+    expect(toSend.single.toJson(), {
+      'uuid': 'утро', 'outletId': 2, 'routeId': 1, 'startedAt': '2026-10-28T09:00:00',
+      'finishedAt': '2026-10-28T09:07:00', 'lat': 42.3, 'lng': 69.6, 'result': 'NO_ORDER', 'refuseReason': 'Нет денег',
+    });
+    expect(await store.unsentCount(), 2); // визит и фото
+
+    done.sent = true;
+    await store.saveVisit(done);
+    expect(await store.unsentCount(), 1);
+    expect(await store.pruneVisits(today.add(const Duration(days: 4))), isEmpty); // фото ещё не ушло
+    done.photoSent = true;
+    await store.saveVisit(done);
+    expect(await store.unsentCount(), 0);
+    expect(await store.pruneVisits(today), isEmpty); // свежий — держим
+    expect(await store.pruneVisits(today.add(const Duration(days: 4))), ['/фото/утро.jpg']);
+    expect((await store.visitsSince(today)).map((v) => v.uuid), ['вчера']);
+
+    await store.deleteVisit('вчера');
+    expect(await store.visitsSince(DateTime(2000)), isEmpty);
+    await store.close();
+  });
+
+  test('SQLite: база версии 2 обновляется — визиты появляются, журнал на месте', () async {
+    sqfliteFfiInit();
+    final path = '${Directory.systemTemp.createTempSync('db').path}/v2.db';
+    final old = await databaseFactoryFfi.openDatabase(path,
+        options: OpenDatabaseOptions(
+            version: 2,
+            onCreate: (db, _) async {
+              await db.execute('create table snapshot (key text primary key, json text not null, saved_at text not null)');
+              await db.execute('create table journal (uuid text primary key, at text not null, kind text not null, '
+                  'note text, sent integer not null default 0)');
+              await db.execute('create table gps (at text primary key, lat real not null, lng real not null, '
+                  'accuracy integer, battery integer, sent integer not null default 0)');
+              await db.insert('journal', {'uuid': 'u1', 'at': '2026-10-28T08:40:00.000', 'kind': 'DAY_START'});
+            }));
+    await old.close();
+
+    final store = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    expect(await store.unsentCount(), 1);
+    await store.saveVisit(Visit(uuid: 'в', outletId: 1, startedAt: DateTime(2026, 10, 28, 9)));
+    expect((await store.visitsSince(DateTime(2026, 10, 28))).single.uuid, 'в');
     await store.close();
   });
 }

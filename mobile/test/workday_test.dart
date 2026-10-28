@@ -1,5 +1,6 @@
 import 'package:distribution_mobile/api/api_client.dart';
 import 'package:distribution_mobile/data/track.dart';
+import 'package:distribution_mobile/outbox.dart';
 import 'package:distribution_mobile/workday.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,7 +15,9 @@ void main() {
   late DateTime now;
 
   Workday workday() => Workday(
-        api: ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ', appVersion: '1.0.0+1'),
+        outbox: Outbox(
+            api: ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ', appVersion: '1.0.0+1'),
+            store: store),
         store: store,
         location: gps,
         clock: () => now,

@@ -3,25 +3,27 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import 'api/api_client.dart';
 import 'data/local_store.dart';
 import 'data/track.dart';
 import 'location.dart';
+import 'outbox.dart';
 
 /// Рабочий день агента или экспедитора: «Начать день» / «Закончить день», точка GPS раз в [interval], пока день
-/// открыт, и журнал приложения. Всё сначала записывается на телефон и уходит на сервер пачкой, когда есть сеть;
-/// сервер принимает точки только рабочего дня. Состояние дня — по журналу на телефоне, поэтому переживает
-/// перезапуск приложения.
+/// открыт, и журнал приложения. Всё сначала записывается на телефон и уходит на сервер через [outbox], когда
+/// есть сеть; сервер принимает точки только рабочего дня. Состояние дня — по журналу на телефоне, поэтому
+/// переживает перезапуск приложения.
 class Workday extends ChangeNotifier {
   Workday({
-    required this.api,
+    required this.outbox,
     required this.store,
     required this.location,
     this.interval = const Duration(minutes: 5),
     DateTime Function()? clock,
-  }) : _now = clock ?? DateTime.now;
+  }) : _now = clock ?? DateTime.now {
+    outbox.addListener(_changed);
+  }
 
-  final ApiClient api;
+  final Outbox outbox;
   final LocalStore store;
   final LocationSource location;
   final DateTime Function() _now;
@@ -40,7 +42,7 @@ class Workday extends ChangeNotifier {
   DateTime? lastFix;
 
   /// Записей на телефоне ждут отправки.
-  int unsent = 0;
+  int get unsent => outbox.unsent;
 
   /// Местоположение на телефоне выключено, пока день открыт.
   bool gpsOff = false;
@@ -48,15 +50,11 @@ class Workday extends ChangeNotifier {
   /// Идёт «Начать день» (спрашиваем доступ к местоположению).
   bool busy = false;
 
-  static const _batch = 500;
-
   DateTime? _startedAt;
   DateTime? _endedAt;
   DateTime? _lastSaved;
   StreamSubscription<Fix>? _fixes;
   StreamSubscription<bool>? _status;
-  bool _sending = false;
-  bool _again = false;
   bool _disposed = false;
 
   /// При запуске приложения: «Открыл приложение» в журнал и состояние дня по журналу; день открыт — GPS снова идёт.
@@ -76,7 +74,6 @@ class Workday extends ChangeNotifier {
     _startedAt = open;
     _endedAt = ended;
     if (open != null) _track();
-    unsent = await store.unsentCount();
     _changed();
     unawaited(flush());
   }
@@ -122,36 +119,8 @@ class Workday extends ChangeNotifier {
     if (open) _track();
   }
 
-  /// Отправить накопленное пачками. Нет сети — останется на телефоне до следующего раза. Попросили отправить,
-  /// пока отправка уже идёт, — она пройдёт ещё круг и заберёт новое.
-  Future<void> flush() async {
-    if (_sending) {
-      _again = true;
-      return;
-    }
-    _sending = true;
-    try {
-      do {
-        _again = false;
-        while (true) {
-          final batch = await store.unsent(_batch);
-          if (batch.size == 0) break;
-          final left = await store.unsentCount() - batch.size;
-          await api.track(batch, unsent: left);
-          await store.markSent(batch);
-          if (batch.size < _batch) break;
-        }
-      } while (_again);
-    } on ApiException {
-      // нет сети, сервер недоступен или вход закрыт — отправим позже
-    } finally {
-      _sending = false;
-      if (!_disposed) {
-        unsent = await store.unsentCount();
-        _changed();
-      }
-    }
-  }
+  /// Отправить накопленное (Outbox).
+  Future<void> flush() => outbox.flush();
 
   /// Выход из приложения: GPS остановить.
   Future<void> stop() => _stopTracking();
@@ -199,6 +168,7 @@ class Workday extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    outbox.removeListener(_changed);
     _fixes?.cancel();
     _status?.cancel();
     super.dispose();

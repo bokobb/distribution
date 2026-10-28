@@ -24,6 +24,13 @@ class FakeServer {
   final trackPoints = <Map<String, dynamic>>[];
   int? lastUnsent;
 
+  /// Визиты по uuid и фото полки к ним — что пришло.
+  final visits = <String, Map<String, dynamic>>{};
+  final photos = <String, List<int>>{};
+
+  /// Сервер не принимает визиты (неверные данные) — с этим текстом.
+  String? rejectVisits;
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -31,8 +38,15 @@ class FakeServer {
   late final client = MockClient((r) async {
     if (offline) throw http.ClientException('Connection refused');
     requests.add(r);
-    final body = r.body.isEmpty ? <String, dynamic>{} : jsonDecode(r.body) as Map<String, dynamic>;
     final authed = r.headers['Authorization'] == 'Bearer $_jwt' && _jwt != null;
+    final photo = RegExp(r'^/api/mobile/agent/visits/([^/]+)/photo$').firstMatch(r.url.path);
+    if (photo != null) {
+      if (!authed) return _json({'message': 'Войдите заново'}, 401);
+      if (!visits.containsKey(photo[1])) return _json({'message': 'Не найдено'}, 404);
+      photos[photo[1]!] = r.bodyBytes;
+      return http.Response('', 204);
+    }
+    final body = r.body.isEmpty ? <String, dynamic>{} : jsonDecode(r.body) as Map<String, dynamic>;
     switch (r.url.path) {
       case '/api/mobile/auth/login':
         if (body['password'] != 'пароль') return _json({'message': 'Неверный телефон или пароль'}, 401);
@@ -60,6 +74,11 @@ class FakeServer {
         trackPoints.addAll((body['points'] as List).cast<Map<String, dynamic>>());
         lastUnsent = body['unsent'] as int?;
         return _json({'events': 0, 'points': 0, 'duplicates': 0, 'outsideDay': 0, 'invalid': 0}, 200);
+      case '/api/mobile/agent/visits':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        if (rejectVisits != null) return _json({'message': rejectVisits}, 400);
+        visits.putIfAbsent(body['uuid'] as String, () => body);
+        return _json({...body, 'distance': null, 'photo': photos.containsKey(body['uuid'])}, 200);
       case '/api/mobile/agent/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(agentData, 200);

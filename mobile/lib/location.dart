@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:battery_plus/battery_plus.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -19,6 +21,9 @@ abstract class LocationSource {
   /// Точки раз в interval, пока на поток подписаны. На Android — фоновой службой с уведомлением
   /// «Рабочий день идёт»: точки идут и при погашенном экране.
   Stream<Fix> track(Duration interval);
+
+  /// Где телефон сейчас — для отметки в магазине; не удалось за полминуты — null.
+  Future<Fix?> current();
 
   /// Включено ли местоположение (GPS) на телефоне — при каждом изменении.
   Stream<bool> serviceStatus();
@@ -59,7 +64,25 @@ class DeviceLocation implements LocationSource {
             setOngoing: true,
           ),
         ),
-      ).map((p) => Fix(at: p.timestamp.toLocal(), lat: p.latitude, lng: p.longitude, accuracy: p.accuracy.round()));
+      ).map(_fix);
+
+  @override
+  Future<Fix?> current() async {
+    try {
+      final p = await Geolocator.getCurrentPosition(
+          locationSettings: AndroidSettings(accuracy: LocationAccuracy.high, timeLimit: const Duration(seconds: 30)));
+      return _fix(p);
+    } on TimeoutException {
+      // в помещении спутники не видны — подойдёт недавняя точка
+      final last = await Geolocator.getLastKnownPosition();
+      return last != null && DateTime.now().difference(last.timestamp) < const Duration(minutes: 2) ? _fix(last) : null;
+    } on Exception {
+      return null;
+    }
+  }
+
+  static Fix _fix(Position p) =>
+      Fix(at: p.timestamp.toLocal(), lat: p.latitude, lng: p.longitude, accuracy: p.accuracy.round());
 
   @override
   Stream<bool> serviceStatus() => Geolocator.getServiceStatusStream().map((s) => s == ServiceStatus.enabled);
