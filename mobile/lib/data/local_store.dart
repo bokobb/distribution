@@ -3,15 +3,18 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import 'order.dart';
 import 'track.dart';
 import 'visit.dart';
 
 /// Хранилище на телефоне: данные с сервера для работы без сети (по ключу, целиком JSON) и записи, которые ждут
-/// отправки (журнал приложения, точки GPS, визиты).
+/// отправки (журнал приложения, точки GPS, визиты, заказы).
 abstract class LocalStore {
   Future<Map<String, dynamic>?> read(String key);
 
   Future<void> write(String key, Map<String, dynamic> json);
+
+  Future<void> remove(String key);
 
   Future<void> addEvent(TrackEvent e);
 
@@ -27,7 +30,7 @@ abstract class LocalStore {
   /// Сервер принял — отметить отправленными; отправленное старше трёх дней стирается.
   Future<void> markSent(TrackBatch batch);
 
-  /// Сколько ждёт отправки: журнал, точки, законченные визиты и их фото.
+  /// Сколько ждёт отправки: журнал, точки, законченные визиты и их фото, заказы.
   Future<int> unsentCount();
 
   /// Записать визит (новый или изменённый).
@@ -44,6 +47,18 @@ abstract class LocalStore {
   /// Стереть отправленные целиком визиты, начатые раньше before; вернуть их файлы фото — их тоже стереть.
   Future<List<String>> pruneVisits(DateTime before);
 
+  /// Записать заказ (новый или с ответом сервера).
+  Future<void> saveOrder(Order o);
+
+  /// Заказы, созданные с этого времени.
+  Future<List<Order>> ordersSince(DateTime from);
+
+  /// Не отправленные и не отклонённые сервером, по порядку.
+  Future<List<Order>> ordersToSend();
+
+  /// Стереть отправленные заказы, созданные раньше before.
+  Future<void> pruneOrders(DateTime before);
+
   /// Стереть всё — при выходе: данные одного сотрудника не должны достаться следующему.
   Future<void> clear();
 }
@@ -59,15 +74,17 @@ class SqliteStore implements LocalStore {
     final db = await f.openDatabase(
       path ?? p.join(await f.getDatabasesPath(), 'distribution.db'),
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
         onCreate: (db, version) async {
           await db.execute('create table snapshot (key text primary key, json text not null, saved_at text not null)');
           await _createTrack(db);
           await _createVisits(db);
+          await _createOrders(db);
         },
         onUpgrade: (db, from, to) async {
           if (from < 2) await _createTrack(db);
           if (from < 3) await _createVisits(db);
+          if (from < 4) await _createOrders(db);
         },
       ),
     );
@@ -92,6 +109,15 @@ class SqliteStore implements LocalStore {
     await db.execute('create index visits_started on visits (started_at)');
   }
 
+  /// Версия 4: заказы до отправки и с ответом сервера (номер, статус).
+  static Future<void> _createOrders(Database db) async {
+    await db.execute('create table orders (uuid text primary key, visit_uuid text, outlet_id integer not null, '
+        'created_at text not null, delivery_date text not null, payment text not null, comment text, '
+        'items text not null, total integer not null, sent integer not null default 0, error text, number text, '
+        'status text, status_label text, note text)');
+    await db.execute('create index orders_created on orders (created_at)');
+  }
+
   @override
   Future<Map<String, dynamic>?> read(String key) async {
     final rows = await _db.query('snapshot', columns: ['json'], where: 'key = ?', whereArgs: [key]);
@@ -104,6 +130,9 @@ class SqliteStore implements LocalStore {
         {'key': key, 'json': jsonEncode(json), 'saved_at': DateTime.now().toIso8601String()},
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+
+  @override
+  Future<void> remove(String key) => _db.delete('snapshot', where: 'key = ?', whereArgs: [key]);
 
   @override
   Future<void> addEvent(TrackEvent e) => _db.insert(
@@ -163,7 +192,8 @@ class SqliteStore implements LocalStore {
         '+ (select count(*) from gps where sent = 0) '
         '+ (select count(*) from visits where finished_at is not null and error is null and sent = 0) '
         '+ (select count(*) from visits where finished_at is not null and error is null and photo is not null '
-        'and photo_sent = 0) as n');
+        'and photo_sent = 0) '
+        '+ (select count(*) from orders where sent = 0 and error is null) as n');
     return rows.first['n'] as int;
   }
 
@@ -218,14 +248,73 @@ class SqliteStore implements LocalStore {
       });
 
   @override
+  Future<void> saveOrder(Order o) => _db.insert(
+        'orders',
+        {
+          'uuid': o.uuid,
+          'visit_uuid': o.visitUuid,
+          'outlet_id': o.outletId,
+          'created_at': o.createdAt.toIso8601String(),
+          'delivery_date': o.deliveryDate.toIso8601String(),
+          'payment': o.payment,
+          'comment': o.comment,
+          'items': o.itemsJson(),
+          'total': o.total,
+          'sent': o.sent ? 1 : 0,
+          'error': o.error,
+          'number': o.number,
+          'status': o.status,
+          'status_label': o.statusLabel,
+          'note': o.note,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+  @override
+  Future<List<Order>> ordersSince(DateTime from) async {
+    final rows =
+        await _db.query('orders', where: 'created_at >= ?', whereArgs: [from.toIso8601String()], orderBy: 'created_at');
+    return rows.map(_order).toList();
+  }
+
+  @override
+  Future<List<Order>> ordersToSend() async {
+    final rows = await _db.query('orders', where: 'sent = 0 and error is null', orderBy: 'created_at');
+    return rows.map(_order).toList();
+  }
+
+  @override
+  Future<void> pruneOrders(DateTime before) =>
+      _db.delete('orders', where: 'sent = 1 and created_at < ?', whereArgs: [before.toIso8601String()]);
+
+  @override
   Future<void> clear() => _db.transaction((tx) async {
         await tx.delete('snapshot');
         await tx.delete('journal');
         await tx.delete('gps');
         await tx.delete('visits');
+        await tx.delete('orders');
       });
 
   Future<void> close() => _db.close();
+
+  static Order _order(Map<String, Object?> r) => Order(
+        uuid: r['uuid'] as String,
+        visitUuid: r['visit_uuid'] as String?,
+        outletId: r['outlet_id'] as int,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        deliveryDate: DateTime.parse(r['delivery_date'] as String),
+        payment: r['payment'] as String,
+        comment: r['comment'] as String?,
+        items: Order.parseItems(r['items'] as String),
+        total: r['total'] as int,
+        sent: r['sent'] == 1,
+        error: r['error'] as String?,
+        number: r['number'] as String?,
+        status: r['status'] as String?,
+        statusLabel: r['status_label'] as String?,
+        note: r['note'] as String?,
+      );
 
   static Visit _visit(Map<String, Object?> r) => Visit(
         uuid: r['uuid'] as String,

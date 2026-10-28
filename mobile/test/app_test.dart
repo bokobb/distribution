@@ -1,4 +1,5 @@
 import 'package:distribution_mobile/api/api_client.dart';
+import 'package:distribution_mobile/format.dart';
 import 'package:distribution_mobile/main.dart';
 import 'package:distribution_mobile/session.dart';
 import 'package:flutter/material.dart';
@@ -288,6 +289,58 @@ void main() {
     await t.pageBack();
     await t.pumpAndSettle();
     expect(find.textContaining('без заказа: Хозяина нет на месте'), findsOneWidget);
+  });
+
+  testWidgets('заказ: товары, количество, оформление в долг сверх лимита — на сервер с визитом', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Начать визит'));
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('Заказ'));
+    await t.pumpAndSettle();
+    expect(find.text('нет цены'), findsOneWidget); // торт без цены не добавить
+    await t.tap(find.byTooltip('Добавить Печенье овсяное'));
+    await t.pump();
+    await t.tap(find.byTooltip('Больше'));
+    await t.pump();
+    await t.tap(find.text('2'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('+ коробка (12 шт)'));
+    await t.pump();
+    await t.tap(find.text('Готово'));
+    await t.pumpAndSettle();
+    expect(find.text('= ${money(7000)}'), findsOneWidget); // 14 × 500
+
+    await t.enterText(find.widgetWithText(TextField, 'Поиск товара'), '4870001');
+    await t.pump();
+    expect(find.text('Печенье овсяное'), findsNothing);
+    await t.tap(find.byTooltip('Добавить Вафли сливочные'));
+    await t.pump();
+    expect(find.text(money(7300)), findsOneWidget);
+
+    await t.tap(find.text('Оформить'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('В долг'));
+    await t.pump();
+    // долг 45 000 + 7 300 при лимите 100 000 — в пределах
+    expect(find.textContaining('больше лимита'), findsNothing);
+    await t.tap(find.text('Сохранить заказ'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+
+    expect(find.textContaining('Сегодня был в '), findsOneWidget);
+    expect(find.textContaining('Заказ З-281026-1 на ${money(7500)} · В долг'), findsOneWidget); // итог сервера: 15 шт × 500
+    final sent = server.orders.values.single;
+    expect(sent['items'], [{'productId': 1, 'qty': 14}, {'productId': 2, 'qty': 1}]);
+    expect(sent['visitUuid'], server.visits.keys.single);
   });
 }
 

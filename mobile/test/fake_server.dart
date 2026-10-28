@@ -31,6 +31,10 @@ class FakeServer {
   /// Сервер не принимает визиты (неверные данные) — с этим текстом.
   String? rejectVisits;
 
+  /// Заказы по uuid — что пришло; новые заказы ждут разрешения (долг сверх лимита).
+  final orders = <String, Map<String, dynamic>>{};
+  bool needsApproval = false;
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -79,6 +83,19 @@ class FakeServer {
         if (rejectVisits != null) return _json({'message': rejectVisits}, 400);
         visits.putIfAbsent(body['uuid'] as String, () => body);
         return _json({...body, 'distance': null, 'photo': photos.containsKey(body['uuid'])}, 200);
+      case '/api/mobile/agent/orders':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        orders.putIfAbsent(body['uuid'] as String, () => body);
+        final n = orders.keys.toList().indexOf(body['uuid'] as String) + 1;
+        final qty = (body['items'] as List).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
+        return _json({
+          'uuid': body['uuid'], 'outletId': body['outletId'], 'number': 'З-281026-$n', 'createdAt': body['createdAt'],
+          'deliveryDate': body['deliveryDate'], 'payment': body['payment'],
+          'status': needsApproval ? 'NEEDS_APPROVAL' : 'ACCEPTED',
+          'statusLabel': needsApproval ? 'Нужно разрешение' : 'Принят',
+          'note': needsApproval ? 'Долг сверх лимита — ждёт разрешения оператора' : null,
+          'total': qty * 500, 'lines': [],
+        }, 200);
       case '/api/mobile/agent/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(agentData, 200);
@@ -122,6 +139,10 @@ Map<String, dynamic> sampleAgentData({DateTime? now}) {
     'products': [
       {'id': 1, 'name': 'Печенье овсяное', 'category': 'Печенье', 'unit': 'шт', 'perBox': 12, 'barcode': null,
         'wholesale': 500, 'retail': 600},
+      {'id': 2, 'name': 'Вафли сливочные', 'category': 'Вафли', 'unit': 'шт', 'perBox': 20, 'barcode': '4870001',
+        'wholesale': 300, 'retail': 350},
+      {'id': 3, 'name': 'Торт «Наполеон»', 'category': 'Торты', 'unit': 'шт', 'perBox': 1, 'barcode': null,
+        'wholesale': 0, 'retail': 0},
     ],
     'routes': [
       {'id': 1, 'name': 'Центр', 'region': 'Шымкент', 'days': [t.weekday], 'outlets': [2, 1]},

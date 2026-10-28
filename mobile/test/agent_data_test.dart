@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:distribution_mobile/data/agent_data.dart';
 import 'package:distribution_mobile/data/local_store.dart';
+import 'package:distribution_mobile/data/order.dart';
 import 'package:distribution_mobile/data/track.dart';
 import 'package:distribution_mobile/data/visit.dart';
 import 'package:distribution_mobile/format.dart';
@@ -20,8 +21,8 @@ void main() {
     expect(data.routesOn(1), isEmpty);
     expect(data.outletsOf(data.routesOn(3).single).map((o) => o.name), ['Магазин «Береке»', 'Магазин «Арай»']);
     expect(data.outlets[1]!.debt, 45000);
-    expect(data.products.single.priceFor('RETAIL'), 600);
-    expect(data.products.single.priceFor('WHOLESALE'), 500);
+    expect(data.product(1)!.priceFor('RETAIL'), 600);
+    expect(data.product(1)!.priceFor('WHOLESALE'), 500);
     expect(data.settings.visitRadius, 200);
   });
 
@@ -136,4 +137,37 @@ void main() {
     expect((await store.visitsSince(DateTime(2026, 10, 28))).single.uuid, 'в');
     await store.close();
   });
+
+  test('SQLite: заказы — ждут отправки, ответ сервера, стирание отправленного', () async {
+    sqfliteFfiInit();
+    final store = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
+    final o = Order(
+        uuid: 'з1', visitUuid: 'в1', outletId: 2, createdAt: DateTime(2026, 10, 28, 10, 5),
+        deliveryDate: DateTime(2026, 10, 29), payment: 'KASPI', comment: 'после обеда', items: {1: 12, 2: 20},
+        total: 12000);
+    await store.saveOrder(o);
+    expect(await store.unsentCount(), 1);
+    final back = (await store.ordersToSend()).single;
+    expect(back.toJson(), {
+      'uuid': 'з1', 'visitUuid': 'в1', 'outletId': 2, 'createdAt': '2026-10-28T10:05:00', 'deliveryDate': '2026-10-29',
+      'payment': 'KASPI', 'comment': 'после обеда', 'items': [{'productId': 1, 'qty': 12}, {'productId': 2, 'qty': 20}],
+    });
+
+    back.takeServer({'number': 'З-281026-4', 'status': 'ACCEPTED', 'statusLabel': 'Принят', 'note': null, 'total': 12500});
+    await store.saveOrder(back);
+    expect(await store.unsentCount(), 0);
+    final saved = (await store.ordersSince(DateTime(2026, 10, 28))).single;
+    expect([saved.number, saved.statusLabel, saved.total], ['З-281026-4', 'Принят', 12500]);
+
+    await store.pruneOrders(DateTime(2026, 10, 28));
+    expect(await store.ordersSince(DateTime(2000)), hasLength(1));
+    await store.pruneOrders(DateTime(2026, 11, 1));
+    expect(await store.ordersSince(DateTime(2000)), isEmpty);
+
+    await store.write('order-draft', {'visit': 'в1'});
+    await store.remove('order-draft');
+    expect(await store.read('order-draft'), isNull);
+    await store.close();
+  });
 }
+

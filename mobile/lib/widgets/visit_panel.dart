@@ -3,15 +3,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../data/agent_data.dart';
+import '../data/order.dart';
 import '../data/visit.dart';
 import '../format.dart';
 import '../geo.dart';
+import '../screens/order_screen.dart';
 import '../theme.dart';
 import '../visits.dart';
 import '../workday.dart';
 
-/// Визит в карточке магазина: «Начать визит» (рабочий день открыт; далеко от магазина — с вопросом), пока идёт — фото
-/// полки, «Без заказа» с причиной, «Отменить»; после — когда был и с каким итогом.
+/// Визит в карточке магазина: «Начать визит» (рабочий день открыт; далеко от магазина — с вопросом), пока идёт —
+/// фото полки, «Заказ», «Без заказа» с причиной, «Отменить»; после — когда был, с каким итогом и заказы за
+/// сегодня с номером и статусом.
 class VisitPanel extends StatefulWidget {
   const VisitPanel(
       {super.key, required this.outlet, required this.data, this.routeId, required this.visits, required this.workday});
@@ -66,6 +69,15 @@ class _VisitPanelState extends State<VisitPanel> {
       ) ==
       true;
 
+  Future<void> _order() async {
+    if (widget.data.settings.shelfPhotoRequired && widget.visits.current?.photo == null) {
+      _say('Сначала сфотографируйте полку');
+      return;
+    }
+    await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => OrderScreen(outlet: widget.outlet, data: widget.data, visits: widget.visits)));
+  }
+
   Future<void> _noOrder() async {
     final s = widget.data.settings;
     if (s.shelfPhotoRequired && widget.visits.current?.photo == null) {
@@ -111,8 +123,9 @@ class _VisitPanelState extends State<VisitPanel> {
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     if (visitNote(last) case final note?)
                       Text(note.$1, style: TextStyle(color: note.$2 ? AppColors.crimson : AppColors.inkSoft)),
-                    const SizedBox(height: 12),
                   ],
+                  for (final o in widget.visits.ordersAt(widget.outlet.id)) _OrderLine(order: o),
+                  if (last != null) const SizedBox(height: 12),
                   if (elsewhere != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -166,10 +179,50 @@ class _VisitPanelState extends State<VisitPanel> {
               label: Text(v.photo == null ? (s.shelfPhotoRequired ? 'Фото полки (обязательно)' : 'Фото полки') : 'Переснять'),
             ),
             const SizedBox(height: 8),
-            FilledButton(onPressed: _busy ? null : _noOrder, child: const Text('Без заказа')),
+            FilledButton.icon(
+                onPressed: _busy ? null : _order,
+                icon: const Icon(Icons.shopping_cart_outlined),
+                label: const Text('Заказ')),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: _busy ? null : _noOrder, child: const Text('Без заказа')),
             TextButton(onPressed: _busy ? null : _cancel, child: const Text('Отменить визит')),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Заказ магазина за сегодня: номер (или «ждёт отправки»), сумма, доставка, статус сервера.
+class _OrderLine extends StatelessWidget {
+  const _OrderLine({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final o = order;
+    final String state;
+    var alarm = false;
+    if (o.error != null) {
+      state = 'сервер не принял: ${o.error}';
+      alarm = true;
+    } else if (!o.sent) {
+      state = 'ждёт отправки';
+    } else {
+      state = (o.statusLabel ?? 'принят').toLowerCase();
+      alarm = o.status == 'NEEDS_APPROVAL' || o.status == 'CANCELLED' || o.status == 'REFUSED';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Заказ ${o.number == null ? '' : '${o.number} '}на ${money(o.total)} · '
+              '${Order.paymentLabels[o.payment] ?? o.payment} · доставка ${date(o.deliveryDate)}'),
+          Text(o.note == null ? state : '$state — ${o.note}',
+              style: TextStyle(color: alarm ? AppColors.crimson : AppColors.inkSoft)),
+        ],
       ),
     );
   }

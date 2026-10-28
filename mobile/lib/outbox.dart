@@ -5,9 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'api/api_client.dart';
 import 'data/local_store.dart';
 
-/// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), законченные визиты и фото полки.
-/// Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего раза.
-/// Повтор не задваивает: у записей журнала и визитов uuid телефона, у точек — время.
+/// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), законченные визиты, фото полки
+/// и заказы. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
+/// раза. Повтор не задваивает: у записей журнала, визитов и заказов uuid телефона, у точек — время.
 class Outbox extends ChangeNotifier {
   Outbox({required this.api, required this.store});
 
@@ -19,7 +19,7 @@ class Outbox extends ChangeNotifier {
 
   static const _batch = 500;
 
-  /// Отправленные визиты и их фото держим на телефоне столько, потом стираем.
+  /// Отправленные визиты с фото и заказы держим на телефоне столько, потом стираем.
   static const keep = Duration(days: 3);
 
   bool _sending = false;
@@ -38,7 +38,8 @@ class Outbox extends ChangeNotifier {
       do {
         _again = false;
         await _track();
-        await _visits();
+        await _visits(); // визит раньше заказа: заказ ссылается на него
+        await _orders();
       } while (_again);
     } on ApiException {
       // нет сети, сервер недоступен или вход закрыт — отправим позже
@@ -96,6 +97,20 @@ class Outbox extends ChangeNotifier {
         // уже нет
       }
     }
+  }
+
+  /// Заказ; сервер вернул номер, статус и свой итог. Не принял — помечаем и идём дальше.
+  Future<void> _orders() async {
+    for (final o in await store.ordersToSend()) {
+      try {
+        o.takeServer(await api.order(o.toJson()));
+      } on ApiException catch (e) {
+        if (!_rejected(e)) rethrow;
+        o.error = e.message;
+      }
+      await store.saveOrder(o);
+    }
+    await store.pruneOrders(DateTime.now().subtract(keep));
   }
 
   /// Сервер ответил, что запись неверна, — повтор не поможет.

@@ -1,11 +1,12 @@
+import 'order.dart';
 import 'visit.dart';
 
 /// Данные торгового агента с сервера (/api/mobile/agent/data): настройки компании, товары с ценами на день
-/// синхронизации, маршруты агента, магазины с долгами и его визиты за этот день. Хранятся на телефоне целиком,
-/// обновляются целиком.
+/// синхронизации, маршруты агента, магазины с долгами, его визиты и заказы за этот день. Хранятся на телефоне
+/// целиком, обновляются целиком.
 class AgentData {
   AgentData._(this.json, this.date, this.syncedAt, this.settings, this.products, this.routes, this.outlets,
-      this.visits);
+      this.visits, this.orders);
 
   /// Как пришло с сервера — так и хранится на телефоне.
   final Map<String, dynamic> json;
@@ -18,8 +19,11 @@ class AgentData {
   final List<RouteInfo> routes;
   final Map<int, Outlet> outlets;
 
-  /// Визиты агента за день синхронизации, которые уже на сервере.
+  /// Визиты и заказы агента за день синхронизации, которые уже на сервере.
   final List<Visit> visits;
+  final List<Order> orders;
+
+  Product? product(int id) => products.where((p) => p.id == id).firstOrNull;
 
   factory AgentData.fromJson(Map<String, dynamic> json) {
     final outlets = <int, Outlet>{};
@@ -36,6 +40,7 @@ class AgentData {
       [for (final r in json['routes'] as List) RouteInfo.fromJson(r as Map<String, dynamic>)],
       outlets,
       [for (final v in json['visits'] as List? ?? const []) Visit.fromServer(v as Map<String, dynamic>)],
+      [for (final o in json['orders'] as List? ?? const []) Order.fromServer(o as Map<String, dynamic>)],
     );
   }
 

@@ -52,6 +52,7 @@
                 <dt>Оформлен</dt><dd th:text="${@fmt.when(o.createdAt)}"></dd>
                 <dt>Доставка</dt><dd th:text="${@fmt.day(o.deliveryDate)}"></dd>
                 <dt>Оплата</dt><dd th:text="${o.payment.label}"></dd>
+                <dt th:if="${o.comment != null}">Комментарий</dt><dd th:if="${o.comment != null}" th:text="${o.comment}"></dd>
                 <dt>Цены</dt><dd th:text="${o.outlet.priceType}"></dd>
                 <dt th:if="${o.trip != null}">Рейс</dt><dd th:if="${o.trip != null}"><a class="link" th:href="${'/admin/trips/' + o.trip.id}" th:text="${o.trip.number + ' · ' + o.trip.expeditor.name}"></a></dd>
                 <dt th:if="${o.refuseReason != null}">Отказ</dt><dd th:if="${o.refuseReason != null}" class="bad" th:text="${o.refuseReason}"></dd>

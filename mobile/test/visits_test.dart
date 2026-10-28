@@ -176,4 +176,78 @@ void main() {
     await again.load();
     expect(again.lastAt(1)!.reason, 'Нет денег');
   });
+
+  test('заказ заканчивает визит: визит и заказ уходят, номер и статус с сервера, черновик стёрт', () async {
+    server.needsApproval = true;
+    await book.start(outlet(1), routeId: 1, radius: 200, confirmFar: yes);
+    final visit = book.current!.uuid;
+    await book.saveDraft({1: 3});
+    expect(await book.draft(), {1: 3});
+
+    expect(
+        await book.finishWithOrder(
+            items: {1: 12, 2: 20},
+            total: 12000,
+            payment: 'CREDIT',
+            deliveryDate: DateTime(2026, 10, 29, 15),
+            comment: '  после обеда ',
+            settings: data.settings),
+        isNull);
+    await settle();
+
+    expect(book.current, isNull);
+    expect(book.lastAt(1)!.result, 'ORDER');
+    final sent = server.orders.values.single;
+    expect(sent['visitUuid'], visit);
+    expect(sent['deliveryDate'], '2026-10-29');
+    expect(sent['payment'], 'CREDIT');
+    expect(sent['comment'], 'после обеда');
+    expect(sent['items'], [{'productId': 1, 'qty': 12}, {'productId': 2, 'qty': 20}]);
+    expect(server.visits[visit]!['result'], 'ORDER');
+
+    final o = book.ordersAt(1).single;
+    expect(o.number, 'З-281026-1');
+    expect(o.status, 'NEEDS_APPROVAL');
+    expect(o.note, 'Долг сверх лимита — ждёт разрешения оператора');
+    expect(o.total, 16000); // итог сервера
+    expect(await book.draft(), isEmpty);
+    expect(store.data, isNot(contains(VisitBook.draftKey)));
+    expect(outbox.unsent, 0);
+  });
+
+  test('заказ без сети ждёт; статус с сервера (отменили) виден у заказа с телефона', () async {
+    server.offline = true;
+    await book.start(outlet(2), radius: 200, confirmFar: yes);
+    await book.finishWithOrder(
+        items: {2: 5}, total: 1500, payment: 'CASH', deliveryDate: DateTime(2026, 10, 29), settings: data.settings);
+    await settle();
+    expect(outbox.unsent, 2); // визит и заказ
+    expect(book.ordersAt(2).single.sent, isFalse);
+
+    server.offline = false;
+    await outbox.flush();
+    await settle();
+    final uuid = book.ordersAt(2).single.uuid;
+    expect(book.ordersAt(2).single.number, 'З-281026-1');
+
+    final json = sampleAgentData(now: now)
+      ..['orders'] = [
+        {'uuid': uuid, 'outletId': 2, 'number': 'З-281026-1', 'createdAt': '2026-10-28T10:05:00',
+          'deliveryDate': '2026-10-29', 'payment': 'CASH', 'status': 'CANCELLED', 'statusLabel': 'Отменён',
+          'note': 'Отменил: магазин закрыт', 'total': 1500, 'lines': []},
+      ];
+    book.serverVisits(AgentData.fromJson(json));
+    expect(book.ordersAt(2).single.statusLabel, 'Отменён');
+    expect(book.ordersAt(2).single.note, 'Отменил: магазин закрыт');
+  });
+
+  test('черновик другого визита не подставляется; отмена визита стирает черновик', () async {
+    await store.write(VisitBook.draftKey, {'visit': 'другой', 'items': '{"1":4}'});
+    await book.start(outlet(1), radius: 200, confirmFar: yes);
+    expect(await book.draft(), isEmpty);
+    await book.saveDraft({2: 1});
+    await book.cancel();
+    expect(store.data, isNot(contains(VisitBook.draftKey)));
+  });
 }
+

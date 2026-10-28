@@ -86,6 +86,10 @@ class ApiClient {
   /// Законченный визит; повтор с тем же uuid сервер не задвоит.
   Future<void> visit(Map<String, dynamic> visit) => _authed('POST', '/api/mobile/agent/visits', body: visit);
 
+  /// Заказ; в ответе номер, статус и итог сервера. Повтор с тем же uuid вернёт уже принятый.
+  Future<Map<String, dynamic>> order(Map<String, dynamic> order) =>
+      _authed('POST', '/api/mobile/agent/orders', body: order);
+
   /// Фото полки к уже отправленному визиту — JPEG.
   Future<void> visitPhoto(String uuid, List<int> jpeg) =>
       _authed('PUT', '/api/mobile/agent/visits/$uuid/photo', bytes: jpeg, contentType: 'image/jpeg');

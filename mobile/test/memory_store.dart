@@ -1,4 +1,5 @@
 import 'package:distribution_mobile/data/local_store.dart';
+import 'package:distribution_mobile/data/order.dart';
 import 'package:distribution_mobile/data/track.dart';
 import 'package:distribution_mobile/data/visit.dart';
 
@@ -11,12 +12,16 @@ class MemoryStore implements LocalStore {
 
   /// Визиты по uuid — копиями, как в базе: изменение без saveVisit сюда не попадёт.
   final visits = <String, Visit>{};
+  final orders = <String, Order>{};
 
   @override
   Future<Map<String, dynamic>?> read(String key) async => data[key];
 
   @override
   Future<void> write(String key, Map<String, dynamic> json) async => data[key] = json;
+
+  @override
+  Future<void> remove(String key) async => data.remove(key);
 
   @override
   Future<void> addEvent(TrackEvent e) async => events.add(e);
@@ -49,8 +54,26 @@ class MemoryStore implements LocalStore {
     return events.where((x) => !sent.contains(x.uuid)).length +
         points.where((x) => !sent.contains(x.at)).length +
         done.where((v) => !v.sent).length +
-        done.where((v) => v.photo != null && !v.photoSent).length;
+        done.where((v) => v.photo != null && !v.photoSent).length +
+        orders.values.where((o) => !o.sent && o.error == null).length;
   }
+
+  @override
+  Future<void> saveOrder(Order o) async => orders[o.uuid] = o.copy();
+
+  @override
+  Future<List<Order>> ordersSince(DateTime from) async =>
+      [for (final o in orders.values) if (!o.createdAt.isBefore(from)) o.copy()]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+  @override
+  Future<List<Order>> ordersToSend() async =>
+      [for (final o in orders.values) if (!o.sent && o.error == null) o.copy()]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+  @override
+  Future<void> pruneOrders(DateTime before) async =>
+      orders.removeWhere((_, o) => o.sent && o.createdAt.isBefore(before));
 
   @override
   Future<void> saveVisit(Visit v) async => visits[v.uuid] = v.copy();
@@ -84,6 +107,7 @@ class MemoryStore implements LocalStore {
     points.clear();
     sent.clear();
     visits.clear();
+    orders.clear();
   }
 
   static List<Visit> _sorted(Iterable<Visit> vs) =>

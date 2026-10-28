@@ -7,14 +7,17 @@ import 'package:uuid/uuid.dart';
 import 'camera.dart';
 import 'data/agent_data.dart';
 import 'data/local_store.dart';
+import 'data/order.dart';
 import 'data/visit.dart';
 import 'geo.dart';
 import 'location.dart';
 import 'outbox.dart';
 
-/// Визиты агента за сегодня: начать визит в магазине (по GPS; дальше радиуса из настроек компании — только
-/// подтвердив, директор увидит пометку «далеко»), фото полки, закончить без заказа с причиной или отменить. Визиты пишутся на телефон и уходят через [outbox]; визиты
-/// с сервера (из данных агента) показываются вместе с телефонными — отметки «был» переживают переустановку.
+/// Визиты и заказы агента за сегодня: начать визит в магазине (по GPS; дальше радиуса из настроек компании —
+/// только подтвердив, директор увидит пометку «далеко»), фото полки, закончить заказом или без заказа с
+/// причиной, отменить. Всё пишется на телефон и уходит через [outbox]; визиты и заказы с сервера (из данных
+/// агента) показываются вместе с телефонными — отметки «был» переживают переустановку.
+
 class VisitBook extends ChangeNotifier {
   VisitBook({
     required this.store,
@@ -47,6 +50,8 @@ class VisitBook extends ChangeNotifier {
 
   List<Visit> _local = [];
   List<Visit> _server = [];
+  List<Order> _localOrders = [];
+  List<Order> _serverOrders = [];
   bool _disposed = false;
 
   /// Визит идёт; null — нет.
@@ -65,19 +70,45 @@ class VisitBook extends ChangeNotifier {
   /// Последний визит в магазин сегодня.
   Visit? lastAt(int outletId) => today.where((v) => v.outletId == outletId).lastOrNull;
 
+  /// Заказы магазина сегодня: с телефона и с сервера (там свежий статус), без повторов, по времени.
+  List<Order> ordersAt(int outletId) {
+    final from = _today();
+    final server = {for (final o in _serverOrders) o.uuid: o};
+    final mine = {for (final o in _localOrders) o.uuid};
+    return [
+      for (final o in _localOrders)
+        if (o.outletId == outletId && !o.createdAt.isBefore(from)) _fresher(o, server[o.uuid]),
+      ..._serverOrders.where((o) => o.outletId == outletId && !mine.contains(o.uuid) && !o.createdAt.isBefore(from)),
+    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
+  /// Статус на сервере мог поменяться (разрешили, отменили) — показываем его.
+  static Order _fresher(Order local, Order? server) {
+    if (server == null || local.error != null) return local;
+    return local.copy()
+      ..status = server.status
+      ..statusLabel = server.statusLabel
+      ..note = server.note
+      ..number = server.number
+      ..total = server.total;
+  }
+
   /// С телефона.
   Future<void> load() async {
     final local = await store.visitsSince(_today());
+    final orders = await store.ordersSince(_today());
     if (_disposed) return;
     _local = local;
+    _localOrders = orders;
     notifyListeners();
   }
 
   void _reload() => unawaited(load());
 
-  /// Визиты за сегодня из данных агента с сервера.
+  /// Визиты и заказы за сегодня из данных агента с сервера.
   void serverVisits(AgentData data) {
     _server = data.visits;
+    _serverOrders = data.orders;
     notifyListeners();
   }
 
@@ -148,11 +179,66 @@ class VisitBook extends ChangeNotifier {
     return null;
   }
 
+  /// Закончить визит заказом. Фото полки — если его требуют настройки; не хватает — текст для человека.
+  Future<String?> finishWithOrder(
+      {required Map<int, int> items,
+      required int total,
+      required String payment,
+      required DateTime deliveryDate,
+      String? comment,
+      required AgentSettings settings}) async {
+    final v = current;
+    if (v == null) return 'Визит уже закончен';
+    if (settings.shelfPhotoRequired && v.photo == null) return 'Сначала сфотографируйте полку';
+    if (items.isEmpty) return 'В заказе нет товаров';
+    final now = _now();
+    final o = Order(
+      uuid: const Uuid().v4(),
+      visitUuid: v.uuid,
+      outletId: v.outletId,
+      createdAt: now,
+      deliveryDate: DateTime(deliveryDate.year, deliveryDate.month, deliveryDate.day),
+      payment: payment,
+      comment: comment == null || comment.trim().isEmpty ? null : comment.trim(),
+      items: {...items},
+      total: total,
+    );
+    await store.saveOrder(o);
+    v
+      ..finishedAt = now
+      ..result = 'ORDER'
+      ..reason = null;
+    await store.saveVisit(v);
+    _localOrders.add(o);
+    await store.remove(draftKey);
+    notifyListeners();
+    await outbox.count();
+    unawaited(outbox.flush());
+    return null;
+  }
+
+  /// Ключ черновика заказа на телефоне: товары не теряются, если приложение закрылось посреди заказа.
+  static const draftKey = 'order-draft';
+
+  /// Черновик заказа идущего визита: id товара → штук.
+  Future<Map<int, int>> draft() async {
+    final j = await store.read(draftKey);
+    if (j == null || j['visit'] != current?.uuid) return {};
+    return Order.parseItems(j['items'] as String);
+  }
+
+  Future<void> saveDraft(Map<int, int> items) async {
+    final v = current;
+    if (v == null) return;
+    await store.write(draftKey, {'visit': v.uuid, 'items': Order.encodeItems(items)});
+  }
+
   /// Начали визит по ошибке — стереть, на сервер он не уйдёт.
   Future<void> cancel() async {
     final v = current;
     if (v == null) return;
     await store.deleteVisit(v.uuid);
+    await store.remove(draftKey);
     _local.remove(v);
     if (v.photo != null) await _delete(v.photo!);
     notifyListeners();
