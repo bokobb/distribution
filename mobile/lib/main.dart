@@ -5,6 +5,7 @@ import 'camera.dart';
 import 'data/agent_repo.dart';
 import 'data/expeditor_repo.dart';
 import 'data/local_store.dart';
+import 'deliveries.dart';
 import 'device.dart';
 import 'location.dart';
 import 'outbox.dart';
@@ -68,10 +69,11 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
   late final _location = widget.location ?? DeviceLocation();
   late final _camera = widget.camera ?? DeviceCamera();
 
-  /// Отправка на сервер, рабочий день с GPS и визиты — пока вошёл сотрудник со своим паролем.
+  /// Отправка на сервер, рабочий день с GPS, визиты и выдачи — пока вошёл сотрудник со своим паролем.
   Outbox? _outbox;
   Workday? _workday;
   VisitBook? _visits;
+  DeliveryBook? _deliveries;
 
   /// Почему снова вход: сервер закрыл вход на этом телефоне.
   String? _notice;
@@ -90,6 +92,7 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     WidgetsBinding.instance.removeObserver(this);
     _workday?.dispose();
     _visits?.dispose();
+    _deliveries?.dispose();
     _outbox?.dispose();
     super.dispose();
   }
@@ -104,16 +107,19 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     final outbox = _outbox = Outbox(api: widget.api, store: widget.local)..start();
     _workday = Workday(outbox: outbox, store: widget.local, location: _location)..restore();
     _visits = VisitBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
+    _deliveries = DeliveryBook(store: widget.local, outbox: outbox, location: _location)..load();
   }
 
   Future<void> _stopWorkday() async {
-    final w = _workday, v = _visits, o = _outbox;
+    final w = _workday, v = _visits, d = _deliveries, o = _outbox;
     _workday = null;
     _visits = null;
+    _deliveries = null;
     _outbox = null;
     await w?.stop();
     w?.dispose();
     v?.dispose();
+    d?.dispose();
     o?.dispose();
   }
 
@@ -171,7 +177,12 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
                       onSession: _signedIn,
                       onLogout: _logout)
                   : ExpeditorHomeScreen(
-                      repo: _expeditor, session: s, workday: _workday!, onSession: _signedIn, onLogout: _logout),
+                      repo: _expeditor,
+                      session: s,
+                      workday: _workday!,
+                      deliveries: _deliveries!,
+                      onSession: _signedIn,
+                      onLogout: _logout),
     );
   }
 }

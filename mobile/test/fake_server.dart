@@ -45,6 +45,12 @@ class FakeServer {
   /// Сервер не принимает новые магазины — с этим текстом.
   String? rejectOutlets;
 
+  /// Выдачи по uuid — что пришло; принятая сразу меняет статус заказа в данных экспедитора.
+  final deliveries = <String, Map<String, dynamic>>{};
+
+  /// Сервер не принимает выдачи — с этим текстом.
+  String? rejectDeliveries;
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -120,6 +126,11 @@ class FakeServer {
       case '/api/mobile/agent/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(agentData, 200);
+      case '/api/mobile/expeditor/deliveries':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
+        if (rejectDeliveries != null) return _json({'message': rejectDeliveries}, 400);
+        return _json(_deliver(deliveries.putIfAbsent(body['uuid'] as String, () => body)), 200);
       case '/api/mobile/expeditor/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
@@ -141,6 +152,30 @@ class FakeServer {
     final route = routes.firstWhere((r) => r['id'] == body['routeId'], orElse: () => routes.first);
     route['outlets'] = [...route['outlets'] as List, id];
     return o;
+  }
+
+  /// Выдача — как сервер: статус и суммы заказа в данных экспедитора.
+  Map<String, dynamic> _deliver(Map<String, dynamic> body) {
+    final order = [
+      for (final t in expeditorData['trips'] as List)
+        for (final s in (t as Map)['stops'] as List) (s as Map)['order'] as Map<String, dynamic>
+    ].firstWhere((o) => o['id'] == body['orderId']);
+    final items = {for (final i in body['items'] as List) (i as Map)['productId'] as int: i['qty'] as int};
+    final refused = body['refused'] as bool;
+    var total = 0;
+    for (final l in (order['lines'] as List).cast<Map<String, dynamic>>()) {
+      final qty = refused ? 0 : items.isEmpty ? l['qty'] as int : items[l['productId']] ?? 0;
+      l['delivered'] = qty;
+      total += qty * (l['price'] as int);
+    }
+    final paid = (body['payments'] as List).fold<int>(0, (a, p) => a + ((p as Map)['amount'] as int));
+    final (status, label) =
+        refused ? ('REFUSED', 'Отказ магазина') : items.isEmpty ? ('DELIVERED', 'Доставлен') : ('PARTIAL', 'Частично');
+    order
+      ..['status'] = status
+      ..['statusLabel'] = label
+      ..['paid'] = paid;
+    return {'uuid': body['uuid'], 'orderId': order['id'], 'status': status, 'statusLabel': label, 'total': total, 'paid': paid};
   }
 
   /// JWT истёк или сервер перезапускался: прежний больше не принимается.

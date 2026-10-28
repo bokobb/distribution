@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'api/api_client.dart';
+import 'data/delivery.dart';
 import 'data/local_store.dart';
 import 'data/new_outlet.dart';
 import 'data/order.dart';
 import 'data/visit.dart';
 
 /// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), новые магазины с фото фасада,
-/// законченные визиты, фото полки и заказы. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
+/// законченные визиты, фото полки, заказы и выдачи экспедитора. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
 /// раза: отправка повторяется сама раз в [retry], пока есть что отправить ([start]), и при возврате в
 /// приложение. Повтор не задваивает: у записей журнала, визитов и заказов uuid телефона, у точек — время.
 class Outbox extends ChangeNotifier {
@@ -35,6 +36,9 @@ class Outbox extends ChangeNotifier {
   /// Сколько новых магазинов сервер принял за это время: вырос — данные агента пора обновить (там они уже
   /// в маршруте «на проверке»).
   int outletsAdded = 0;
+
+  /// Сколько выдач сервер принял за это время: вырос — данные экспедитора пора обновить (статусы и долги).
+  int deliveriesSent = 0;
 
   static const _batch = 500;
 
@@ -69,6 +73,7 @@ class Outbox extends ChangeNotifier {
         await _outlets();
         await _visits(); // визит раньше заказа: заказ ссылается на него
         await _orders();
+        await _deliveries();
       } while (_again);
       lastOk = _now();
       lastError = null;
@@ -170,6 +175,25 @@ class Outbox extends ChangeNotifier {
     await store.pruneOrders(_now().subtract(keep));
   }
 
+  /// Выдача экспедитора; сервер вернул статус заказа и свои суммы. Не принял — помечаем и идём дальше.
+  Future<void> _deliveries() async {
+    for (final d in await store.deliveries()) {
+      if (d.sent || d.error != null) continue;
+      try {
+        final r = await api.delivery(d.toJson());
+        d
+          ..sent = true
+          ..statusLabel = r['statusLabel'] as String?;
+        deliveriesSent++;
+      } on ApiException catch (e) {
+        if (!_rejected(e)) rethrow;
+        d.error = e.message;
+      }
+      await store.saveDelivery(d);
+    }
+    await store.pruneDeliveries(_now().subtract(keep));
+  }
+
   /// Убрать с телефона визит, который сервер не принял (с фото).
   Future<void> dropVisit(Visit v) async {
     await store.deleteVisit(v.uuid);
@@ -195,6 +219,12 @@ class Outbox extends ChangeNotifier {
   /// Убрать с телефона заказ, который сервер не принял.
   Future<void> dropOrder(Order o) async {
     await store.deleteOrder(o.uuid);
+    await count();
+  }
+
+  /// Убрать с телефона выдачу, которую сервер не принял.
+  Future<void> dropDelivery(Delivery d) async {
+    await store.deleteDelivery(d.uuid);
     await count();
   }
 

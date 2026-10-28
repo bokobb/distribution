@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../data/delivery.dart';
 import '../data/expeditor_data.dart';
 import '../data/expeditor_repo.dart';
+import '../deliveries.dart';
 import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
@@ -12,20 +14,23 @@ import 'home_parts.dart';
 import 'stop_screen.dart';
 
 /// Главный экран экспедитора — «Рейс»: рейс на сегодня (и незакрытые прошлых дней) с точками по порядку, у каждой —
-/// магазин, заказ, оплата и отметка выдачи; отгруженное на завтра — ниже, посмотреть заранее. Сразу показывает
-/// то, что на телефоне, и обновляет с сервера; нет связи — работает с тем, что есть.
+/// магазин, заказ, оплата и отметка выдачи (своя выдача видна сразу, до ответа сервера); отгруженное на завтра —
+/// ниже, посмотреть заранее. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с
+/// тем, что есть; выдачи ушли на сервер — данные обновляются (долги магазинов).
 class ExpeditorHomeScreen extends StatefulWidget {
   const ExpeditorHomeScreen(
       {super.key,
       required this.repo,
       required this.session,
       required this.workday,
+      required this.deliveries,
       required this.onSession,
       required this.onLogout});
 
   final ExpeditorRepo repo;
   final Session session;
   final Workday workday;
+  final DeliveryBook deliveries;
   final ValueChanged<Session> onSession;
   final VoidCallback onLogout;
 
@@ -37,11 +42,28 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   ExpeditorData? _data;
   bool _loading = true;
   String? _syncError;
+  late int _sent;
 
   @override
   void initState() {
     super.initState();
+    _sent = widget.deliveries.outbox.deliveriesSent;
+    widget.deliveries.outbox.addListener(_onOutbox);
     _start();
+  }
+
+  @override
+  void dispose() {
+    widget.deliveries.outbox.removeListener(_onOutbox);
+    super.dispose();
+  }
+
+  /// Выдачи ушли на сервер — там поменялись статусы и долги.
+  void _onOutbox() {
+    final sent = widget.deliveries.outbox.deliveriesSent;
+    if (sent == _sent) return;
+    _sent = sent;
+    if (!_loading) _pull();
   }
 
   Future<void> _start() async {
@@ -78,10 +100,20 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
     final data = _data;
     return Scaffold(
       appBar: homeAppBar(context,
-          title: 'Рейс', session: widget.session, workday: widget.workday, onRefresh: _pull, onLogout: widget.onLogout),
+          title: 'Рейс',
+          session: widget.session,
+          workday: widget.workday,
+          outletNames: {
+            for (final t in data?.trips ?? const <TripInfo>[])
+              for (final st in t.stops) st.outlet.id: st.outlet.name
+          },
+          onRefresh: _pull,
+          onLogout: widget.onLogout),
       body: RefreshIndicator(
         onRefresh: _pull,
-        child: ListView(
+        child: ListenableBuilder(
+          listenable: widget.deliveries,
+          builder: (context, _) => ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
             Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), child: WorkdayCard(workday: widget.workday)),
@@ -103,6 +135,7 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
               for (final t in data.upcoming) ..._trip(data, t, ahead: true),
             ],
           ],
+          ),
         ),
       ),
     );
@@ -143,7 +176,9 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
               ahead ? 'На ${date(t.date)}' : (t.date.isBefore(data.date) ? 'С ${date(t.date)}' : 'Сегодня'),
               t.number,
               if (t.vehicle != null) t.vehicle!,
-              ahead ? plural(t.stops.length, 'точка', 'точки', 'точек') : 'пройдено ${t.done} из ${t.stops.length}',
+              ahead
+                  ? plural(t.stops.length, 'точка', 'точки', 'точек')
+                  : 'пройдено ${widget.deliveries.doneIn(t)} из ${t.stops.length}',
             ].join(' · '),
             style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkSoft),
           ),
@@ -153,17 +188,24 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: _StopTile(
               stop: s,
+              local: widget.deliveries.of(s.order.id),
               onTap: () => Navigator.push(
-                  context, MaterialPageRoute(builder: (_) => StopScreen(stop: s, trip: t, data: data))),
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => StopScreen(
+                          stop: s, trip: t, data: data, deliveries: widget.deliveries, workday: widget.workday))),
             ),
           ),
       ];
 }
 
 class _StopTile extends StatelessWidget {
-  const _StopTile({required this.stop, required this.onTap});
+  const _StopTile({required this.stop, this.local, required this.onTap});
 
   final Stop stop;
+
+  /// Выдача на телефоне — пока сервер не ответил, точка показывается по ней.
+  final Delivery? local;
   final VoidCallback onTap;
 
   @override
@@ -171,6 +213,16 @@ class _StopTile extends StatelessWidget {
     final o = stop.outlet;
     final order = stop.order;
     final place = o.address ?? o.landmark;
+    final d = order.done || local?.error != null ? null : local;
+    final done = order.done || d != null;
+    final refused = order.refused || d?.refused == true;
+    final String? label = order.done
+        ? order.statusLabel
+        : d != null
+            ? '${d.refused ? 'Отказ' : d.partial ? 'Выдано частично' : 'Выдано'}${d.sent ? '' : ' · ждёт отправки'}'
+            : local?.error != null
+                ? 'Выдача не принята сервером'
+                : null;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -182,14 +234,14 @@ class _StopTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 15,
-                backgroundColor: !order.done
+                backgroundColor: !done
                     ? AppColors.paperDeep
-                    : order.refused
+                    : refused
                         ? AppColors.crimson
                         : AppColors.ok,
-                foregroundColor: order.done ? AppColors.cream : AppColors.ink,
-                child: order.done
-                    ? Icon(order.refused ? Icons.close : Icons.check, size: 18)
+                foregroundColor: done ? AppColors.cream : AppColors.ink,
+                child: done
+                    ? Icon(refused ? Icons.close : Icons.check, size: 18)
                     : Text('${stop.position + 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(width: 12),
@@ -201,9 +253,8 @@ class _StopTile extends StatelessWidget {
                     if (place != null) Text(place, style: const TextStyle(color: AppColors.inkSoft)),
                     const SizedBox(height: 4),
                     Text('${order.number} · ${money(order.total)} · ${order.paymentLabel}'),
-                    if (order.done)
-                      Text(order.statusLabel,
-                          style: TextStyle(color: order.refused ? AppColors.crimson : AppColors.ok)),
+                    if (label != null)
+                      Text(label, style: TextStyle(color: refused || !done ? AppColors.crimson : AppColors.ok)),
                     if (o.debt > 0)
                       Text('долг ${money(o.debt)}${o.overdue > 0 ? ', просрочено ${money(o.overdue)}' : ''}',
                           style: TextStyle(color: o.overdue > 0 ? AppColors.crimson : AppColors.ink)),

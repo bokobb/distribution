@@ -1,3 +1,4 @@
+import 'package:distribution_mobile/data/delivery.dart';
 import 'package:distribution_mobile/data/local_store.dart';
 import 'package:distribution_mobile/data/new_outlet.dart';
 import 'package:distribution_mobile/data/order.dart';
@@ -15,6 +16,7 @@ class MemoryStore implements LocalStore {
   final visits = <String, Visit>{};
   final orders = <String, Order>{};
   final newOutletsByUuid = <String, NewOutlet>{};
+  final deliveriesByUuid = <String, Delivery>{};
 
   @override
   Future<Map<String, dynamic>?> read(String key) async => data[key];
@@ -59,8 +61,23 @@ class MemoryStore implements LocalStore {
         done.where((v) => v.photo != null && !v.photoSent).length +
         orders.values.where((o) => !o.sent && o.error == null).length +
         newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length +
-        newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length;
+        newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length +
+        deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length;
   }
+
+  @override
+  Future<void> saveDelivery(Delivery d) async => deliveriesByUuid[d.uuid] = d.copy();
+
+  @override
+  Future<List<Delivery>> deliveries() async =>
+      [for (final d in deliveriesByUuid.values) d.copy()]..sort((a, b) => a.deliveredAt.compareTo(b.deliveredAt));
+
+  @override
+  Future<void> deleteDelivery(String uuid) async => deliveriesByUuid.remove(uuid);
+
+  @override
+  Future<void> pruneDeliveries(DateTime before) async =>
+      deliveriesByUuid.removeWhere((_, d) => d.sent && d.deliveredAt.isBefore(before));
 
   @override
   Future<void> saveNewOutlet(NewOutlet o) async => newOutletsByUuid[o.uuid] = o.copy();
@@ -138,9 +155,11 @@ class MemoryStore implements LocalStore {
           newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length,
       orders: orders.values.where((o) => !o.sent && o.error == null).length,
       outlets: newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length,
+      deliveries: deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length,
       rejectedVisits: _sorted(visits.values.where((v) => v.error != null)),
       rejectedOrders: [for (final o in orders.values) if (o.error != null) o.copy()],
       rejectedOutlets: [for (final o in newOutletsByUuid.values) if (o.error != null) o.copy()],
+      rejectedDeliveries: [for (final d in deliveriesByUuid.values) if (d.error != null) d.copy()],
     );
   }
 
@@ -153,6 +172,7 @@ class MemoryStore implements LocalStore {
     visits.clear();
     orders.clear();
     newOutletsByUuid.clear();
+    deliveriesByUuid.clear();
   }
 
   static List<Visit> _sorted(Iterable<Visit> vs) =>

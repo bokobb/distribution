@@ -536,4 +536,98 @@ void main() {
     expect(opened, ['tel:+77010000000', 'geo:42.3,69.6?q=42.3,69.6(${Uri.encodeComponent('Магазин «Арай»')})']);
     expect(find.text('На телефоне нет приложения карт'), findsOneWidget);
   });
+
+  testWidgets('экспедитор: выдача частично — меньше товара, часть денег, остаток в долг; точка пройдена', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Выдать'));
+    await t.pumpAndSettle();
+    expect(find.text('Сначала начните рабочий день на главном экране'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Выдать'));
+    await t.pumpAndSettle();
+    expect(find.text('Выдача З-271026-1'), findsOneWidget);
+    expect(find.text('Выдать на ${money(13500)}'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '13500'), findsOneWidget); // наличные — вся сумма
+
+    await t.tap(find.byTooltip('Меньше').first);
+    await t.pump();
+    await t.tap(find.byTooltip('Меньше').first);
+    await t.pump();
+    expect(find.text('Выдать на ${money(12500)}'), findsOneWidget);
+    expect(find.text('по заказу ${money(13500)}'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '12500'), findsOneWidget); // деньги идут за суммой
+
+    await t.enterText(find.widgetWithText(TextField, 'Наличными'), '10000');
+    await t.pump();
+    expect(find.text('Остаток ${money(2500)} — в долг магазина'), findsOneWidget);
+    await tapVisible(t, find.text('Выдать на ${money(12500)}'));
+    await t.pumpAndSettle();
+
+    expect(find.text('Выдача сохранена'), findsOneWidget);
+    expect(find.text('Выдано частично на ${money(12500)}'), findsOneWidget);
+    expect(find.text('наличными ${money(10000)} · в долг ${money(2500)}'), findsOneWidget);
+    expect(find.textContaining('Отправлено'), findsOneWidget);
+    expect(find.text('Выдать'), findsNothing);
+    final sent = server.deliveries.values.single;
+    expect(sent['items'], [
+      {'productId': 1, 'qty': 22},
+      {'productId': 2, 'qty': 5},
+    ]);
+    expect([for (final p in sent['payments'] as List) p['amount']], [10000]);
+
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02 · пройдено 2 из 2'), findsOneWidget);
+    expect(find.text('Частично'), findsOneWidget); // данные с сервера обновились после отправки
+    expect(server.count('/api/mobile/expeditor/data'), 2);
+  });
+
+  testWidgets('экспедитор: отказ без сети ждёт отправки, его можно отменить', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+    server.offline = true;
+
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Отказ'));
+    await t.pumpAndSettle();
+    expect(t.widget<TextButton>(find.widgetWithText(TextButton, 'Отказ')).onPressed, isNull); // без причины
+    await t.tap(find.text('Магазин закрыт'));
+    await t.pump();
+    await t.tap(find.widgetWithText(TextButton, 'Отказ'));
+    await t.pumpAndSettle();
+
+    expect(find.text('Отказ: Магазин закрыт'), findsOneWidget);
+    expect(find.textContaining('Ждёт отправки'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('Отказ · ждёт отправки'), findsOneWidget);
+    expect(find.textContaining('пройдено 2 из 2'), findsOneWidget);
+
+    await t.tap(find.text('Магазин «Арай»'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Отменить отказ'));
+    await t.pumpAndSettle();
+    await t.tap(find.widgetWithText(TextButton, 'Отменить'));
+    await t.pumpAndSettle();
+    expect(find.text('Отказ: Магазин закрыт'), findsNothing);
+    expect(find.text('Выдать'), findsOneWidget);
+    expect(server.deliveries, isEmpty);
+  });
 }

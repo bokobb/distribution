@@ -5,7 +5,7 @@ import '../format.dart';
 import '../outbox.dart';
 import '../theme.dart';
 
-/// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, новые магазины, визиты, фото, заказы), когда
+/// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, новые магазины, визиты, фото, заказы, выдачи), когда
 /// последний раз всё ушло и почему не уходит; «Отправить сейчас». То, что сервер не принял, — с причиной;
 /// это можно убрать с телефона.
 class SendScreen extends StatefulWidget {
@@ -48,7 +48,7 @@ class _SendScreenState extends State<SendScreen> {
         context: context,
         builder: (c) => AlertDialog(
           title: Text('Убрать $what с телефона?'),
-          content: const Text('Сервер его не принял — на сервер он не попадёт. Если нужно, сделайте заново.'),
+          content: const Text('Сервер не принял эту запись — на сервер она не попадёт. Если нужно, сделайте заново.'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
             TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Убрать')),
@@ -93,6 +93,7 @@ class _SendScreenState extends State<SendScreen> {
                             ('Визиты', p.visits),
                             ('Фото', p.photos),
                             ('Заказы', p.orders),
+                            ('Выдачи', p.deliveries),
                           ])
                             if (n > 0)
                               Padding(
@@ -108,7 +109,10 @@ class _SendScreenState extends State<SendScreen> {
                       ),
                     ),
                   ),
-                  if (p.rejectedVisits.isNotEmpty || p.rejectedOrders.isNotEmpty || p.rejectedOutlets.isNotEmpty) ...[
+                  if (p.rejectedVisits.isNotEmpty ||
+                      p.rejectedOrders.isNotEmpty ||
+                      p.rejectedOutlets.isNotEmpty ||
+                      p.rejectedDeliveries.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
                       child: Text('Сервер не принял', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.crimson)),
@@ -135,6 +139,15 @@ class _SendScreenState extends State<SendScreen> {
                         error: r.error!,
                         onDrop: () async {
                           if (await _confirmDrop('заказ')) await o.dropOrder(r);
+                        },
+                      ),
+                    for (final d in p.rejectedDeliveries)
+                      _Rejected(
+                        title: '${d.refused ? 'Отказ' : 'Выдача на ${money(d.total)}'} · ${_outlet(d.outletId)} · '
+                            '${when(d.deliveredAt)}',
+                        error: d.error!,
+                        onDrop: () async {
+                          if (await _confirmDrop(d.refused ? 'отказ' : 'выдачу')) await o.dropDelivery(d);
                         },
                       ),
                   ],
