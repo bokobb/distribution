@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/mobile/auth/login", "/api/mobile/auth/refresh",
                                 "/api/mobile/auth/logout").permitAll()
                         .requestMatchers("/api/mobile/agent/**").hasRole("AGENT")
+                        .requestMatchers("/api/mobile/expeditor/**").hasRole("EXPEDITOR")
                         .anyRequest().hasAnyRole("AGENT", "EXPEDITOR"))
                 .addFilterBefore(new MobileAuthFilter(jwt, accounts), AnonymousAuthenticationFilter.class)
                 .exceptionHandling(e -> e

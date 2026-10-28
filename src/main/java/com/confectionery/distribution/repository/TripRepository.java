@@ -19,5 +19,8 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
 
     Optional<Trip> findFirstByExpeditorAndDateAndStatusInOrderByIdDesc(Employee expeditor, LocalDate date, Collection<TripStatus> statuses);
 
+    /** Рейсы экспедитора с этими статусами — для его телефона. */
+    List<Trip> findByExpeditorIdAndStatusInOrderByDateAscNumberAsc(Long expeditorId, Collection<TripStatus> statuses);
+
     boolean existsByCompanyIdAndNumber(Long companyId, String number);
 }
