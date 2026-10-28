@@ -39,6 +39,7 @@ public class MapService {
     private final DeliveryRepository deliveries;
     private final GpsPointRepository gps;
     private final AppEventRepository events;
+    private final SettingsService settings;
 
     /** Точка пути: kind — ORDER, NO_ORDER (визит), DELIVERED, PARTIAL, REFUSED (выдача). */
     /** photo — адрес фото полки к визиту, если агент его снял. */
@@ -84,6 +85,7 @@ public class MapService {
         Map<Long, List<Stop>> stops = new HashMap<>();
         Map<Long, int[]> counts = new HashMap<>(); // визиты: [всего, с заказом]; выдачи: [всего, отказов]
         Map<Long, LocalDateTime[]> span = new HashMap<>();
+        Map<Long, Integer> radii = new HashMap<>(); // радиус «на месте» компании визита: дальше — помечается
         List<Visit> vs = new ArrayList<>(visits.findByStartedAtGreaterThanEqualAndStartedAtLessThan(from, to));
         vs.sort(Comparator.comparing(Visit::getStartedAt));
         for (Visit v : vs) {
@@ -93,7 +95,9 @@ public class MapService {
             if (at == null) continue;
             boolean order = v.getResult() == VisitResult.ORDER;
             String note = order ? "заказ" : "без заказа" + (v.getRefuseReason() == null ? "" : ": " + v.getRefuseReason());
-            if (v.getDistance() != null && v.getDistance() > 0) note += " · " + v.getDistance() + " м от магазина";
+            int radius = radii.computeIfAbsent(v.getCompanyId(), id -> settings.of(id).getVisitRadius());
+            if (v.getDistance() != null && v.getDistance() > radius) note += " · далеко: " + meters(v.getDistance()) + " от магазина";
+            else if (v.getDistance() != null && v.getDistance() > 0) note += " · " + v.getDistance() + " м от магазина";
             stops.computeIfAbsent(w.id(), k -> new ArrayList<>())
                     .add(new Stop(at[0], at[1], v.getStartedAt().format(TIME), v.getOutlet().getName(), v.getResult().name(), note,
                             v.getShelfPhoto() == null ? null : "/admin/map/photo/" + v.getUuid()));
@@ -264,6 +268,11 @@ public class MapService {
     /** «23,4 км». */
     static String km(double km) {
         return String.format(Locale.forLanguageTag("ru"), "%.1f км", km);
+    }
+
+    /** «350 м», «4,5 км». */
+    static String meters(int m) {
+        return m < 1000 ? m + " м" : km(m / 1000.0);
     }
 
     private static double[] center(List<Shop> shops, Collection<List<Stop>> paths, List<double[]> track) {

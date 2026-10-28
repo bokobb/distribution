@@ -10,7 +10,7 @@ import '../theme.dart';
 import '../visits.dart';
 import '../workday.dart';
 
-/// Визит в карточке магазина: «Начать визит» (рабочий день открыт, агент рядом с магазином), пока идёт — фото
+/// Визит в карточке магазина: «Начать визит» (рабочий день открыт; далеко от магазина — с вопросом), пока идёт — фото
 /// полки, «Без заказа» с причиной, «Отменить»; после — когда был и с каким итогом.
 class VisitPanel extends StatefulWidget {
   const VisitPanel(
@@ -46,8 +46,25 @@ class _VisitPanelState extends State<VisitPanel> {
       _say('Сначала начните рабочий день на главном экране');
       return;
     }
-    await _run(() => widget.visits.start(widget.outlet, routeId: widget.routeId, radius: widget.data.settings.visitRadius));
+    final radius = widget.data.settings.visitRadius;
+    await _run(() => widget.visits.start(widget.outlet,
+        routeId: widget.routeId, radius: radius, confirmFar: (d) => _confirmFar(d, radius)));
   }
+
+  Future<bool> _confirmFar(int distance, int radius) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text('Вы в ${distanceLabel(distance)} от магазина'),
+          content: Text('Визит отмечается рядом с магазином — не дальше $radius м. Если начать отсюда, директор '
+              'увидит визит с пометкой «далеко».'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
+            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Всё равно начать')),
+          ],
+        ),
+      ) ==
+      true;
 
   Future<void> _noOrder() async {
     final s = widget.data.settings;

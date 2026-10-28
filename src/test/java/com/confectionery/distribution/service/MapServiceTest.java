@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -34,6 +35,9 @@ class MapServiceTest {
     World w, other;
     Outlet second;
 
+    @Autowired
+    JdbcTemplate jdbc;
+
     @BeforeEach
     void setUp() {
         w = data.world("Карта");
@@ -54,6 +58,18 @@ class MapServiceTest {
 
     private MapService.Day day(List<Long> who) {
         return TenantContext.call(w.id(), () -> tx.execute(s -> maps.day(null, data.today(), who)));
+    }
+
+    @Test
+    void визитДальшеРадиусаПомечается() {
+        Visit far = data.visit(w, second, data.today().atTime(13, 0), VisitResult.NO_ORDER, 42.35, 69.60);
+        Visit near = data.visit(w, second, data.today().atTime(14, 0), VisitResult.NO_ORDER, 42.3101, 69.60);
+        jdbc.update("update visits set distance_m = 4500 where id = ?", far.getId());
+        jdbc.update("update visits set distance_m = 12 where id = ?", near.getId());
+
+        List<MapService.Stop> stops = day(List.of()).people().get(0).stops();
+        assertThat(stops.get(2).note()).endsWith("далеко: 4,5 км от магазина");
+        assertThat(stops.get(3).note()).endsWith(" · 12 м от магазина");
     }
 
     @Test

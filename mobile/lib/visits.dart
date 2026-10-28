@@ -12,8 +12,8 @@ import 'geo.dart';
 import 'location.dart';
 import 'outbox.dart';
 
-/// Визиты агента за сегодня: начать визит в магазине (GPS — не дальше радиуса из настроек компании), фото полки,
-/// закончить без заказа с причиной или отменить. Визиты пишутся на телефон и уходят через [outbox]; визиты
+/// Визиты агента за сегодня: начать визит в магазине (по GPS; дальше радиуса из настроек компании — только
+/// подтвердив, директор увидит пометку «далеко»), фото полки, закончить без заказа с причиной или отменить. Визиты пишутся на телефон и уходят через [outbox]; визиты
 /// с сервера (из данных агента) показываются вместе с телефонными — отметки «был» переживают переустановку.
 class VisitBook extends ChangeNotifier {
   VisitBook({
@@ -81,9 +81,11 @@ class VisitBook extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Начать визит. Магазин с точкой на карте — только рядом с ним; без точки — где агент сейчас.
+  /// Начать визит там, где агент сейчас. Дальше радиуса от магазина — только если человек подтвердил
+  /// ([confirmFar] с расстоянием); у магазина без точки на карте расстояние не считается.
   /// Не получилось — текст для человека.
-  Future<String?> start(Outlet outlet, {int? routeId, required int radius}) async {
+  Future<String?> start(Outlet outlet,
+      {int? routeId, required int radius, required Future<bool> Function(int distance) confirmFar}) async {
     if (current != null) return 'Сначала закончите начатый визит';
     final fix = await location.current();
     if (fix == null) return 'Не удалось определить, где вы. Проверьте, что местоположение включено, и нажмите ещё раз';
@@ -91,10 +93,7 @@ class VisitBook extends ChangeNotifier {
     if (outlet.lat != null && outlet.lng != null) {
       distance = metersBetween(fix.lat, fix.lng, outlet.lat!, outlet.lng!);
       final allowance = (fix.accuracy ?? 0).clamp(0, accuracyAllowance);
-      if (distance - allowance > radius) {
-        return 'Вы в ${distanceLabel(distance)} от магазина — визит начинается не дальше $radius м. '
-            'Подойдите к магазину и нажмите ещё раз';
-      }
+      if (distance - allowance > radius && !await confirmFar(distance)) return null;
     }
     final v = Visit(
       uuid: const Uuid().v4(),
