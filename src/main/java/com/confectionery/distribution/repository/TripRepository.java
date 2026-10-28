@@ -3,7 +3,10 @@ package com.confectionery.distribution.repository;
 import com.confectionery.distribution.domain.Employee;
 import com.confectionery.distribution.domain.Trip;
 import com.confectionery.distribution.domain.TripStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -23,4 +26,9 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     List<Trip> findByExpeditorIdAndStatusInOrderByDateAscNumberAsc(Long expeditorId, Collection<TripStatus> statuses);
 
     boolean existsByCompanyIdAndNumber(Long companyId, String number);
+
+    /** Рейс под изменение: одновременный повтор оплаты ждёт и находит уже записанную. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from Trip t where t.id = :id")
+    Optional<Trip> lock(Long id);
 }

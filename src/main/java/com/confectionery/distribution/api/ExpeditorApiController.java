@@ -2,6 +2,9 @@ package com.confectionery.distribution.api;
 
 import com.confectionery.distribution.security.MobileAccounts;
 import com.confectionery.distribution.security.MobileUser;
+import com.confectionery.distribution.service.DebtPaymentService;
+import com.confectionery.distribution.service.DebtPaymentService.PaymentIn;
+import com.confectionery.distribution.service.DebtPaymentService.PaymentOut;
 import com.confectionery.distribution.service.DeliveryService;
 import com.confectionery.distribution.service.DeliveryService.DeliveryIn;
 import com.confectionery.distribution.service.DeliveryService.DeliveryOut;
@@ -21,6 +24,7 @@ public class ExpeditorApiController {
 
     private final ExpeditorDataService data;
     private final DeliveryService deliveries;
+    private final DebtPaymentService debtPayments;
     private final MobileAccounts accounts;
 
     /** Данные для работы без сети: незакрытые рейсы по завтра, точки с заказами и долгами, товары с ценами. */
@@ -34,5 +38,11 @@ public class ExpeditorApiController {
     @PostMapping("/api/mobile/expeditor/deliveries")
     public DeliveryOut delivery(@AuthenticationPrincipal MobileUser me, @RequestBody DeliveryIn in) {
         return deliveries.save(me.id(), in);
+    }
+
+    /** Оплата старого долга магазином из рейса; повтор с тем же uuid возвращает уже записанную. */
+    @PostMapping("/api/mobile/expeditor/payments")
+    public PaymentOut payment(@AuthenticationPrincipal MobileUser me, @RequestBody PaymentIn in) {
+        return debtPayments.save(me.id(), in);
     }
 }
