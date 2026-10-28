@@ -9,7 +9,7 @@
     <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
 </div>
 
-<p class="note" th:if="${t.open and !t.waitingCash}" th:text="${'Пройдено ' + t.doneStops + ' из ' + t.stops + ' точек: не все заказы выданы или отмечены отказом. Невыданный товар при приёме вернётся на основной склад.'}"></p>
+<p class="note" th:if="${t.open and !t.waitingCash}" th:text="${'Пройдено ' + t.doneStops + ' из ' + t.stops + ' точек: не все заказы выданы или отмечены отказом. Невыданный товар при приёме вернётся на основной склад, а невыданные заказы — в «Принят», их можно отгрузить снова.'}"></p>
 
 <form th:action="@{'/admin/cash/' + ${t.id}}" method="post" class="grid">
     <section class="card">

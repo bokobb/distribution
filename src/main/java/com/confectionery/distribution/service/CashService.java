@@ -2,6 +2,7 @@ package com.confectionery.distribution.service;
 
 import com.confectionery.distribution.domain.*;
 import com.confectionery.distribution.repository.CashHandoverRepository;
+import com.confectionery.distribution.repository.TripOrderRepository;
 import com.confectionery.distribution.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,6 +24,7 @@ import java.util.Map;
 public class CashService {
 
     private final TripRepository trips;
+    private final TripOrderRepository tripOrders;
     private final CashHandoverRepository handovers;
     private final StockService stock;
     private final Clock clock;
@@ -51,7 +54,11 @@ public class CashService {
         return t;
     }
 
-    /** Товар из машины: невыданный — на основной склад, негодный от магазинов — на склад негодного. */
+    /**
+     * Товар из машины: невыданный — на основной склад, негодный от магазинов — на склад негодного. Заказ, который так
+     * и не выдали (не доехал), возвращается в «Принят» и уходит из рейса — его можно отгрузить снова; в истории
+     * заказа остаётся, из какого рейса он вернулся.
+     */
     private void unload(Trip t, Actor actor, LocalDateTime now) {
         Warehouse car = stock.warehouse(t.getVehicle());
         Warehouse main = stock.warehouse(t.getCompany(), WarehouseType.MAIN);
@@ -69,5 +76,13 @@ public class CashService {
         Map<Product, Integer> bad = new LinkedHashMap<>();
         for (ProductReturn r : t.getReturns()) for (ReturnLine l : r.getLines()) bad.merge(l.getProduct(), l.getQty(), Integer::sum);
         bad.forEach((p, q) -> stock.move(p, q, car, defect, MovementReason.UNLOAD, actor, now, m -> m.setTrip(t)));
+        for (TripOrder to : List.copyOf(t.getTripOrders())) {
+            Order o = to.getOrder();
+            if (o.getStatus() != OrderStatus.IN_TRIP) continue;
+            o.setStatus(OrderStatus.ACCEPTED);
+            o.event(now, actor.entity(), actor.who(), "Не выдан в рейсе " + t.getNumber() + " — товар принят на склад, заказ снова «Принят»");
+            t.getTripOrders().remove(to);
+            tripOrders.delete(to);
+        }
     }
 }

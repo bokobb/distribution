@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
@@ -32,6 +33,8 @@ class CashServiceTest {
     DashboardService dashboard;
     @Autowired
     TransactionTemplate tx;
+    @Autowired
+    JdbcTemplate jdbc;
 
     World w;
     Trip trip;
@@ -133,6 +136,31 @@ class CashServiceTest {
             assertThat(t.isWaitingCash()).isFalse();
             return null;
         });
+    }
+
+    @Test
+    void невыданныйЗаказВозвращаетсяВПринятИОтгружаетсяСнова() {
+        Order missed = data.order(w, data.today(), PaymentMethod.CASH, 3, 1_000);
+        Trip t2 = data.trip(w, TripStatus.ON_ROAD, missed);
+        assertThat(data.balance(w.main(), w.product())).isEqualTo(87);
+
+        as(() -> cash.accept(t2.getId(), 0, true, true, operator()));
+
+        assertThat(data.balance(w.main(), w.product())).isEqualTo(90);
+        assertThat(jdbc.queryForObject("select status from orders where id = ?", String.class, missed.getId())).isEqualTo("ACCEPTED");
+        assertThat(jdbc.queryForObject("select count(*) from trip_orders where order_id = ?", Integer.class, missed.getId())).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from order_events where order_id = ? and message like ?", Integer.class,
+                missed.getId(), "Не выдан в рейсе " + t2.getNumber() + "%")).isEqualTo(1);
+        as(() -> {
+            assertThat(trips.get(t2.getId()).getStatus()).isEqualTo(TripStatus.CLOSED);
+            return null;
+        });
+
+        TripService.Shipment again = as(() -> trips.ship(java.util.List.of(missed.getId()), w.expeditor().getId(), operator()));
+        assertThat(again.shipped()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select status from orders where id = ?", String.class, missed.getId())).isEqualTo("IN_TRIP");
+        // выданный в первом рейсе заказ из рейса не уходит
+        assertThat(jdbc.queryForObject("select count(*) from trip_orders where trip_id = ?", Integer.class, trip.getId())).isEqualTo(1);
     }
 
     @Test
