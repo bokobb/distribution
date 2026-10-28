@@ -18,6 +18,7 @@ repositories {
 }
 
 // Этап 1: база PostgreSQL (JPA, схема — миграциями Flyway), вход в веб-админку (Spring Security).
+// Этап 3: вход приложения по JWT и ключу устройства.
 // Тесты идут на настоящем PostgreSQL 16 в Docker (Testcontainers).
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -28,6 +29,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	// JWT приложения агента и экспедитора (/api/mobile) — как в CRM
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 	runtimeOnly 'org.postgresql:postgresql'
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

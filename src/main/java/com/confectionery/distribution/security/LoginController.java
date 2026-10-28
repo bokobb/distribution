@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -54,7 +53,7 @@ public class LoginController {
         List<String[]> rows = jdbc.query("select password_hash, phone from users where id = ?",
                 (rs, n) -> new String[]{rs.getString(1), rs.getString(2)}, user.getId());
         String error = rows.isEmpty() ? "Сотрудник не найден"
-                : check(current, password, confirm, rows.get(0)[0], rows.get(0)[1]);
+                : PasswordRules.problem(encoder, current, password, confirm, rows.get(0)[0], rows.get(0)[1]);
         if (error != null) {
             model.addAttribute("error", error);
             model.addAttribute("forced", mustChange(user));
@@ -64,17 +63,6 @@ public class LoginController {
                 encoder.encode(password), user.getId());
         ctx.toast(session, "Пароль изменён");
         return "redirect:/admin";
-    }
-
-    private String check(String current, String password, String confirm, String hash, String phone) {
-        if (hash == null || !encoder.matches(current, hash)) return "Текущий пароль неверный";
-        if (password.length() < 8) return "Новый пароль — не короче 8 знаков";
-        if (password.getBytes(StandardCharsets.UTF_8).length > 72) return "Новый пароль слишком длинный";
-        if (!password.equals(confirm)) return "Новый пароль и повтор не совпадают";
-        if (password.equals(current)) return "Новый пароль совпадает с прежним";
-        String digits = password.replaceAll("\\D", "");
-        if (!digits.isEmpty() && phone.endsWith(digits) && digits.length() >= 7) return "Пароль не должен быть номером телефона";
-        return null;
     }
 
     private boolean mustChange(AdminUser user) {

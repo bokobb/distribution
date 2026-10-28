@@ -2,6 +2,7 @@ package com.confectionery.distribution.service;
 
 import com.confectionery.distribution.domain.*;
 import com.confectionery.distribution.repository.*;
+import com.confectionery.distribution.security.MobileAccounts;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,6 +32,7 @@ public class StaffService {
     private final PasswordEncoder encoder;
     private final JdbcTemplate jdbc;
     private final Clock clock;
+    private final MobileAccounts mobile;
 
     /** Сотрудники компании (с закреплёнными машинами); companyId = null — все видимые. */
     public List<Employee> employees(Long companyId) {
@@ -107,23 +109,26 @@ public class StaffService {
         }
         String phone = phone(f.getPhone(), e.getCompanyId(), e.getId());
         String login = login(f.getLogin(), e.getCompanyId(), e.getId());
+        if (e.getRole() != f.getRole()) mobile.revokeAll(e.getId());
         return e.setName(name).setRole(f.getRole()).setPhone(phone).setLogin(login);
     }
 
-    /** Новый временный пароль; старый перестаёт работать. */
+    /** Новый временный пароль; старый перестаёт работать, вход в приложении на телефонах закрывается. */
     @Transactional
     public IssuedPassword resetPassword(Long id) {
         Employee e = get(id);
         String password = IssuedPassword.generate();
         e.setPasswordHash(encoder.encode(password)).setMustChangePassword(true);
+        mobile.revokeAll(e.getId());
         return new IssuedPassword(e.getName(), e.getPhone(), password);
     }
 
-    /** Отключённый сотрудник не входит ни в админку, ни в приложение; записи о нём остаются. */
+    /** Отключённый сотрудник не входит ни в админку, ни в приложение (вход на телефонах закрывается); записи о нём остаются. */
     @Transactional
     public Employee setActive(Long id, boolean active, Long meId) {
         Employee e = get(id);
         if (!active && e.getId().equals(meId)) throw new FormException("Себя отключить нельзя");
+        if (!active) mobile.revokeAll(e.getId());
         return e.setActive(active);
     }
 
