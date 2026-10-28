@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api/api_client.dart';
 import 'data/debt_payment.dart';
+import 'data/defect_return.dart';
 import 'data/delivery.dart';
 import 'data/local_store.dart';
 import 'data/new_outlet.dart';
@@ -12,7 +13,7 @@ import 'data/order.dart';
 import 'data/visit.dart';
 
 /// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), новые магазины с фото фасада,
-/// законченные визиты, фото полки, заказы, выдачи экспедитора и оплаты долга. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
+/// законченные визиты, фото полки, заказы, выдачи экспедитора, оплаты долга и возвраты негодного. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
 /// раза: отправка повторяется сама раз в [retry], пока есть что отправить ([start]), и при возврате в
 /// приложение. Повтор не задваивает: у записей журнала, визитов и заказов uuid телефона, у точек — время.
 class Outbox extends ChangeNotifier {
@@ -38,8 +39,8 @@ class Outbox extends ChangeNotifier {
   /// в маршруте «на проверке»).
   int outletsAdded = 0;
 
-  /// Сколько выдач и оплат долга сервер принял за это время: вырос — данные экспедитора пора обновить (статусы и
-  /// долги).
+  /// Сколько выдач, оплат долга и возвратов сервер принял за это время: вырос — данные экспедитора пора обновить
+  /// (статусы и долги).
   int expeditorSent = 0;
 
   static const _batch = 500;
@@ -77,6 +78,7 @@ class Outbox extends ChangeNotifier {
         await _orders();
         await _deliveries();
         await _debtPayments(); // после выдач: долг на сервере уже с ними
+        await _returns();
       } while (_again);
       lastOk = _now();
       lastError = null;
@@ -216,6 +218,27 @@ class Outbox extends ChangeNotifier {
     await store.pruneDebtPayments(_now().subtract(keep));
   }
 
+  /// Возврат негодного; сервер вернул сумму по своим ценам и долг магазина после него. Не принял — помечаем и идём
+  /// дальше.
+  Future<void> _returns() async {
+    for (final r in await store.returns()) {
+      if (r.sent || r.error != null) continue;
+      try {
+        final got = await api.defectReturn(r.toJson());
+        r
+          ..sent = true
+          ..total = got['total'] as int? ?? r.total
+          ..debtAfter = got['debt'] as int?;
+        expeditorSent++;
+      } on ApiException catch (e) {
+        if (!_rejected(e)) rethrow;
+        r.error = e.message;
+      }
+      await store.saveReturn(r);
+    }
+    await store.pruneReturns(_now().subtract(keep));
+  }
+
   /// Убрать с телефона визит, который сервер не принял (с фото).
   Future<void> dropVisit(Visit v) async {
     await store.deleteVisit(v.uuid);
@@ -253,6 +276,12 @@ class Outbox extends ChangeNotifier {
   /// Убрать с телефона оплату долга, которую сервер не принял.
   Future<void> dropDebtPayment(DebtPayment p) async {
     await store.deleteDebtPayment(p.uuid);
+    await count();
+  }
+
+  /// Убрать с телефона возврат, который сервер не принял.
+  Future<void> dropReturn(DefectReturn r) async {
+    await store.deleteReturn(r.uuid);
     await count();
   }
 

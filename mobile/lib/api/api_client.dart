@@ -107,6 +107,11 @@ class ApiClient {
   Future<Map<String, dynamic>> debtPayment(Map<String, dynamic> payment) =>
       _authed('POST', '/api/mobile/expeditor/payments', body: payment);
 
+  /// Возврат негодного товара магазином из рейса; в ответе строки с ценой, сумма и долг после него. Повтор с тем же
+  /// uuid вернёт уже принятый.
+  Future<Map<String, dynamic>> defectReturn(Map<String, dynamic> r) =>
+      _authed('POST', '/api/mobile/expeditor/returns', body: r);
+
   /// Фото фасада к уже отправленному новому магазину — JPEG.
   Future<void> outletPhoto(String uuid, List<int> jpeg) =>
       _authed('PUT', '/api/mobile/agent/outlets/$uuid/photo', bytes: jpeg, contentType: 'image/jpeg');

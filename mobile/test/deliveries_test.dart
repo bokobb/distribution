@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:distribution_mobile/api/api_client.dart';
 import 'package:distribution_mobile/data/debt_payment.dart';
+import 'package:distribution_mobile/data/defect_return.dart';
 import 'package:distribution_mobile/data/delivery.dart';
 import 'package:distribution_mobile/data/expeditor_data.dart';
 import 'package:distribution_mobile/data/local_store.dart';
@@ -197,6 +198,73 @@ void main() {
     expect(store.debtPaymentsByUuid, isEmpty);
   });
 
+  test('возврат негодного: одна причина на все строки, сервер посчитал сумму и долг; отмена до отправки', () async {
+    expect(await book.returnGoods(trip(), arai(), items: {1: 0}, reason: 'DEFECT', total: 0), 'Выберите товар');
+    expect(await book.returnGoods(trip(), arai(), items: {1: 1}, reason: 'ДРУГОЕ', total: 500), 'Укажите причину');
+
+    server.offline = true;
+    await book.returnGoods(trip(), arai(), items: {1: 1}, reason: 'DEFECT', total: 500);
+    await settle();
+    expect((await store.pending()).returns, 1);
+    expect(await book.cancelReturn(book.returnsAt(1).single), isTrue);
+    expect(book.returnsAt(1), isEmpty);
+
+    server.offline = false;
+    await book.returnGoods(trip(), arai(), items: {1: 3, 2: 2, 3: 0}, reason: 'EXPIRED', total: 1);
+    await settle();
+    final sent = server.returns.values.single;
+    expect(sent['returnedAt'], '2026-10-28T11:20:00');
+    expect(sent['lines'], [
+      {'productId': 1, 'qty': 3, 'reason': 'EXPIRED'},
+      {'productId': 2, 'qty': 2, 'reason': 'EXPIRED'},
+    ]);
+    final r = book.returnsAt(1).single;
+    expect([r.sent, r.total, r.debtAfter, r.qty, r.reasonLabel], [true, 2100, 42900, 5, 'Просрочка']);
+    expect(await book.cancelReturn(r), isFalse);
+    expect(outbox.expeditorSent, 1);
+  });
+
+  test('SQLite: возвраты — ждут отправки, ответ сервера, непринятые, стирание; база версии 7 обновляется', () async {
+    sqfliteFfiInit();
+    final path = '${Directory.systemTemp.createTempSync('db').path}/v7.db';
+    var db = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    await db.close();
+    final raw = await databaseFactoryFfi.openDatabase(path);
+    await raw.execute('drop table defect_returns');
+    await raw.setVersion(7);
+    await raw.close();
+
+    db = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    final r = DefectReturn(
+        uuid: 'в1', outletId: 1, tripId: 1, returnedAt: DateTime(2026, 10, 28, 11, 40), reason: 'PACKAGING',
+        items: {2: 4}, total: 1200);
+    await db.saveReturn(r);
+    expect(await db.unsentCount(), 1);
+    expect((await db.pending()).returns, 1);
+    final back = (await db.returns()).single;
+    expect(back.toJson(), r.toJson());
+    expect([back.reasonLabel, back.qty, back.total], ['Упаковка', 4, 1200]);
+
+    back
+      ..sent = true
+      ..total = 1180
+      ..debtAfter = 100;
+    await db.saveReturn(back);
+    expect(await db.unsentCount(), 0);
+    expect((await db.returns()).single.total, 1180);
+
+    await db.saveReturn(DefectReturn(
+        uuid: 'в2', outletId: 2, tripId: 1, returnedAt: DateTime(2026, 10, 28, 12), reason: 'DEFECT', items: {1: 1},
+        total: 500)
+      ..error = 'Нет цены');
+    expect((await db.pending()).rejectedReturns.single.error, 'Нет цены');
+    await db.pruneReturns(DateTime(2026, 11, 1));
+    expect((await db.returns()).map((x) => x.uuid), ['в2']);
+    await db.deleteReturn('в2');
+    expect(await db.returns(), isEmpty);
+    await db.close();
+  });
+
   test('SQLite: оплаты долга — ждут отправки, ответ сервера, непринятые, стирание; база версии 6 обновляется', () async {
     sqfliteFfiInit();
     final path = '${Directory.systemTemp.createTempSync('db').path}/v6.db';
@@ -204,6 +272,7 @@ void main() {
     await db.close();
     final raw = await databaseFactoryFfi.openDatabase(path);
     await raw.execute('drop table debt_payments');
+    await raw.execute('drop table defect_returns');
     await raw.setVersion(6);
     await raw.close();
 
@@ -285,6 +354,7 @@ void main() {
     final raw = await databaseFactoryFfi.openDatabase(path);
     await raw.execute('drop table deliveries');
     await raw.execute('drop table debt_payments');
+    await raw.execute('drop table defect_returns');
     await raw.setVersion(5);
     await raw.close();
 

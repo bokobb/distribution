@@ -6,8 +6,8 @@ import '../outbox.dart';
 import '../theme.dart';
 
 /// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, новые магазины, визиты, фото, заказы, выдачи, оплаты
-/// долга), когда последний раз всё ушло и почему не уходит; «Отправить сейчас». То, что сервер не принял, — с
-/// причиной; это можно убрать с телефона.
+/// долга, возвраты), когда последний раз всё ушло и почему не уходит; «Отправить сейчас». То, что сервер не принял,
+/// — с причиной; это можно убрать с телефона.
 class SendScreen extends StatefulWidget {
   const SendScreen({super.key, required this.outbox, this.outletNames = const {}});
 
@@ -95,6 +95,7 @@ class _SendScreenState extends State<SendScreen> {
                             ('Заказы', p.orders),
                             ('Выдачи', p.deliveries),
                             ('Оплаты долга', p.debtPayments),
+                            ('Возвраты', p.returns),
                           ])
                             if (n > 0)
                               Padding(
@@ -114,7 +115,8 @@ class _SendScreenState extends State<SendScreen> {
                       p.rejectedOrders.isNotEmpty ||
                       p.rejectedOutlets.isNotEmpty ||
                       p.rejectedDeliveries.isNotEmpty ||
-                      p.rejectedDebtPayments.isNotEmpty) ...[
+                      p.rejectedDebtPayments.isNotEmpty ||
+                      p.rejectedReturns.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
                       child: Text('Сервер не принял', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.crimson)),
@@ -159,6 +161,14 @@ class _SendScreenState extends State<SendScreen> {
                         error: d.error!,
                         onDrop: () async {
                           if (await _confirmDrop('оплату')) await o.dropDebtPayment(d);
+                        },
+                      ),
+                    for (final r in p.rejectedReturns)
+                      _Rejected(
+                        title: 'Возврат ${r.qty} шт на ${money(r.total)} · ${_outlet(r.outletId)} · ${when(r.returnedAt)}',
+                        error: r.error!,
+                        onDrop: () async {
+                          if (await _confirmDrop('возврат')) await o.dropReturn(r);
                         },
                       ),
                   ],

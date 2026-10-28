@@ -57,6 +57,9 @@ class FakeServer {
   /// Сервер не принимает оплаты долга — с этим текстом.
   String? rejectDebtPayments;
 
+  /// Возвраты негодного по uuid — что пришло; принятый уменьшает долг магазина по оптовой цене товара.
+  final returns = <String, Map<String, dynamic>>{};
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -153,6 +156,25 @@ class FakeServer {
           }
         }
         return _json({...body, 'debt': outlets.first['debt']}, 200);
+      case '/api/mobile/expeditor/returns':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
+        final uuid = body['uuid'] as String;
+        final outlets = [
+          for (final t in expeditorData['trips'] as List)
+            for (final s in (t as Map)['stops'] as List) (s as Map)['outlet'] as Map<String, dynamic>
+        ].where((o) => o['id'] == body['outletId']);
+        final total = (body['lines'] as List).fold<int>(0, (a, l) {
+          final p = _products.firstWhere((p) => p['id'] == (l as Map)['productId']);
+          return a + (l['qty'] as int) * (p['wholesale'] as int);
+        });
+        if (!returns.containsKey(uuid)) {
+          returns[uuid] = body;
+          for (final o in outlets) {
+            o['debt'] = (o['debt'] as int) - total;
+          }
+        }
+        return _json({'uuid': uuid, 'outletId': body['outletId'], 'total': total, 'debt': outlets.first['debt'], 'lines': []}, 200);
       case '/api/mobile/expeditor/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);

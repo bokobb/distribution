@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import 'debt_payment.dart';
+import 'defect_return.dart';
 import 'delivery.dart';
 import 'new_outlet.dart';
 import 'order.dart';
@@ -20,11 +21,13 @@ class Pending {
       this.outlets = 0,
       this.deliveries = 0,
       this.debtPayments = 0,
+      this.returns = 0,
       this.rejectedVisits = const [],
       this.rejectedOrders = const [],
       this.rejectedOutlets = const [],
       this.rejectedDeliveries = const [],
-      this.rejectedDebtPayments = const []});
+      this.rejectedDebtPayments = const [],
+      this.rejectedReturns = const []});
 
   /// Записи журнала и точки GPS.
   final int track;
@@ -42,13 +45,17 @@ class Pending {
 
   /// Оплаты старого долга.
   final int debtPayments;
+
+  /// Возвраты негодного товара.
+  final int returns;
   final List<Visit> rejectedVisits;
   final List<Order> rejectedOrders;
   final List<NewOutlet> rejectedOutlets;
   final List<Delivery> rejectedDeliveries;
   final List<DebtPayment> rejectedDebtPayments;
+  final List<DefectReturn> rejectedReturns;
 
-  int get total => track + visits + photos + orders + outlets + deliveries + debtPayments;
+  int get total => track + visits + photos + orders + outlets + deliveries + debtPayments + returns;
 }
 
 /// Хранилище на телефоне: данные с сервера для работы без сети (по ключу, целиком JSON) и записи, которые ждут
@@ -138,6 +145,17 @@ abstract class LocalStore {
   /// Стереть отправленные оплаты долга раньше before.
   Future<void> pruneDebtPayments(DateTime before);
 
+  /// Записать возврат негодного (новый или с отметкой отправки / ответом сервера).
+  Future<void> saveReturn(DefectReturn r);
+
+  /// Возвраты на телефоне — по времени.
+  Future<List<DefectReturn>> returns();
+
+  Future<void> deleteReturn(String uuid);
+
+  /// Стереть отправленные возвраты раньше before.
+  Future<void> pruneReturns(DateTime before);
+
   Future<Pending> pending();
 
   /// Стереть всё — при выходе: данные одного сотрудника не должны достаться следующему.
@@ -155,7 +173,7 @@ class SqliteStore implements LocalStore {
     final db = await f.openDatabase(
       path ?? p.join(await f.getDatabasesPath(), 'distribution.db'),
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 8,
         onCreate: (db, version) async {
           await db.execute('create table snapshot (key text primary key, json text not null, saved_at text not null)');
           await _createTrack(db);
@@ -164,6 +182,7 @@ class SqliteStore implements LocalStore {
           await _createNewOutlets(db);
           await _createDeliveries(db);
           await _createDebtPayments(db);
+          await _createReturns(db);
         },
         onUpgrade: (db, from, to) async {
           if (from < 2) await _createTrack(db);
@@ -172,6 +191,7 @@ class SqliteStore implements LocalStore {
           if (from < 5) await _createNewOutlets(db);
           if (from < 6) await _createDeliveries(db);
           if (from < 7) await _createDebtPayments(db);
+          if (from < 8) await _createReturns(db);
         },
       ),
     );
@@ -220,6 +240,12 @@ class SqliteStore implements LocalStore {
   /// Версия 7: оплаты старого долга до отправки и с ответом сервера; поля — одной строкой JSON.
   static Future<void> _createDebtPayments(Database db) async {
     await db.execute('create table debt_payments (uuid text primary key, paid_at text not null, json text not null, '
+        'sent integer not null default 0, error text)');
+  }
+
+  /// Версия 8: возвраты негодного товара до отправки и с ответом сервера; поля — одной строкой JSON.
+  static Future<void> _createReturns(Database db) async {
+    await db.execute('create table defect_returns (uuid text primary key, returned_at text not null, json text not null, '
         'sent integer not null default 0, error text)');
   }
 
@@ -302,7 +328,8 @@ class SqliteStore implements LocalStore {
         '+ (select count(*) from new_outlets where error is null and sent = 0) '
         '+ (select count(*) from new_outlets where error is null and photo is not null and photo_sent = 0) '
         '+ (select count(*) from deliveries where sent = 0 and error is null) '
-        '+ (select count(*) from debt_payments where sent = 0 and error is null) as n');
+        '+ (select count(*) from debt_payments where sent = 0 and error is null) '
+        '+ (select count(*) from defect_returns where sent = 0 and error is null) as n');
     return rows.first['n'] as int;
   }
 
@@ -480,6 +507,32 @@ class SqliteStore implements LocalStore {
       _db.delete('debt_payments', where: 'sent = 1 and paid_at < ?', whereArgs: [before.toIso8601String()]);
 
   @override
+  Future<void> saveReturn(DefectReturn r) => _db.insert(
+        'defect_returns',
+        {
+          'uuid': r.uuid,
+          'returned_at': r.returnedAt.toIso8601String(),
+          'json': r.encode(),
+          'sent': r.sent ? 1 : 0,
+          'error': r.error,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+  @override
+  Future<List<DefectReturn>> returns() async =>
+      (await _db.query('defect_returns', columns: ['json'], orderBy: 'returned_at'))
+          .map((r) => DefectReturn.decode(r['json'] as String))
+          .toList();
+
+  @override
+  Future<void> deleteReturn(String uuid) => _db.delete('defect_returns', where: 'uuid = ?', whereArgs: [uuid]);
+
+  @override
+  Future<void> pruneReturns(DateTime before) =>
+      _db.delete('defect_returns', where: 'sent = 1 and returned_at < ?', whereArgs: [before.toIso8601String()]);
+
+  @override
   Future<Pending> pending() async {
     Future<int> count(String sql) async => (await _db.rawQuery(sql)).first['n'] as int;
     return Pending(
@@ -493,6 +546,7 @@ class SqliteStore implements LocalStore {
       outlets: await count('select count(*) as n from new_outlets where error is null and sent = 0'),
       deliveries: await count('select count(*) as n from deliveries where sent = 0 and error is null'),
       debtPayments: await count('select count(*) as n from debt_payments where sent = 0 and error is null'),
+      returns: await count('select count(*) as n from defect_returns where sent = 0 and error is null'),
       rejectedVisits: (await _db.query('visits', where: 'error is not null', orderBy: 'started_at')).map(_visit).toList(),
       rejectedOrders: (await _db.query('orders', where: 'error is not null', orderBy: 'created_at')).map(_order).toList(),
       rejectedOutlets: (await _db.query('new_outlets', columns: ['json'], where: 'error is not null', orderBy: 'created_at'))
@@ -503,6 +557,9 @@ class SqliteStore implements LocalStore {
           .toList(),
       rejectedDebtPayments: (await _db.query('debt_payments', columns: ['json'], where: 'error is not null', orderBy: 'paid_at'))
           .map((r) => DebtPayment.decode(r['json'] as String))
+          .toList(),
+      rejectedReturns: (await _db.query('defect_returns', columns: ['json'], where: 'error is not null', orderBy: 'returned_at'))
+          .map((r) => DefectReturn.decode(r['json'] as String))
           .toList(),
     );
   }
@@ -517,6 +574,7 @@ class SqliteStore implements LocalStore {
         await tx.delete('new_outlets');
         await tx.delete('deliveries');
         await tx.delete('debt_payments');
+        await tx.delete('defect_returns');
       });
 
   Future<void> close() => _db.close();

@@ -243,6 +243,7 @@ void main() {
     await db.execute('drop table new_outlets');
     await db.execute('drop table deliveries');
     await db.execute('drop table debt_payments');
+    await db.execute('drop table defect_returns');
     await db.setVersion(4);
     await db.close();
 

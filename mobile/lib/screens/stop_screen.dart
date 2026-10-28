@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/debt_payment.dart';
+import '../data/defect_return.dart';
 import '../data/delivery.dart';
 import '../data/expeditor_data.dart';
 import '../deliveries.dart';
@@ -10,10 +11,11 @@ import '../launch.dart';
 import '../theme.dart';
 import '../workday.dart';
 import 'deliver_screen.dart';
+import 'return_screen.dart';
 
 /// Точка рейса: что везём (заказ с составом и суммой, как оплачивает), магазин — долг, телефон, адрес;
-/// «Позвонить» и «Маршрут» (карты на телефоне). «Выдать» (всё или часть, с деньгами), «Отказ» с причиной и
-/// «Оплата долга» — в открытый рабочий день; что ещё не ушло на сервер, можно отменить.
+/// «Позвонить» и «Маршрут» (карты на телефоне). «Выдать» (всё или часть, с деньгами), «Отказ» с причиной,
+/// «Оплата долга» и «Возврат» негодного — в открытый рабочий день; что ещё не ушло на сервер, можно отменить.
 class StopScreen extends StatefulWidget {
   const StopScreen(
       {super.key,
@@ -99,6 +101,34 @@ class _StopScreenState extends State<StopScreen> {
     final problem = await widget.deliveries
         .payDebt(widget.trip, widget.stop, cash: got.$1, kaspi: got.$2, settings: widget.data.settings);
     if (mounted) _say(problem ?? 'Оплата долга сохранена');
+  }
+
+  Future<void> _return() async {
+    if (!_canAct()) return;
+    final ok = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => ReturnScreen(
+                trip: widget.trip, stop: widget.stop, data: widget.data, deliveries: widget.deliveries)));
+    if (ok == true && mounted) _say('Возврат сохранён');
+  }
+
+  Future<void> _cancelReturn(DefectReturn r) async {
+    final yes = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('Отменить возврат?'),
+            content: Text('${r.qty} шт на ${money(r.total)} — запись ещё не ушла на сервер, она сотрётся с телефона.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Нет')),
+              TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Отменить')),
+            ],
+          ),
+        ) ==
+        true;
+    if (!yes) return;
+    final ok = await widget.deliveries.cancelReturn(r);
+    if (mounted && !ok) _say('Уже отправлено на сервер — отменить может только оператор');
   }
 
   Future<void> _cancelPayment(DebtPayment p) async {
@@ -269,7 +299,7 @@ class _StopScreenState extends State<StopScreen> {
                         Expanded(
                           child: Text(
                               'Принято в счёт долга ${money(p.amount)} ${p.methodLabel} · ${time(p.paidAt)} · '
-                              '${_paymentState(p)}',
+                              '${_state(p.sent, p.error, p.debtAfter)}',
                               style: TextStyle(color: p.error != null ? AppColors.crimson : AppColors.ok)),
                         ),
                         if (!p.sent && p.error == null)
@@ -279,13 +309,39 @@ class _StopScreenState extends State<StopScreen> {
                               icon: const Icon(Icons.undo, size: 20)),
                       ],
                     ),
+                  for (final r in widget.deliveries.returnsAt(o.id))
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                              'Возврат (${r.reasonLabel.toLowerCase()}) ${r.qty} шт на ${money(r.total)} · '
+                              '${time(r.returnedAt)} · ${_state(r.sent, r.error, r.debtAfter)}',
+                              style: TextStyle(color: r.error != null ? AppColors.crimson : AppColors.ok)),
+                        ),
+                        if (!r.sent && r.error == null)
+                          IconButton(
+                              tooltip: 'Отменить возврат',
+                              onPressed: () => _cancelReturn(r),
+                              icon: const Icon(Icons.undo, size: 20)),
+                      ],
+                    ),
                   if (!_ahead)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: OutlinedButton.icon(
-                        onPressed: _payDebt,
-                        icon: const Icon(Icons.payments_outlined),
-                        label: const Text('Оплата долга'),
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _payDebt,
+                            icon: const Icon(Icons.payments_outlined),
+                            label: const Text('Оплата долга'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _return,
+                            icon: const Icon(Icons.assignment_return_outlined),
+                            label: const Text('Возврат'),
+                          ),
+                        ],
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -303,15 +359,16 @@ class _StopScreenState extends State<StopScreen> {
     );
   }
 
-  static String _paymentState(DebtPayment p) => p.error != null
-      ? 'сервер не принял: ${p.error}'
-      : !p.sent
+  /// Оплата или возврат: ждёт отправки, сервер не принял — почему, принят — какой стал долг.
+  static String _state(bool sent, String? error, int? debtAfter) => error != null
+      ? 'сервер не принял: $error'
+      : !sent
           ? 'ждёт отправки'
-          : p.debtAfter == null
+          : debtAfter == null
               ? 'отправлено'
-              : p.debtAfter! < 0
-                  ? 'аванс ${money(-p.debtAfter!)}'
-                  : 'долг теперь ${money(p.debtAfter!)}';
+              : debtAfter < 0
+                  ? 'аванс ${money(-debtAfter)}'
+                  : 'долг теперь ${money(debtAfter)}';
 
   /// «2 кор. + 3 шт».
   static String _boxes(TripLine l) {

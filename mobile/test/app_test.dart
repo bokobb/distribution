@@ -666,4 +666,40 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('долг ${money(20000)}, просрочено ${money(12000)}'), findsOneWidget);
   });
+
+  testWidgets('экспедитор: возврат брака — товары из заказа сначала, причина, долг меньше', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+
+    await t.tap(find.text('Магазин «Береке»'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Возврат'));
+    await t.pumpAndSettle();
+    expect(find.text('Магазин «Береке» · опт'), findsOneWidget);
+    final names = t.widgetList<Text>(find.textContaining(RegExp('^(Печенье|Вафли|Торт)'))).map((w) => w.data).toList();
+    expect(names, ['Печенье овсяное', 'Вафли сливочные', 'Торт «Наполеон»']); // из заказа — первым
+    expect(find.text('нет цены'), findsOneWidget);
+    expect(t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Принять')).onPressed, isNull);
+
+    await t.tap(find.text('Просрочка'));
+    await t.tap(find.byTooltip('Вернуть Печенье овсяное'));
+    await t.pump();
+    await t.tap(find.byTooltip('Больше'));
+    await t.pump();
+    await t.tap(find.byTooltip('Вернуть Вафли сливочные'));
+    await t.pump();
+    expect(find.text('3 шт · долг меньше на'), findsOneWidget);
+    expect(find.text(money(1300)), findsOneWidget);
+    await t.tap(find.text('Принять'));
+    await t.pumpAndSettle();
+
+    expect(find.text('Возврат сохранён'), findsOneWidget);
+    expect(find.textContaining('Возврат (просрочка) 3 шт на ${money(1300)}'), findsOneWidget);
+    expect(find.textContaining('аванс ${money(1300)}'), findsOneWidget); // долга не было
+    expect((server.returns.values.single['lines'] as List).map((l) => (l as Map)['reason']), ['EXPIRED', 'EXPIRED']);
+  });
 }

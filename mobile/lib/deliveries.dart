@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import 'data/debt_payment.dart';
+import 'data/defect_return.dart';
 import 'data/delivery.dart';
 import 'data/expeditor_data.dart';
 import 'data/local_store.dart';
@@ -11,7 +12,7 @@ import 'location.dart';
 import 'outbox.dart';
 
 /// Выдачи экспедитора: выдать заказ (всё или часть) и принять деньги, записать отказ магазина с причиной, принять
-/// оплату старого долга; отменить, пока не ушло. Всё пишется на телефон и уходит через [outbox]; пока сервер не
+/// оплату старого долга и негодный товар; отменить, пока не ушло. Всё пишется на телефон и уходит через [outbox]; пока сервер не
 /// ответил, точка рейса показывается по телефонной выдаче.
 class DeliveryBook extends ChangeNotifier {
   DeliveryBook({required this.store, required this.outbox, required this.location, DateTime Function()? clock})
@@ -33,6 +34,7 @@ class DeliveryBook extends ChangeNotifier {
 
   List<Delivery> _local = [];
   List<DebtPayment> _payments = [];
+  List<DefectReturn> _returns = [];
   bool _disposed = false;
 
   /// Последняя выдача заказа на телефоне; null — не выдавали.
@@ -49,17 +51,29 @@ class DeliveryBook extends ChangeNotifier {
 
   /// Оплаты долга магазина за сегодня на телефоне — и непринятые сервером.
   List<DebtPayment> paymentsAt(int outletId) {
-    final n = _now();
-    final from = DateTime(n.year, n.month, n.day);
+    final from = _today();
     return _payments.where((p) => p.outletId == outletId && !p.paidAt.isBefore(from)).toList();
+  }
+
+  /// Возвраты негодного у магазина за сегодня на телефоне — и непринятые сервером.
+  List<DefectReturn> returnsAt(int outletId) {
+    final from = _today();
+    return _returns.where((r) => r.outletId == outletId && !r.returnedAt.isBefore(from)).toList();
+  }
+
+  DateTime _today() {
+    final n = _now();
+    return DateTime(n.year, n.month, n.day);
   }
 
   Future<void> load() async {
     final local = await store.deliveries();
     final payments = await store.debtPayments();
+    final returns = await store.returns();
     if (_disposed) return;
     _local = local;
     _payments = payments;
+    _returns = returns;
     notifyListeners();
   }
 
@@ -156,6 +170,40 @@ class DeliveryBook extends ChangeNotifier {
     if (now == null || now.sent) return false;
     await store.deleteDebtPayment(p.uuid);
     _payments = _payments.where((x) => x.uuid != p.uuid).toList();
+    notifyListeners();
+    await outbox.count();
+    return true;
+  }
+
+  /// Принять негодный товар: [items] — id товара → штук, [reason] — одна на весь возврат; [total] — сумма по ценам
+  /// на телефоне (точную посчитает сервер по цене дня). Не получилось — текст для человека.
+  Future<String?> returnGoods(TripInfo trip, Stop stop,
+      {required Map<int, int> items, required String reason, required int total}) async {
+    final chosen = {for (final e in items.entries) if (e.value > 0) e.key: e.value};
+    if (chosen.isEmpty) return 'Выберите товар';
+    if (!DefectReturn.reasons.containsKey(reason)) return 'Укажите причину';
+    final r = DefectReturn(
+        uuid: const Uuid().v4(),
+        outletId: stop.outlet.id,
+        tripId: trip.id,
+        returnedAt: _now(),
+        reason: reason,
+        items: chosen,
+        total: total);
+    await store.saveReturn(r);
+    _returns = [..._returns, r];
+    notifyListeners();
+    await outbox.count();
+    unawaited(outbox.flush());
+    return null;
+  }
+
+  /// Возврат записали по ошибке — стереть, пока не ушёл на сервер. Ушёл — false.
+  Future<bool> cancelReturn(DefectReturn r) async {
+    final now = (await store.returns()).where((x) => x.uuid == r.uuid).firstOrNull;
+    if (now == null || now.sent) return false;
+    await store.deleteReturn(r.uuid);
+    _returns = _returns.where((x) => x.uuid != r.uuid).toList();
     notifyListeners();
     await outbox.count();
     return true;
