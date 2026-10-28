@@ -90,6 +90,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
           title: 'Мой день',
           session: widget.session,
           workday: widget.workday,
+          outletNames: {for (final o in data?.outlets.values ?? const <Outlet>[]) o.id: o.name},
           onRefresh: _pull,
           onLogout: widget.onLogout),
       body: RefreshIndicator(

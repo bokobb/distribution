@@ -7,6 +7,27 @@ import 'order.dart';
 import 'track.dart';
 import 'visit.dart';
 
+/// Что на телефоне ждёт отправки и что сервер не принял — для экрана «Отправка».
+class Pending {
+  const Pending(
+      {this.track = 0,
+      this.visits = 0,
+      this.photos = 0,
+      this.orders = 0,
+      this.rejectedVisits = const [],
+      this.rejectedOrders = const []});
+
+  /// Записи журнала и точки GPS.
+  final int track;
+  final int visits;
+  final int photos;
+  final int orders;
+  final List<Visit> rejectedVisits;
+  final List<Order> rejectedOrders;
+
+  int get total => track + visits + photos + orders;
+}
+
 /// Хранилище на телефоне: данные с сервера для работы без сети (по ключу, целиком JSON) и записи, которые ждут
 /// отправки (журнал приложения, точки GPS, визиты, заказы).
 abstract class LocalStore {
@@ -58,6 +79,10 @@ abstract class LocalStore {
 
   /// Стереть отправленные заказы, созданные раньше before.
   Future<void> pruneOrders(DateTime before);
+
+  Future<void> deleteOrder(String uuid);
+
+  Future<Pending> pending();
 
   /// Стереть всё — при выходе: данные одного сотрудника не должны достаться следующему.
   Future<void> clear();
@@ -286,6 +311,24 @@ class SqliteStore implements LocalStore {
   @override
   Future<void> pruneOrders(DateTime before) =>
       _db.delete('orders', where: 'sent = 1 and created_at < ?', whereArgs: [before.toIso8601String()]);
+
+  @override
+  Future<void> deleteOrder(String uuid) => _db.delete('orders', where: 'uuid = ?', whereArgs: [uuid]);
+
+  @override
+  Future<Pending> pending() async {
+    Future<int> count(String sql) async => (await _db.rawQuery(sql)).first['n'] as int;
+    return Pending(
+      track: await count('select (select count(*) from journal where sent = 0) '
+          '+ (select count(*) from gps where sent = 0) as n'),
+      visits: await count('select count(*) as n from visits where finished_at is not null and error is null and sent = 0'),
+      photos: await count('select count(*) as n from visits where finished_at is not null and error is null '
+          'and photo is not null and photo_sent = 0'),
+      orders: await count('select count(*) as n from orders where sent = 0 and error is null'),
+      rejectedVisits: (await _db.query('visits', where: 'error is not null', orderBy: 'started_at')).map(_visit).toList(),
+      rejectedOrders: (await _db.query('orders', where: 'error is not null', orderBy: 'created_at')).map(_order).toList(),
+    );
+  }
 
   @override
   Future<void> clear() => _db.transaction((tx) async {

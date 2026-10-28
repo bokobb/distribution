@@ -101,6 +101,22 @@ class MemoryStore implements LocalStore {
   }
 
   @override
+  Future<void> deleteOrder(String uuid) async => orders.remove(uuid);
+
+  @override
+  Future<Pending> pending() async {
+    final done = visits.values.where((v) => !v.open && v.error == null);
+    return Pending(
+      track: events.where((x) => !sent.contains(x.uuid)).length + points.where((x) => !sent.contains(x.at)).length,
+      visits: done.where((v) => !v.sent).length,
+      photos: done.where((v) => v.photo != null && !v.photoSent).length,
+      orders: orders.values.where((o) => !o.sent && o.error == null).length,
+      rejectedVisits: _sorted(visits.values.where((v) => v.error != null)),
+      rejectedOrders: [for (final o in orders.values) if (o.error != null) o.copy()],
+    );
+  }
+
+  @override
   Future<void> clear() async {
     data.clear();
     events.clear();

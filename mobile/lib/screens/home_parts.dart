@@ -4,12 +4,15 @@ import '../api/api_client.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../workday.dart';
+import 'send_screen.dart';
 
-/// Шапка главного экрана: заголовок, кто вошёл; меню — «Обновить» (если есть) и «Выйти» с вопросом.
+/// Шапка главного экрана: заголовок, кто вошёл; меню — «Обновить» (если есть), «Отправка» и «Выйти» с вопросом.
+/// outletNames — названия магазинов для экрана «Отправка».
 AppBar homeAppBar(BuildContext context,
         {required String title,
         required Session session,
         required Workday workday,
+        Map<int, String> outletNames = const {},
         VoidCallback? onRefresh,
         required VoidCallback onLogout}) =>
     AppBar(
@@ -24,9 +27,16 @@ AppBar homeAppBar(BuildContext context,
       actions: [
         PopupMenuButton<String>(
           tooltip: 'Меню',
-          onSelected: (v) => v == 'refresh' ? onRefresh?.call() : _confirmLogout(context, workday, onLogout),
+          onSelected: (v) => switch (v) {
+            'refresh' => onRefresh?.call(),
+            'send' => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => SendScreen(outbox: workday.outbox, outletNames: outletNames))),
+            _ => _confirmLogout(context, workday, onLogout),
+          },
           itemBuilder: (_) => [
             if (onRefresh != null) const PopupMenuItem(value: 'refresh', child: Text('Обновить')),
+            PopupMenuItem(
+                value: 'send', child: Text(workday.unsent > 0 ? 'Отправка · ждут ${workday.unsent}' : 'Отправка')),
             const PopupMenuItem(value: 'logout', child: Text('Выйти')),
           ],
         ),

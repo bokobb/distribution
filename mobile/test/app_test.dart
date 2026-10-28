@@ -342,5 +342,36 @@ void main() {
     expect(sent['items'], [{'productId': 1, 'qty': 14}, {'productId': 2, 'qty': 1}]);
     expect(sent['visitUuid'], server.visits.keys.single);
   });
+
+  testWidgets('«Отправка»: без сети ждёт, «Отправить сейчас» отправляет', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    server.offline = true;
+    await t.tap(find.text('Начать день'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+
+    await t.tap(find.byTooltip('Меню'));
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('Отправка · ждут'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+    expect(find.text('Ждут отправки: 1'), findsOneWidget); // «начал день» — без сети
+    expect(find.text('Журнал и точки GPS'), findsOneWidget);
+    expect(find.text('Нет связи с сервером — приложение повторит само'), findsOneWidget);
+
+    server.offline = false;
+    await t.tap(find.text('Отправить сейчас'));
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+    expect(find.text('Всё отправлено'), findsOneWidget);
+    expect(server.trackEvents.map((e) => e['kind']), containsAll(['APP_OPEN', 'DAY_START']));
+  });
 }
 

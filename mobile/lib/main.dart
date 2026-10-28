@@ -60,7 +60,7 @@ class DistributionApp extends StatefulWidget {
   State<DistributionApp> createState() => _DistributionAppState();
 }
 
-class _DistributionAppState extends State<DistributionApp> {
+class _DistributionAppState extends State<DistributionApp> with WidgetsBindingObserver {
   late Session? _session = widget.session;
   late final _agent = AgentRepo(widget.api, widget.local);
   late final _location = widget.location ?? DeviceLocation();
@@ -77,13 +77,29 @@ class _DistributionAppState extends State<DistributionApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.api.onSessionClosed = (message) => _forget(message);
     final s = widget.session;
     if (s != null && !s.mustChangePassword) _startWorkday();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _workday?.dispose();
+    _visits?.dispose();
+    _outbox?.dispose();
+    super.dispose();
+  }
+
+  /// Вернулись в приложение — отправить накопленное (сеть могла появиться, пока оно было свёрнуто).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _outbox?.flush();
+  }
+
   void _startWorkday() {
-    final outbox = _outbox = Outbox(api: widget.api, store: widget.local);
+    final outbox = _outbox = Outbox(api: widget.api, store: widget.local)..start();
     _workday = Workday(outbox: outbox, store: widget.local, location: _location)..restore();
     _visits = VisitBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
   }
