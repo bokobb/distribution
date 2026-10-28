@@ -16,7 +16,7 @@ import 'stop_screen.dart';
 /// Главный экран экспедитора — «Рейс»: рейс на сегодня (и незакрытые прошлых дней) с точками по порядку, у каждой —
 /// магазин, заказ, оплата и отметка выдачи (своя выдача видна сразу, до ответа сервера); отгруженное на завтра —
 /// ниже, посмотреть заранее. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с
-/// тем, что есть; выдачи ушли на сервер — данные обновляются (долги магазинов).
+/// тем, что есть; выдачи и оплаты ушли на сервер — данные обновляются (долги магазинов).
 class ExpeditorHomeScreen extends StatefulWidget {
   const ExpeditorHomeScreen(
       {super.key,
@@ -47,7 +47,7 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _sent = widget.deliveries.outbox.deliveriesSent;
+    _sent = widget.deliveries.outbox.expeditorSent;
     widget.deliveries.outbox.addListener(_onOutbox);
     _start();
   }
@@ -58,9 +58,9 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
     super.dispose();
   }
 
-  /// Выдачи ушли на сервер — там поменялись статусы и долги.
+  /// Выдачи или оплаты долга ушли на сервер — там поменялись статусы и долги.
   void _onOutbox() {
-    final sent = widget.deliveries.outbox.deliveriesSent;
+    final sent = widget.deliveries.outbox.expeditorSent;
     if (sent == _sent) return;
     _sent = sent;
     if (!_loading) _pull();

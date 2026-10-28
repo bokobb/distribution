@@ -51,6 +51,12 @@ class FakeServer {
   /// Сервер не принимает выдачи — с этим текстом.
   String? rejectDeliveries;
 
+  /// Оплаты долга по uuid — что пришло; принятая уменьшает долг магазина в данных экспедитора.
+  final debtPayments = <String, Map<String, dynamic>>{};
+
+  /// Сервер не принимает оплаты долга — с этим текстом.
+  String? rejectDebtPayments;
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -131,6 +137,22 @@ class FakeServer {
         if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
         if (rejectDeliveries != null) return _json({'message': rejectDeliveries}, 400);
         return _json(_deliver(deliveries.putIfAbsent(body['uuid'] as String, () => body)), 200);
+      case '/api/mobile/expeditor/payments':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
+        if (rejectDebtPayments != null) return _json({'message': rejectDebtPayments}, 400);
+        final uuid = body['uuid'] as String;
+        final outlets = [
+          for (final t in expeditorData['trips'] as List)
+            for (final s in (t as Map)['stops'] as List) (s as Map)['outlet'] as Map<String, dynamic>
+        ].where((o) => o['id'] == body['outletId']);
+        if (!debtPayments.containsKey(uuid)) {
+          debtPayments[uuid] = body;
+          for (final o in outlets) {
+            o['debt'] = (o['debt'] as int) - (body['amount'] as int);
+          }
+        }
+        return _json({...body, 'debt': outlets.first['debt']}, 200);
       case '/api/mobile/expeditor/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);

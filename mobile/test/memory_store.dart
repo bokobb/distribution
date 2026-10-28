@@ -1,3 +1,4 @@
+import 'package:distribution_mobile/data/debt_payment.dart';
 import 'package:distribution_mobile/data/delivery.dart';
 import 'package:distribution_mobile/data/local_store.dart';
 import 'package:distribution_mobile/data/new_outlet.dart';
@@ -17,6 +18,7 @@ class MemoryStore implements LocalStore {
   final orders = <String, Order>{};
   final newOutletsByUuid = <String, NewOutlet>{};
   final deliveriesByUuid = <String, Delivery>{};
+  final debtPaymentsByUuid = <String, DebtPayment>{};
 
   @override
   Future<Map<String, dynamic>?> read(String key) async => data[key];
@@ -62,8 +64,23 @@ class MemoryStore implements LocalStore {
         orders.values.where((o) => !o.sent && o.error == null).length +
         newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length +
         newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length +
-        deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length;
+        deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length +
+        debtPaymentsByUuid.values.where((p) => !p.sent && p.error == null).length;
   }
+
+  @override
+  Future<void> saveDebtPayment(DebtPayment p) async => debtPaymentsByUuid[p.uuid] = p.copy();
+
+  @override
+  Future<List<DebtPayment>> debtPayments() async =>
+      [for (final p in debtPaymentsByUuid.values) p.copy()]..sort((a, b) => a.paidAt.compareTo(b.paidAt));
+
+  @override
+  Future<void> deleteDebtPayment(String uuid) async => debtPaymentsByUuid.remove(uuid);
+
+  @override
+  Future<void> pruneDebtPayments(DateTime before) async =>
+      debtPaymentsByUuid.removeWhere((_, p) => p.sent && p.paidAt.isBefore(before));
 
   @override
   Future<void> saveDelivery(Delivery d) async => deliveriesByUuid[d.uuid] = d.copy();
@@ -156,10 +173,12 @@ class MemoryStore implements LocalStore {
       orders: orders.values.where((o) => !o.sent && o.error == null).length,
       outlets: newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length,
       deliveries: deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length,
+      debtPayments: debtPaymentsByUuid.values.where((p) => !p.sent && p.error == null).length,
       rejectedVisits: _sorted(visits.values.where((v) => v.error != null)),
       rejectedOrders: [for (final o in orders.values) if (o.error != null) o.copy()],
       rejectedOutlets: [for (final o in newOutletsByUuid.values) if (o.error != null) o.copy()],
       rejectedDeliveries: [for (final d in deliveriesByUuid.values) if (d.error != null) d.copy()],
+      rejectedDebtPayments: [for (final p in debtPaymentsByUuid.values) if (p.error != null) p.copy()],
     );
   }
 
@@ -173,6 +192,7 @@ class MemoryStore implements LocalStore {
     orders.clear();
     newOutletsByUuid.clear();
     deliveriesByUuid.clear();
+    debtPaymentsByUuid.clear();
   }
 
   static List<Visit> _sorted(Iterable<Visit> vs) =>

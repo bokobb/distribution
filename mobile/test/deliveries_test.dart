@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:distribution_mobile/api/api_client.dart';
+import 'package:distribution_mobile/data/debt_payment.dart';
 import 'package:distribution_mobile/data/delivery.dart';
 import 'package:distribution_mobile/data/expeditor_data.dart';
 import 'package:distribution_mobile/data/local_store.dart';
@@ -63,7 +64,7 @@ void main() {
     expect(pay['uuid'], hasLength(36));
     final d = book.of(11)!;
     expect([d.sent, d.statusLabel, d.unpaid], [true, 'Доставлен', 0]);
-    expect(outbox.deliveriesSent, 1);
+    expect(outbox.expeditorSent, 1);
     expect(outbox.unsent, 0);
   });
 
@@ -156,6 +157,85 @@ void main() {
     expect(again.cashUuid, d.cashUuid);
   });
 
+  test('оплата долга: наличные и Kaspi — две оплаты, сервер вернул долг; повтор не задваивает', () async {
+    expect(await book.payDebt(trip(), arai(), settings: data.settings), 'Введите сумму');
+    expect(
+        await book.payDebt(trip(), arai(),
+            kaspi: 100, settings: const ExpeditorSettings(acceptKaspi: false, allowCredit: true, gpsInterval: 5)),
+        'Kaspi компания не принимает');
+    expect(await book.payDebt(trip(), arai(), cash: 20000, kaspi: 5000, settings: data.settings), isNull);
+    await settle();
+
+    expect([for (final p in server.debtPayments.values) '${p['method']} ${p['amount']} ${p['outletId']} ${p['tripId']}'],
+        ['CASH 20000 1 1', 'KASPI 5000 1 1']);
+    expect(server.debtPayments.values.first['paidAt'], '2026-10-28T11:20:00');
+    final paid = book.paymentsAt(1);
+    expect([for (final p in paid) '${p.methodLabel} ${p.sent} ${p.debtAfter}'], ['наличными true 25000', 'Kaspi true 20000']);
+    expect(outbox.expeditorSent, 2);
+
+    await outbox.api.debtPayment(paid.first.toJson()); // повтор
+    expect(server.debtPayments, hasLength(2));
+  });
+
+  test('оплата долга без сети: ждёт, отменить можно; не принятая — с причиной, её можно убрать', () async {
+    server.offline = true;
+    await book.payDebt(trip(), arai(), cash: 1000, settings: data.settings);
+    await settle();
+    expect((await store.pending()).debtPayments, 1);
+    expect(await book.cancelPayment(book.paymentsAt(1).single), isTrue);
+    expect(book.paymentsAt(1), isEmpty);
+    expect(outbox.unsent, 0);
+
+    server
+      ..offline = false
+      ..rejectDebtPayments = 'Рейс уже закрыт';
+    await book.payDebt(trip(), arai(), cash: 1000, settings: data.settings);
+    await settle();
+    final p = book.paymentsAt(1).single;
+    expect(p.error, 'Рейс уже закрыт');
+    expect(await book.cancelPayment(p), isTrue); // на сервере её нет — убрать можно
+    expect(store.debtPaymentsByUuid, isEmpty);
+  });
+
+  test('SQLite: оплаты долга — ждут отправки, ответ сервера, непринятые, стирание; база версии 6 обновляется', () async {
+    sqfliteFfiInit();
+    final path = '${Directory.systemTemp.createTempSync('db').path}/v6.db';
+    var db = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    await db.close();
+    final raw = await databaseFactoryFfi.openDatabase(path);
+    await raw.execute('drop table debt_payments');
+    await raw.setVersion(6);
+    await raw.close();
+
+    db = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    final p = DebtPayment(
+        uuid: 'о1', outletId: 1, tripId: 1, method: 'KASPI', amount: 5000, paidAt: DateTime(2026, 10, 28, 11, 30));
+    await db.saveDebtPayment(p);
+    expect(await db.unsentCount(), 1);
+    expect((await db.pending()).debtPayments, 1);
+    final back = (await db.debtPayments()).single;
+    expect(back.toJson(), {
+      'uuid': 'о1', 'outletId': 1, 'tripId': 1, 'method': 'KASPI', 'amount': 5000, 'paidAt': '2026-10-28T11:30:00',
+    });
+
+    back
+      ..sent = true
+      ..debtAfter = -500;
+    await db.saveDebtPayment(back);
+    expect(await db.unsentCount(), 0);
+    expect((await db.debtPayments()).single.debtAfter, -500);
+
+    await db.saveDebtPayment(
+        DebtPayment(uuid: 'о2', outletId: 2, tripId: 1, method: 'CASH', amount: 1, paidAt: DateTime(2026, 10, 28, 12))
+          ..error = 'Магазина нет в рейсе');
+    expect((await db.pending()).rejectedDebtPayments.single.error, 'Магазина нет в рейсе');
+    await db.pruneDebtPayments(DateTime(2026, 11, 1));
+    expect((await db.debtPayments()).map((x) => x.uuid), ['о2']);
+    await db.deleteDebtPayment('о2');
+    expect(await db.debtPayments(), isEmpty);
+    await db.close();
+  });
+
   test('SQLite: выдачи — ждут отправки, ответ сервера, непринятые, стирание отправленного', () async {
     sqfliteFfiInit();
     final db = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
@@ -204,6 +284,7 @@ void main() {
     await db.close();
     final raw = await databaseFactoryFfi.openDatabase(path);
     await raw.execute('drop table deliveries');
+    await raw.execute('drop table debt_payments');
     await raw.setVersion(5);
     await raw.close();
 

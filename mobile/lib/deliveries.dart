@@ -3,15 +3,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'data/debt_payment.dart';
 import 'data/delivery.dart';
 import 'data/expeditor_data.dart';
 import 'data/local_store.dart';
 import 'location.dart';
 import 'outbox.dart';
 
-/// Выдачи экспедитора: выдать заказ (всё или часть) и принять деньги, записать отказ магазина с причиной,
-/// отменить выдачу, пока она не ушла. Всё пишется на телефон и уходит через [outbox]; пока сервер не ответил,
-/// точка рейса показывается по телефонной выдаче.
+/// Выдачи экспедитора: выдать заказ (всё или часть) и принять деньги, записать отказ магазина с причиной, принять
+/// оплату старого долга; отменить, пока не ушло. Всё пишется на телефон и уходит через [outbox]; пока сервер не
+/// ответил, точка рейса показывается по телефонной выдаче.
 class DeliveryBook extends ChangeNotifier {
   DeliveryBook({required this.store, required this.outbox, required this.location, DateTime Function()? clock})
       : _now = clock ?? DateTime.now {
@@ -31,6 +32,7 @@ class DeliveryBook extends ChangeNotifier {
   static const gpsWait = Duration(seconds: 8);
 
   List<Delivery> _local = [];
+  List<DebtPayment> _payments = [];
   bool _disposed = false;
 
   /// Последняя выдача заказа на телефоне; null — не выдавали.
@@ -45,10 +47,19 @@ class DeliveryBook extends ChangeNotifier {
   /// Сколько точек рейса пройдено с учётом выдач на телефоне.
   int doneIn(TripInfo t) => t.stops.where((s) => done(s.order)).length;
 
+  /// Оплаты долга магазина за сегодня на телефоне — и непринятые сервером.
+  List<DebtPayment> paymentsAt(int outletId) {
+    final n = _now();
+    final from = DateTime(n.year, n.month, n.day);
+    return _payments.where((p) => p.outletId == outletId && !p.paidAt.isBefore(from)).toList();
+  }
+
   Future<void> load() async {
     final local = await store.deliveries();
+    final payments = await store.debtPayments();
     if (_disposed) return;
     _local = local;
+    _payments = payments;
     notifyListeners();
   }
 
@@ -116,6 +127,38 @@ class DeliveryBook extends ChangeNotifier {
     notifyListeners();
     await outbox.count();
     unawaited(outbox.flush());
+  }
+
+  /// Принять оплату старого долга: наличные и Kaspi — отдельными оплатами. Больше долга — остаток авансом
+  /// (спрашивает экран). Не получилось — текст для человека.
+  Future<String?> payDebt(TripInfo trip, Stop stop,
+      {int cash = 0, int kaspi = 0, required ExpeditorSettings settings}) async {
+    if (cash < 0 || kaspi < 0) return 'Сумма не может быть меньше нуля';
+    if (cash + kaspi == 0) return 'Введите сумму';
+    if (kaspi > 0 && !settings.acceptKaspi) return 'Kaspi компания не принимает';
+    final at = _now();
+    for (final (method, amount) in [('CASH', cash), ('KASPI', kaspi)]) {
+      if (amount == 0) continue;
+      final p = DebtPayment(
+          uuid: const Uuid().v4(), outletId: stop.outlet.id, tripId: trip.id, method: method, amount: amount, paidAt: at);
+      await store.saveDebtPayment(p);
+      _payments = [..._payments, p];
+    }
+    notifyListeners();
+    await outbox.count();
+    unawaited(outbox.flush());
+    return null;
+  }
+
+  /// Оплату приняли по ошибке — стереть, пока не ушла на сервер. Ушла — false.
+  Future<bool> cancelPayment(DebtPayment p) async {
+    final now = (await store.debtPayments()).where((x) => x.uuid == p.uuid).firstOrNull;
+    if (now == null || now.sent) return false;
+    await store.deleteDebtPayment(p.uuid);
+    _payments = _payments.where((x) => x.uuid != p.uuid).toList();
+    notifyListeners();
+    await outbox.count();
+    return true;
   }
 
   /// Выдали не тому или не то — стереть, пока выдача не ушла на сервер. Ушла — false.

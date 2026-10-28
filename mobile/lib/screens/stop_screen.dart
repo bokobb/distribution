@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../data/debt_payment.dart';
 import '../data/delivery.dart';
 import '../data/expeditor_data.dart';
 import '../deliveries.dart';
@@ -10,8 +12,8 @@ import '../workday.dart';
 import 'deliver_screen.dart';
 
 /// Точка рейса: что везём (заказ с составом и суммой, как оплачивает), магазин — долг, телефон, адрес;
-/// «Позвонить» и «Маршрут» (карты на телефоне). «Выдать» (всё или часть, с деньгами) и «Отказ» с причиной —
-/// в открытый рабочий день; выдачу, которая ещё не ушла на сервер, можно отменить.
+/// «Позвонить» и «Маршрут» (карты на телефоне). «Выдать» (всё или часть, с деньгами), «Отказ» с причиной и
+/// «Оплата долга» — в открытый рабочий день; что ещё не ушло на сервер, можно отменить.
 class StopScreen extends StatefulWidget {
   const StopScreen(
       {super.key,
@@ -85,6 +87,35 @@ class _StopScreenState extends State<StopScreen> {
         true;
     if (!yes) return;
     final ok = await widget.deliveries.cancel(d);
+    if (mounted && !ok) _say('Уже отправлено на сервер — отменить может только оператор');
+  }
+
+  Future<void> _payDebt() async {
+    if (!_canAct()) return;
+    final got = await showDialog<(int, int)>(
+        context: context,
+        builder: (_) => _DebtDialog(debt: widget.stop.outlet.debt, acceptKaspi: widget.data.settings.acceptKaspi));
+    if (got == null || !mounted) return;
+    final problem = await widget.deliveries
+        .payDebt(widget.trip, widget.stop, cash: got.$1, kaspi: got.$2, settings: widget.data.settings);
+    if (mounted) _say(problem ?? 'Оплата долга сохранена');
+  }
+
+  Future<void> _cancelPayment(DebtPayment p) async {
+    final yes = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('Отменить оплату долга?'),
+            content: Text('${money(p.amount)} ${p.methodLabel} — запись ещё не ушла на сервер, она сотрётся с телефона.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Нет')),
+              TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Отменить')),
+            ],
+          ),
+        ) ==
+        true;
+    if (!yes) return;
+    final ok = await widget.deliveries.cancelPayment(p);
     if (mounted && !ok) _say('Уже отправлено на сервер — отменить может только оператор');
   }
 
@@ -223,10 +254,40 @@ class _StopScreenState extends State<StopScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(o.debt == 0 ? 'Долга нет' : 'Долг ${money(o.debt)}',
+                  Text(
+                      o.debt == 0
+                          ? 'Долга нет'
+                          : o.debt < 0
+                              ? 'Аванс ${money(-o.debt)}'
+                              : 'Долг ${money(o.debt)}',
                       style: TextStyle(fontSize: 16, color: o.overdue > 0 ? AppColors.crimson : AppColors.ink)),
                   if (o.overdue > 0) Text('просрочено ${money(o.overdue)}', style: const TextStyle(color: AppColors.crimson)),
                   Text('на ${date(data.date)}', style: const TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+                  for (final p in widget.deliveries.paymentsAt(o.id))
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                              'Принято в счёт долга ${money(p.amount)} ${p.methodLabel} · ${time(p.paidAt)} · '
+                              '${_paymentState(p)}',
+                              style: TextStyle(color: p.error != null ? AppColors.crimson : AppColors.ok)),
+                        ),
+                        if (!p.sent && p.error == null)
+                          IconButton(
+                              tooltip: 'Отменить оплату',
+                              onPressed: () => _cancelPayment(p),
+                              icon: const Icon(Icons.undo, size: 20)),
+                      ],
+                    ),
+                  if (!_ahead)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: OutlinedButton.icon(
+                        onPressed: _payDebt,
+                        icon: const Icon(Icons.payments_outlined),
+                        label: const Text('Оплата долга'),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   if (o.legal != null) Text(o.legal!),
                   if (o.phone != null) Text(o.phone!),
@@ -241,6 +302,16 @@ class _StopScreenState extends State<StopScreen> {
       ),
     );
   }
+
+  static String _paymentState(DebtPayment p) => p.error != null
+      ? 'сервер не принял: ${p.error}'
+      : !p.sent
+          ? 'ждёт отправки'
+          : p.debtAfter == null
+              ? 'отправлено'
+              : p.debtAfter! < 0
+                  ? 'аванс ${money(-p.debtAfter!)}'
+                  : 'долг теперь ${money(p.debtAfter!)}';
 
   /// «2 кор. + 3 шт».
   static String _boxes(TripLine l) {
@@ -297,6 +368,83 @@ class _DeliveryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Оплата старого долга: наличными и Kaspi (сначала — весь долг наличными); больше долга — предупреждение, остаток
+/// авансом. Возвращает (наличные, Kaspi).
+class _DebtDialog extends StatefulWidget {
+  const _DebtDialog({required this.debt, required this.acceptKaspi});
+
+  final int debt;
+  final bool acceptKaspi;
+
+  @override
+  State<_DebtDialog> createState() => _DebtDialogState();
+}
+
+class _DebtDialogState extends State<_DebtDialog> {
+  late final _cash = TextEditingController(text: widget.debt > 0 ? '${widget.debt}' : '');
+  final _kaspi = TextEditingController();
+
+  @override
+  void dispose() {
+    _cash.dispose();
+    _kaspi.dispose();
+    super.dispose();
+  }
+
+  int get _sum => (int.tryParse(_cash.text) ?? 0) + (widget.acceptKaspi ? int.tryParse(_kaspi.text) ?? 0 : 0);
+
+  Widget _field(TextEditingController c, String label) => TextField(
+        controller: c,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
+        decoration: InputDecoration(labelText: label, suffixText: '₸', hintText: '0'),
+        onChanged: (_) => setState(() {}),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final sum = _sum, debt = widget.debt;
+    final String? note = sum == 0
+        ? null
+        : sum > debt
+            ? 'Больше долга на ${money(sum - debt.clamp(0, sum))} — останется у магазина авансом'
+            : 'Останется долг ${money(debt - sum)}';
+    return AlertDialog(
+      title: const Text('Оплата долга'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(debt > 0 ? 'Долг ${money(debt)}' : 'Долга нет', style: const TextStyle(color: AppColors.inkSoft)),
+            const SizedBox(height: 8),
+            _field(_cash, 'Наличными'),
+            if (widget.acceptKaspi) ...[
+              const SizedBox(height: 8),
+              _field(_kaspi, 'Kaspi'),
+            ],
+            if (note != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(note, style: TextStyle(color: sum > debt ? AppColors.crimson : AppColors.inkSoft)),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Назад')),
+        TextButton(
+          onPressed: sum == 0
+              ? null
+              : () => Navigator.pop(
+                  context, (int.tryParse(_cash.text) ?? 0, widget.acceptKaspi ? int.tryParse(_kaspi.text) ?? 0 : 0)),
+          child: Text(sum == 0 ? 'Принять' : 'Принять ${money(sum)}'),
+        ),
+      ],
     );
   }
 }

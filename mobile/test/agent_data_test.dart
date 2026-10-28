@@ -242,6 +242,7 @@ void main() {
     final db = await databaseFactoryFfi.openDatabase(path);
     await db.execute('drop table new_outlets');
     await db.execute('drop table deliveries');
+    await db.execute('drop table debt_payments');
     await db.setVersion(4);
     await db.close();
 

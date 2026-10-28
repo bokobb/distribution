@@ -5,9 +5,9 @@ import '../format.dart';
 import '../outbox.dart';
 import '../theme.dart';
 
-/// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, новые магазины, визиты, фото, заказы, выдачи), когда
-/// последний раз всё ушло и почему не уходит; «Отправить сейчас». То, что сервер не принял, — с причиной;
-/// это можно убрать с телефона.
+/// «Отправка»: что на телефоне ждёт отправки (журнал и GPS, новые магазины, визиты, фото, заказы, выдачи, оплаты
+/// долга), когда последний раз всё ушло и почему не уходит; «Отправить сейчас». То, что сервер не принял, — с
+/// причиной; это можно убрать с телефона.
 class SendScreen extends StatefulWidget {
   const SendScreen({super.key, required this.outbox, this.outletNames = const {}});
 
@@ -94,6 +94,7 @@ class _SendScreenState extends State<SendScreen> {
                             ('Фото', p.photos),
                             ('Заказы', p.orders),
                             ('Выдачи', p.deliveries),
+                            ('Оплаты долга', p.debtPayments),
                           ])
                             if (n > 0)
                               Padding(
@@ -112,7 +113,8 @@ class _SendScreenState extends State<SendScreen> {
                   if (p.rejectedVisits.isNotEmpty ||
                       p.rejectedOrders.isNotEmpty ||
                       p.rejectedOutlets.isNotEmpty ||
-                      p.rejectedDeliveries.isNotEmpty) ...[
+                      p.rejectedDeliveries.isNotEmpty ||
+                      p.rejectedDebtPayments.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
                       child: Text('Сервер не принял', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.crimson)),
@@ -148,6 +150,15 @@ class _SendScreenState extends State<SendScreen> {
                         error: d.error!,
                         onDrop: () async {
                           if (await _confirmDrop(d.refused ? 'отказ' : 'выдачу')) await o.dropDelivery(d);
+                        },
+                      ),
+                    for (final d in p.rejectedDebtPayments)
+                      _Rejected(
+                        title: 'Оплата долга ${money(d.amount)} ${d.methodLabel} · ${_outlet(d.outletId)} · '
+                            '${when(d.paidAt)}',
+                        error: d.error!,
+                        onDrop: () async {
+                          if (await _confirmDrop('оплату')) await o.dropDebtPayment(d);
                         },
                       ),
                   ],
