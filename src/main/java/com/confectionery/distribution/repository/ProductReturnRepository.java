@@ -6,9 +6,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public interface ProductReturnRepository extends JpaRepository<ProductReturn, Long> {
     List<ProductReturn> findByOutletOrderByDateDesc(Outlet outlet);
 
     List<ProductReturn> findByDate(LocalDate date);
+
+    Optional<ProductReturn> findByUuid(UUID uuid);
 }

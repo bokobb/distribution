@@ -10,6 +10,9 @@ import com.confectionery.distribution.service.DeliveryService.DeliveryIn;
 import com.confectionery.distribution.service.DeliveryService.DeliveryOut;
 import com.confectionery.distribution.service.ExpeditorDataService;
 import com.confectionery.distribution.service.ExpeditorDataService.ExpeditorData;
+import com.confectionery.distribution.service.ReturnService;
+import com.confectionery.distribution.service.ReturnService.ReturnIn;
+import com.confectionery.distribution.service.ReturnService.ReturnOut;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +28,7 @@ public class ExpeditorApiController {
     private final ExpeditorDataService data;
     private final DeliveryService deliveries;
     private final DebtPaymentService debtPayments;
+    private final ReturnService returns;
     private final MobileAccounts accounts;
 
     /** Данные для работы без сети: незакрытые рейсы по завтра, точки с заказами и долгами, товары с ценами. */
@@ -44,5 +48,11 @@ public class ExpeditorApiController {
     @PostMapping("/api/mobile/expeditor/payments")
     public PaymentOut payment(@AuthenticationPrincipal MobileUser me, @RequestBody PaymentIn in) {
         return debtPayments.save(me.id(), in);
+    }
+
+    /** Возврат негодного товара магазином из рейса; повтор с тем же uuid возвращает уже записанный. */
+    @PostMapping("/api/mobile/expeditor/returns")
+    public ReturnOut productReturn(@AuthenticationPrincipal MobileUser me, @RequestBody ReturnIn in) {
+        return returns.save(me.id(), in);
     }
 }
