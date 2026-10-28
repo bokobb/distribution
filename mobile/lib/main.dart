@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'api/api_client.dart';
+import 'device.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/password_screen.dart';
 import 'session.dart';
 import 'theme.dart';
 
@@ -11,7 +13,13 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = SessionStore();
   final session = await store.load();
-  final api = ApiClient(baseUrl: await store.serverUrl());
+  final about = await describeDevice();
+  final api = ApiClient(
+    baseUrl: await store.serverUrl(),
+    deviceToken: await store.deviceToken(),
+    device: about.device,
+    appVersion: about.version,
+  );
   runApp(DistributionApp(api: api, store: store, session: session));
 }
 
@@ -31,9 +39,39 @@ class DistributionApp extends StatefulWidget {
 class _DistributionAppState extends State<DistributionApp> {
   late Session? _session = widget.session;
 
+  /// Почему снова вход: сервер закрыл вход на этом телефоне.
+  String? _notice;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.onSessionClosed = (message) => _forget(message);
+  }
+
+  Future<void> _signedIn(Session s) async {
+    await widget.store.save(s);
+    await widget.store.saveDeviceToken(widget.api.deviceToken);
+    if (mounted) {
+      setState(() {
+        _session = s;
+        _notice = null;
+      });
+    }
+  }
+
   Future<void> _logout() async {
+    await widget.api.logout();
+    await _forget(null);
+  }
+
+  Future<void> _forget(String? notice) async {
     await widget.store.clear();
-    setState(() => _session = null);
+    if (mounted) {
+      setState(() {
+        _session = null;
+        _notice = notice;
+      });
+    }
   }
 
   @override
@@ -44,8 +82,10 @@ class _DistributionAppState extends State<DistributionApp> {
       debugShowCheckedModeBanner: false,
       theme: appTheme(),
       home: s == null
-          ? LoginScreen(api: widget.api, store: widget.store, onLogin: (s) => setState(() => _session = s))
-          : HomeScreen(session: s, onLogout: _logout),
+          ? LoginScreen(api: widget.api, store: widget.store, notice: _notice, onLogin: _signedIn)
+          : s.mustChangePassword
+              ? PasswordScreen(api: widget.api, session: s, onDone: _signedIn, onLogout: _logout)
+              : HomeScreen(api: widget.api, session: s, onSession: _signedIn, onLogout: _logout),
     );
   }
 }

@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../session.dart';
 import '../theme.dart';
+import '../widgets/message_box.dart';
 
 /// Вход: телефон (в любом виде — сервер сам приведёт) или логин и пароль. Внизу — адрес сервера.
+/// notice — почему снова вход («Вход на этом телефоне закрыт…»).
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.api, required this.store, required this.onLogin});
+  const LoginScreen({super.key, required this.api, required this.store, required this.onLogin, this.notice});
 
   final ApiClient api;
   final SessionStore store;
   final ValueChanged<Session> onLogin;
+  final String? notice;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -39,13 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      final s = await widget.api.login(_login.text.trim(), _password.text);
-      if (!s.isFieldRole) {
-        throw const ApiException(
-            'Приложение — для торговых агентов и экспедиторов. Директор, оператор и кладовщик работают в веб-админке.');
-      }
-      await widget.store.save(s);
-      widget.onLogin(s);
+      widget.onLogin(await widget.api.login(_login.text.trim(), _password.text));
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -97,6 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 4),
                     Text('Торговый агент и экспедитор', style: text.bodyLarge?.copyWith(color: AppColors.inkSoft)),
                     const SizedBox(height: 32),
+                    if (widget.notice != null) ...[MessageBox.info(widget.notice!), const SizedBox(height: 16)],
                     TextFormField(
                       controller: _login,
                       decoration: const InputDecoration(labelText: 'Телефон или логин', hintText: '+7 701 000 00 00'),
@@ -121,17 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onFieldSubmitted: (_) => _submit(),
                       validator: (v) => v == null || v.isEmpty ? 'Введите пароль' : null,
                     ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: const BoxDecoration(
-                          color: AppColors.crimsonSoft,
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                        ),
-                        child: Text(_error!, style: const TextStyle(color: AppColors.crimson)),
-                      ),
-                    ],
+                    if (_error != null) ...[const SizedBox(height: 16), MessageBox.error(_error!)],
                     const SizedBox(height: 24),
                     FilledButton(
                       onPressed: _busy ? null : _submit,

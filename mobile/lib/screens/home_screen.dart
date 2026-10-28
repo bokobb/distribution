@@ -1,17 +1,43 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
 import '../session.dart';
 import '../theme.dart';
 
 /// Главный экран по роли: у торгового агента — «Мой день» (маршрут на сегодня), у экспедитора — «Рейс».
-/// Данные появятся с синхронизацией; пока экран пустой.
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.session, required this.onLogout});
+/// При открытии сверяется с сервером, кто вошёл (имя и компания могли поменяться); без сети — работает
+/// с тем, что на телефоне. Данные появятся с синхронизацией; пока экран пустой.
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key, required this.api, required this.session, required this.onSession, required this.onLogout});
 
+  final ApiClient api;
   final Session session;
+  final ValueChanged<Session> onSession;
   final VoidCallback onLogout;
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    try {
+      final s = await widget.api.me();
+      if (mounted && (s.name != widget.session.name || s.company != widget.session.company || s.role != widget.session.role)) {
+        widget.onSession(s);
+      }
+    } on ApiException {
+      // нет сети — работаем с тем, что на телефоне; вход закрыт — приложение само вернётся на вход
+    }
+  }
+
+  Future<void> _confirmLogout() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -23,13 +49,14 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) onLogout();
+    if (ok == true) widget.onLogout();
   }
 
   @override
   Widget build(BuildContext context) {
-    final agent = session.isAgent;
-    final who = [session.name, if (session.company != null) session.company!].join(' · ');
+    final s = widget.session;
+    final agent = s.isAgent;
+    final who = [s.name, if (s.company != null) s.company!].join(' · ');
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -42,7 +69,7 @@ class HomeScreen extends StatelessWidget {
         actions: [
           PopupMenuButton<String>(
             tooltip: 'Меню',
-            onSelected: (_) => _confirmLogout(context),
+            onSelected: (_) => _confirmLogout(),
             itemBuilder: (_) => const [PopupMenuItem(value: 'logout', child: Text('Выйти'))],
           ),
         ],

@@ -1,11 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Кто вошёл в приложение: из ответа сервера на вход. Ключи доступа (токены) добавятся вместе со входом
-/// на сервере (/api/mobile/auth).
+/// Кто вошёл в приложение: из ответа сервера на вход.
 @immutable
 class Session {
-  const Session({required this.userId, required this.name, required this.role, this.company});
+  const Session({
+    required this.userId,
+    required this.name,
+    required this.role,
+    this.company,
+    this.mustChangePassword = false,
+  });
 
   final int userId;
   final String name;
@@ -14,24 +20,31 @@ class Session {
   final String role;
   final String? company;
 
+  /// Пароль временный (выдал директор) — сначала придумать свой.
+  final bool mustChangePassword;
+
   bool get isAgent => role == 'AGENT';
   bool get isExpeditor => role == 'EXPEDITOR';
-  bool get isFieldRole => isAgent || isExpeditor;
-
-  String get roleLabel => isAgent ? 'Торговый агент' : isExpeditor ? 'Экспедитор' : role;
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         userId: (json['id'] as num).toInt(),
         name: json['name'] as String,
         role: json['role'] as String,
         company: json['company'] as String?,
+        mustChangePassword: json['mustChangePassword'] as bool? ?? false,
       );
 }
 
-/// Хранит на телефоне, кто вошёл, и адрес сервера.
+/// Хранит на телефоне, кто вошёл, ключ устройства и адрес сервера. Ключ устройства — в защищённом хранилище
+/// Android (по нему сервер выдаёт новый JWT без пароля), остальное — в обычных настройках.
 class SessionStore {
+  SessionStore({FlutterSecureStorage? secure}) : _secure = secure ?? const FlutterSecureStorage();
+
+  final FlutterSecureStorage _secure;
+
   static const _user = 'session.user';
   static const _server = 'server.url';
+  static const _deviceToken = 'session.deviceToken';
 
   /// Адрес сервера по умолчанию: при сборке --dart-define=API_URL=https://…; для разработки — сервер на
   /// компьютере через `adb reverse tcp:8090 tcp:8090`.
@@ -43,7 +56,13 @@ class SessionStore {
     final name = p.getString('$_user.name');
     final role = p.getString('$_user.role');
     if (id == null || name == null || role == null) return null;
-    return Session(userId: id, name: name, role: role, company: p.getString('$_user.company'));
+    return Session(
+      userId: id,
+      name: name,
+      role: role,
+      company: p.getString('$_user.company'),
+      mustChangePassword: p.getBool('$_user.mustChange') ?? false,
+    );
   }
 
   Future<void> save(Session s) async {
@@ -51,6 +70,7 @@ class SessionStore {
     await p.setInt('$_user.id', s.userId);
     await p.setString('$_user.name', s.name);
     await p.setString('$_user.role', s.role);
+    await p.setBool('$_user.mustChange', s.mustChangePassword);
     if (s.company == null) {
       await p.remove('$_user.company');
     } else {
@@ -58,11 +78,18 @@ class SessionStore {
     }
   }
 
+  Future<String?> deviceToken() => _secure.read(key: _deviceToken);
+
+  Future<void> saveDeviceToken(String? token) =>
+      token == null ? _secure.delete(key: _deviceToken) : _secure.write(key: _deviceToken, value: token);
+
+  /// Забыть, кто вошёл, и ключ устройства. Адрес сервера остаётся.
   Future<void> clear() async {
     final p = await SharedPreferences.getInstance();
-    for (final k in ['id', 'name', 'role', 'company']) {
+    for (final k in ['id', 'name', 'role', 'company', 'mustChange']) {
       await p.remove('$_user.$k');
     }
+    await _secure.delete(key: _deviceToken);
   }
 
   Future<String> serverUrl() async =>
