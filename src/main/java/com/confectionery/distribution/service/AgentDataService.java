@@ -16,7 +16,7 @@ import java.util.*;
 
 /**
  * Всё, что нужно торговому агенту на телефоне для работы без сети: настройки компании, товары с ценами на
- * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты за сегодня. Телефон забирает это целиком при
+ * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня. Телефон забирает это целиком при
  * синхронизации и заменяет прежнее. Компания — из входа (TenantContext), чужое сюда не попадает.
  */
 @Service
@@ -29,6 +29,7 @@ public class AgentDataService {
     private final DebtService debts;
     private final SettingsService settings;
     private final VisitService visits;
+    private final MobileOrderService orders;
     private final Clock clock;
 
     public record Settings(int visitRadius, boolean shelfPhotoRequired, boolean refuseReasonRequired, int deliveryDays,
@@ -52,7 +53,8 @@ public class AgentDataService {
     }
 
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
-                            List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits) {
+                            List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits,
+                            List<MobileOrderService.OrderOut> orders) {
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +92,6 @@ public class AgentDataService {
                         o.getPriceType() == null ? PriceKind.WHOLESALE.name() : o.getPriceType().getCode().name(),
                         o.getCreditLimit(), o.getPaymentDays(), o.getStatus().name(), o.getDebt(), o.getOverdue(),
                         o.getLastPaymentDate(), o.getLastPaymentSum())).toList(),
-                visits.of(agentId, today));
+                visits.of(agentId, today), orders.of(agentId, today));
     }
 }

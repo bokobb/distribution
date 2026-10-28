@@ -5,6 +5,9 @@ import com.confectionery.distribution.security.MobileUser;
 import com.confectionery.distribution.service.AgentDataService;
 import com.confectionery.distribution.service.AgentDataService.AgentData;
 import com.confectionery.distribution.service.FileStore;
+import com.confectionery.distribution.service.MobileOrderService;
+import com.confectionery.distribution.service.MobileOrderService.OrderIn;
+import com.confectionery.distribution.service.MobileOrderService.OrderOut;
 import com.confectionery.distribution.service.VisitService;
 import com.confectionery.distribution.service.VisitService.VisitIn;
 import com.confectionery.distribution.service.VisitService.VisitOut;
@@ -30,13 +33,20 @@ public class AgentApiController {
 
     private final AgentDataService data;
     private final VisitService visits;
+    private final MobileOrderService orders;
     private final MobileAccounts accounts;
 
-    /** Данные для работы без сети: настройки, товары и цены, маршруты агента, магазины с долгами, визиты за сегодня. */
+    /** Данные для работы без сети: настройки, товары и цены, маршруты агента, магазины с долгами, визиты и заказы за сегодня. */
     @GetMapping("/api/mobile/agent/data")
     public AgentData data(@AuthenticationPrincipal MobileUser me) {
         accounts.touch(me.id(), null);
         return data.of(me.id(), me.companyId());
+    }
+
+    /** Заказ из магазина; повтор с тем же uuid возвращает уже принятый. */
+    @PostMapping("/api/mobile/agent/orders")
+    public OrderOut order(@AuthenticationPrincipal MobileUser me, @RequestBody OrderIn in) {
+        return orders.save(me.id(), in);
     }
 
     /** Законченный визит; повтор с тем же uuid возвращает уже записанный. */

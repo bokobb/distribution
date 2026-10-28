@@ -2,6 +2,7 @@ package com.confectionery.distribution.service;
 
 import com.confectionery.distribution.domain.Price;
 import com.confectionery.distribution.domain.PriceKind;
+import com.confectionery.distribution.domain.PriceType;
 import com.confectionery.distribution.domain.Product;
 import com.confectionery.distribution.repository.PriceRepository;
 import com.confectionery.distribution.repository.ProductRepository;
@@ -30,6 +31,14 @@ public class CatalogService {
                 .filter(p -> companyId == null || companyId.equals(p.getCompanyId())).toList();
         fillPrices(list);
         return list;
+    }
+
+    /** Цены одного типа на день: id товара → цена за штуку (последняя запись с validFrom не позже дня). */
+    public Map<Long, Long> pricesOn(PriceType type, LocalDate day) {
+        Map<Long, Long> out = new HashMap<>();
+        for (Price pr : prices.findByValidFromLessThanEqualOrderByValidFromAsc(day))
+            if (pr.getPriceType().getId().equals(type.getId())) out.put(pr.getProduct().getId(), pr.getPrice());
+        return out;
     }
 
     /** Цены на сегодня: у каждого товара и типа цен — последняя запись с validFrom не позже сегодня. */

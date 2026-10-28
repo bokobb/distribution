@@ -12,6 +12,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByDeliveryDate(LocalDate date);
@@ -25,6 +27,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByCreatedAtGreaterThanEqualAndCreatedAtLessThan(LocalDateTime from, LocalDateTime to);
 
     List<Order> findByOutletOrderByCreatedAtDesc(Outlet outlet);
+
+    Optional<Order> findByUuid(UUID uuid);
+
+    boolean existsByCompanyIdAndNumber(Long companyId, String number);
+
+    List<Order> findByAgentIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(Long agentId,
+                                                                                                LocalDateTime from,
+                                                                                                LocalDateTime to);
 
     /** Заказы под изменение: двое отгружают одни и те же заказы — второй ждёт и видит их уже в рейсе. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
