@@ -16,7 +16,7 @@ import java.util.*;
 
 /**
  * Всё, что нужно торговому агенту на телефоне для работы без сети: настройки компании, товары с ценами на
- * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов. Телефон забирает это целиком при
+ * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты за сегодня. Телефон забирает это целиком при
  * синхронизации и заменяет прежнее. Компания — из входа (TenantContext), чужое сюда не попадает.
  */
 @Service
@@ -28,6 +28,7 @@ public class AgentDataService {
     private final CatalogService catalog;
     private final DebtService debts;
     private final SettingsService settings;
+    private final VisitService visits;
     private final Clock clock;
 
     public record Settings(int visitRadius, boolean shelfPhotoRequired, boolean refuseReasonRequired, int deliveryDays,
@@ -51,7 +52,7 @@ public class AgentDataService {
     }
 
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
-                            List<RouteDto> routes, List<OutletDto> outlets) {
+                            List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits) {
     }
 
     @Transactional(readOnly = true)
@@ -77,7 +78,8 @@ public class AgentDataService {
         List<Product> active = products.findAllByOrderByNameAsc().stream().filter(Product::isActive).toList();
         catalog.fillPrices(active);
 
-        return new AgentData(LocalDate.now(clock), LocalDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS),
+        LocalDate today = LocalDate.now(clock);
+        return new AgentData(today, LocalDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS),
                 new Settings(s.getVisitRadius(), s.isShelfPhotoRequired(), s.isRefuseReasonRequired(), s.getDeliveryDays(),
                         s.isAllowCredit(), s.isApprovalOverLimit(), s.isAgentDiscount(), s.isAcceptKaspi(), s.getGpsInterval()),
                 active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
@@ -87,6 +89,7 @@ public class AgentDataService {
                         o.getPhone(), o.getPhone2(), o.getAddress(), o.getLandmark(), o.getLat(), o.getLng(),
                         o.getPriceType() == null ? PriceKind.WHOLESALE.name() : o.getPriceType().getCode().name(),
                         o.getCreditLimit(), o.getPaymentDays(), o.getStatus().name(), o.getDebt(), o.getOverdue(),
-                        o.getLastPaymentDate(), o.getLastPaymentSum())).toList());
+                        o.getLastPaymentDate(), o.getLastPaymentSum())).toList(),
+                visits.of(agentId, today));
     }
 }

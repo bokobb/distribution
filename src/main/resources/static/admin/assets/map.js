@@ -96,7 +96,8 @@
             }),
             title: (i + 1) + '. ' + s.outlet
           }).bindPopup('<b>' + esc(s.time) + ' · ' + esc(s.outlet) + '</b><br>' + esc(p.name) + ', ' + esc(KIND[s.kind] || s.kind)
-            + '<br>' + esc(s.note)).addTo(g);
+            + '<br>' + esc(s.note)
+            + (s.photo ? '<br><a href="' + esc(s.photo) + '" target="_blank" rel="noopener">Фото полки</a>' : '')).addTo(g);
           all.push([s.lat, s.lng]);
         });
 

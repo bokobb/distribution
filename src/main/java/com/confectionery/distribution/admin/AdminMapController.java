@@ -2,19 +2,30 @@ package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Role;
 import com.confectionery.distribution.service.MapService;
+import com.confectionery.distribution.service.NotFoundException;
+import com.confectionery.distribution.service.VisitService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /** Карта: магазины и пути торговых и экспедиторов за день. Данные страница берёт из /admin/map/data. */
 @Controller
@@ -23,6 +34,7 @@ public class AdminMapController {
 
     private final AdminContext ctx;
     private final MapService map;
+    private final VisitService visits;
     private final Fmt fmt;
     private final Clock clock;
 
@@ -42,6 +54,14 @@ public class AdminMapController {
         model.addAttribute("chosen", people.stream().filter(p -> sel.contains(p.id())).toList());
         model.addAttribute("link", new QueryLink(request));
         return "admin/map";
+    }
+
+    /** Фото полки к визиту — ссылка во всплывающей подписи визита. */
+    @GetMapping("/admin/map/photo/{uuid}")
+    public ResponseEntity<Resource> photo(@PathVariable UUID uuid) {
+        Path file = visits.photoFile(uuid).orElseThrow(NotFoundException::new);
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG)
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate()).body(new FileSystemResource(file));
     }
 
     @GetMapping("/admin/map/data")

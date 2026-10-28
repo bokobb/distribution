@@ -41,7 +41,8 @@ public class MapService {
     private final AppEventRepository events;
 
     /** Точка пути: kind — ORDER, NO_ORDER (визит), DELIVERED, PARTIAL, REFUSED (выдача). */
-    public record Stop(double lat, double lng, String time, String outlet, String kind, String note) {
+    /** photo — адрес фото полки к визиту, если агент его снял. */
+    public record Stop(double lat, double lng, String time, String outlet, String kind, String note, String photo) {
     }
 
     /**
@@ -94,7 +95,8 @@ public class MapService {
             String note = order ? "заказ" : "без заказа" + (v.getRefuseReason() == null ? "" : ": " + v.getRefuseReason());
             if (v.getDistance() != null && v.getDistance() > 0) note += " · " + v.getDistance() + " м от магазина";
             stops.computeIfAbsent(w.id(), k -> new ArrayList<>())
-                    .add(new Stop(at[0], at[1], v.getStartedAt().format(TIME), v.getOutlet().getName(), v.getResult().name(), note));
+                    .add(new Stop(at[0], at[1], v.getStartedAt().format(TIME), v.getOutlet().getName(), v.getResult().name(), note,
+                            v.getShelfPhoto() == null ? null : "/admin/map/photo/" + v.getUuid()));
             int[] c = counts.computeIfAbsent(w.id(), k -> new int[2]);
             c[0]++;
             if (order) c[1]++;
@@ -115,7 +117,7 @@ public class MapService {
                 case REFUSED -> "отказ" + (d.getRefuseReason() == null ? "" : ": " + d.getRefuseReason());
             };
             stops.computeIfAbsent(w.id(), k -> new ArrayList<>())
-                    .add(new Stop(at[0], at[1], d.getDeliveredAt().format(TIME), o.getName(), d.getStatus().name(), note));
+                    .add(new Stop(at[0], at[1], d.getDeliveredAt().format(TIME), o.getName(), d.getStatus().name(), note, null));
             int[] c = counts.computeIfAbsent(w.id(), k -> new int[2]);
             c[0]++;
             if (d.getStatus() == DeliveryStatus.REFUSED) c[1]++;
