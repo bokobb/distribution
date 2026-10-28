@@ -16,6 +16,9 @@ class FakeServer {
   /// Сервер недоступен.
   bool offline = false;
 
+  /// Что сервер отдаёт агенту: сегодня маршрут «Центр» из двух магазинов, у второго долг с просрочкой.
+  Map<String, dynamic> agentData = sampleAgentData();
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -46,6 +49,9 @@ class FakeServer {
       case '/api/mobile/me':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(_user(), 200);
+      case '/api/mobile/agent/data':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        return _json(agentData, 200);
     }
     return http.Response('', 404);
   });
@@ -65,4 +71,36 @@ class FakeServer {
 
   static http.Response _json(Object body, int status) =>
       http.Response.bytes(utf8.encode(jsonEncode(body)), status, headers: {'content-type': 'application/json'});
+}
+
+Map<String, dynamic> sampleAgentData({DateTime? now}) {
+  final t = now ?? DateTime.now();
+  String d(DateTime x) => '${x.year}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+  Map<String, dynamic> outlet(int id, String name, {int debt = 0, int overdue = 0}) => {
+        'id': id, 'uuid': '00000000-0000-0000-0000-00000000000$id', 'name': name, 'legal': 'ИП $name', 'owner': null,
+        'phone': '+77010000000', 'phone2': null, 'address': 'ул. Байтурсынова, $id', 'landmark': null,
+        'lat': 42.3, 'lng': 69.6, 'priceKind': 'WHOLESALE', 'creditLimit': 100000, 'paymentDays': 7,
+        'status': 'ACTIVE', 'debt': debt, 'overdue': overdue, 'lastPaymentDate': null, 'lastPaymentSum': 0,
+      };
+  return {
+    'date': d(t),
+    'syncedAt': '${d(t)}T09:15:00',
+    'settings': {
+      'visitRadius': 200, 'shelfPhotoRequired': false, 'refuseReasonRequired': true, 'deliveryDays': 1,
+      'allowCredit': true, 'approvalOverLimit': true, 'agentDiscount': false, 'acceptKaspi': true, 'gpsInterval': 5,
+    },
+    'products': [
+      {'id': 1, 'name': 'Печенье овсяное', 'category': 'Печенье', 'unit': 'шт', 'perBox': 12, 'barcode': null,
+        'wholesale': 500, 'retail': 600},
+    ],
+    'routes': [
+      {'id': 1, 'name': 'Центр', 'region': 'Шымкент', 'days': [t.weekday], 'outlets': [2, 1]},
+      {'id': 2, 'name': 'Сайрам', 'region': 'Сайрам', 'days': [t.weekday % 7 + 1], 'outlets': [3]},
+    ],
+    'outlets': [
+      outlet(1, 'Магазин «Арай»', debt: 45000, overdue: 12000),
+      outlet(2, 'Магазин «Береке»'),
+      outlet(3, 'Магазин «Сайрам»'),
+    ],
+  };
 }

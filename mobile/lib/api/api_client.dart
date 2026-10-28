@@ -71,6 +71,9 @@ class ApiClient {
 
   Future<Session> me() async => Session.fromJson(await _authed('GET', '/api/mobile/me'));
 
+  /// Данные агента для работы без сети (AgentData) — как есть, чтобы сохранить на телефоне.
+  Future<Map<String, dynamic>> agentData() => _authed('GET', '/api/mobile/agent/data');
+
   /// Свой пароль вместо временного; вход на остальных телефонах сотрудника закрывается.
   Future<Session> changePassword(String current, String password, String confirm) async =>
       Session.fromJson(await _authed('POST', '/api/mobile/auth/password',

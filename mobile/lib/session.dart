@@ -24,7 +24,6 @@ class Session {
   final bool mustChangePassword;
 
   bool get isAgent => role == 'AGENT';
-  bool get isExpeditor => role == 'EXPEDITOR';
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         userId: (json['id'] as num).toInt(),
