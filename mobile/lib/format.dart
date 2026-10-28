@@ -3,16 +3,19 @@ library;
 
 const weekdaysShort = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-/// 30000 → «30 000 ₸»; минус — «−5 000 ₸».
-String money(int amount) {
-  final digits = amount.abs().toString();
+/// 30000 → «30 000» — разряды через неразрывный пробел, без знака валюты (для таблиц).
+String amount(int v) {
+  final digits = v.abs().toString();
   final b = StringBuffer();
   for (var i = 0; i < digits.length; i++) {
     if (i > 0 && (digits.length - i) % 3 == 0) b.write(' ');
     b.write(digits[i]);
   }
-  return '${amount < 0 ? '−' : ''}$b ₸';
+  return '${v < 0 ? '−' : ''}$b';
 }
+
+/// 30000 → «30 000 ₸»; минус — «−5 000 ₸».
+String money(int v) => '${amount(v)} ₸';
 
 String two(int n) => n.toString().padLeft(2, '0');
 
@@ -41,4 +44,47 @@ String plural(int n, String one, String few, String many) {
           ? few
           : many;
   return '$n $word';
+}
+
+/// Сумма прописью для накладной, как в админке (до 999 миллиардов): 112440 → «Сто двенадцать тысяч четыреста сорок
+/// тенге».
+String moneyWords(int amount) {
+  if (amount == 0) return 'Ноль тенге';
+  const ones = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const onesF = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять'];
+  const teens = ['десять', 'одиннадцать', 'двенадцать', 'тринадцать', 'четырнадцать', 'пятнадцать', 'шестнадцать',
+    'семнадцать', 'восемнадцать', 'девятнадцать'];
+  const tens = ['', '', 'двадцать', 'тридцать', 'сорок', 'пятьдесят', 'шестьдесят', 'семьдесят', 'восемьдесят',
+    'девяносто'];
+  const hundreds = ['', 'сто', 'двести', 'триста', 'четыреста', 'пятьсот', 'шестьсот', 'семьсот', 'восемьсот',
+    'девятьсот'];
+  // разряды от старшего: миллиарды, миллионы, тысячи (женский род), единицы
+  const scales = [
+    ['миллиард', 'миллиарда', 'миллиардов'],
+    ['миллион', 'миллиона', 'миллионов'],
+    ['тысяча', 'тысячи', 'тысяч'],
+    null,
+  ];
+  final words = <String>[if (amount < 0) 'минус'];
+  final n = amount.abs();
+  var scale = 1000000000;
+  for (var i = 0; i < scales.length; i++, scale ~/= 1000) {
+    final part = n ~/ scale % 1000;
+    if (part == 0) continue;
+    if (part ~/ 100 > 0) words.add(hundreds[part ~/ 100]);
+    final rest = part % 100;
+    if (rest >= 10 && rest < 20) {
+      words.add(teens[rest - 10]);
+    } else {
+      if (rest ~/ 10 > 0) words.add(tens[rest ~/ 10]);
+      if (rest % 10 > 0) words.add((i == 2 ? onesF : ones)[rest % 10]);
+    }
+    final forms = scales[i];
+    if (forms != null) {
+      final a = part % 100, b = a % 10;
+      words.add(a > 10 && a < 20 ? forms[2] : b == 1 ? forms[0] : b >= 2 && b <= 4 ? forms[1] : forms[2]);
+    }
+  }
+  final s = '${words.join(' ')} тенге';
+  return s[0].toUpperCase() + s.substring(1);
 }

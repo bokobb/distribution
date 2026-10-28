@@ -193,7 +193,12 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
                   context,
                   MaterialPageRoute(
                       builder: (_) => StopScreen(
-                          stop: s, trip: t, data: data, deliveries: widget.deliveries, workday: widget.workday))),
+                          stop: s,
+                          trip: t,
+                          data: data,
+                          deliveries: widget.deliveries,
+                          workday: widget.workday,
+                          expeditor: widget.session.name))),
             ),
           ),
       ];

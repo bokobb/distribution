@@ -7,10 +7,12 @@ import '../data/delivery.dart';
 import '../data/expeditor_data.dart';
 import '../deliveries.dart';
 import '../format.dart';
+import '../invoice.dart';
 import '../launch.dart';
 import '../theme.dart';
 import '../workday.dart';
 import 'deliver_screen.dart';
+import 'invoice_screen.dart';
 import 'return_screen.dart';
 
 /// Точка рейса: что везём (заказ с составом и суммой, как оплачивает), магазин — долг, телефон, адрес;
@@ -23,13 +25,17 @@ class StopScreen extends StatefulWidget {
       required this.trip,
       required this.data,
       required this.deliveries,
-      required this.workday});
+      required this.workday,
+      this.expeditor});
 
   final Stop stop;
   final TripInfo trip;
   final ExpeditorData data;
   final DeliveryBook deliveries;
   final Workday workday;
+
+  /// Кто везёт — для накладной.
+  final String? expeditor;
 
   @override
   State<StopScreen> createState() => _StopScreenState();
@@ -159,8 +165,24 @@ class _StopScreenState extends State<StopScreen> {
     final local = widget.deliveries.of(order.id);
     final done = widget.deliveries.done(order);
     final hasPlace = o.lat != null && o.lng != null || o.address != null || o.landmark != null;
+    final refused = order.refused || local != null && local.error == null && local.refused;
     return Scaffold(
-      appBar: AppBar(title: Text(o.name)),
+      appBar: AppBar(
+        title: Text(o.name),
+        actions: [
+          if (!refused)
+            IconButton(
+              tooltip: 'Накладная',
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => InvoiceScreen(
+                          invoice: Invoice.of(
+                              data: data, trip: widget.trip, stop: stop, local: local, expeditor: widget.expeditor)))),
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

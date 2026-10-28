@@ -522,6 +522,7 @@ void main() {
     expect(find.text(money(12000)), findsOneWidget);
     expect(find.text('Долг ${money(45000)}'), findsOneWidget);
     expect(find.text('Позвонить'), findsOneWidget);
+    expect(find.byTooltip('Накладная'), findsOneWidget);
 
     final opened = <String>[];
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/url_launcher'),
@@ -615,6 +616,7 @@ void main() {
 
     expect(find.text('Отказ: Магазин закрыт'), findsOneWidget);
     expect(find.textContaining('Ждёт отправки'), findsOneWidget);
+    expect(find.byTooltip('Накладная'), findsNothing); // отказ — накладной нет
     await t.pageBack();
     await t.pumpAndSettle();
     expect(find.text('Отказ · ждёт отправки'), findsOneWidget);
