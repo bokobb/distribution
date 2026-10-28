@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -72,6 +73,34 @@ class AgentDataTest {
         agentData(other.agent()).andExpect(jsonPath("$.outlets[0].name").value(other.outlet().getName()))
                 .andExpect(jsonPath("$.outlets", hasSize(1)));
         agentData(w.agent()).andExpect(jsonPath("$.outlets[?(@.id == " + foreign.getId() + ")]", hasSize(0)));
+    }
+
+    @Test
+    void дляКартыОстальныеМагазиныКомпанииБезДолгов() throws Exception {
+        World w = data.world("Карта");
+        World other = data.world("Карта чужой компании");
+        data.place(w.outlet(), 42.30, 69.60);
+        data.place(other.outlet(), 42.31, 69.61);
+        Outlet near = data.outletInNewRegion(w, data.person(w, "Сосед", Role.AGENT));
+        data.place(near, 42.32, 69.62);
+        Outlet noPoint = data.outletInNewRegion(w, data.person(w, "Без точки", Role.AGENT));
+        String region = jdbc.queryForObject("select g.name from regions g join routes r on r.region_id = g.id "
+                + "join route_outlets ro on ro.route_id = r.id where ro.outlet_id = ?", String.class, near.getId());
+
+        agentData(w.agent()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.others", hasSize(1)))
+                .andExpect(jsonPath("$.others[0].id").value(near.getId()))
+                .andExpect(jsonPath("$.others[0].name").value(near.getName()))
+                .andExpect(jsonPath("$.others[0].lat").value(42.32))
+                .andExpect(jsonPath("$.others[0].region").value(region))
+                .andExpect(jsonPath("$.others[0].debt").doesNotExist())
+                .andExpect(jsonPath("$.others[0].phone").doesNotExist())
+                .andExpect(jsonPath("$.others[?(@.id == " + w.outlet().getId() + ")]", empty()))
+                .andExpect(jsonPath("$.others[?(@.id == " + other.outlet().getId() + ")]", empty()))
+                .andExpect(jsonPath("$.others[?(@.id == " + noPoint.getId() + ")]", empty()));
+
+        jdbc.update("update outlets set status = 'CLOSED' where id = ?", near.getId());
+        agentData(w.agent()).andExpect(jsonPath("$.others", empty()));
     }
 
     @Test

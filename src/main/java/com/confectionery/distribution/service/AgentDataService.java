@@ -1,6 +1,7 @@
 package com.confectionery.distribution.service;
 
 import com.confectionery.distribution.domain.*;
+import com.confectionery.distribution.repository.OutletRepository;
 import com.confectionery.distribution.repository.ProductRepository;
 import com.confectionery.distribution.repository.RouteRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,8 @@ import java.util.*;
 
 /**
  * Всё, что нужно торговому агенту на телефоне для работы без сети: настройки компании, товары с ценами на
- * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня. Телефон забирает это целиком при
+ * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня, а для
+ * карты — остальные магазины компании (только название, адрес и точка, без долгов). Телефон забирает это целиком при
  * синхронизации и заменяет прежнее. Компания — из входа (TenantContext), чужое сюда не попадает.
  */
 @Service
@@ -24,6 +26,7 @@ import java.util.*;
 public class AgentDataService {
 
     private final RouteRepository routes;
+    private final OutletRepository allOutlets;
     private final ProductRepository products;
     private final CatalogService catalog;
     private final DebtService debts;
@@ -52,9 +55,14 @@ public class AgentDataService {
                             long lastPaymentSum) {
     }
 
+    /** Магазин другого торгового — для карты агента; region — филиал его маршрута. */
+    public record PlaceDto(Long id, String name, String address, String landmark, double lat, double lng, String region) {
+    }
+
+    /** others — магазины компании не из маршрутов агента, у которых есть точка на карте. */
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
                             List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits,
-                            List<MobileOrderService.OrderOut> orders) {
+                            List<MobileOrderService.OrderOut> orders, List<PlaceDto> others) {
     }
 
     /** Магазин для телефона; долг и последняя оплата — если заполнены (DebtService). */
@@ -97,6 +105,14 @@ public class AgentDataService {
                         p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
                 routeDtos,
                 outlets.values().stream().map(AgentDataService::outlet).toList(),
-                visits.of(agentId, today), orders.of(agentId, today));
+                visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()));
+    }
+
+    private List<PlaceDto> others(Set<Long> mine) {
+        return allOutlets.findAllByOrderByNameAsc().stream()
+                .filter(o -> !mine.contains(o.getId()) && o.getStatus() != OutletStatus.CLOSED && o.getLat() != null && o.getLng() != null)
+                .map(o -> new PlaceDto(o.getId(), o.getName(), o.getAddress(), o.getLandmark(), o.getLat(), o.getLng(),
+                        o.getRegion() == null ? null : o.getRegion().getName()))
+                .toList();
     }
 }
