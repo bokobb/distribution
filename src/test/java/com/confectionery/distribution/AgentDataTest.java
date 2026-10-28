@@ -1,0 +1,82 @@
+package com.confectionery.distribution;
+
+import com.confectionery.distribution.TestData.World;
+import com.confectionery.distribution.domain.Employee;
+import com.confectionery.distribution.domain.Outlet;
+import com.confectionery.distribution.domain.PriceKind;
+import com.confectionery.distribution.domain.Role;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/** Данные агента для работы без сети: только его маршруты и магазины своей компании, цены на сегодня, долги. */
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import({TestcontainersConfiguration.class, TestData.class})
+class AgentDataTest {
+
+    @Autowired
+    MockMvc mvc;
+    @Autowired
+    TestData data;
+    @Autowired
+    JdbcTemplate jdbc;
+
+    private ResultActions agentData(Employee e) throws Exception {
+        return mvc.perform(get("/api/mobile/agent/data").header("Authorization", "Bearer " + data.jwt(e)));
+    }
+
+    @Test
+    void агентПолучаетСвоиМаршрутыМагазиныЦеныИДолги() throws Exception {
+        World w = data.world("Агент");
+        World other = data.world("Чужая");
+        data.price(w, PriceKind.WHOLESALE, 450, data.today().minusDays(10));
+        data.price(w, PriceKind.WHOLESALE, 500, data.today());
+        data.price(w, PriceKind.WHOLESALE, 550, data.today().plusDays(1));
+        data.price(w, PriceKind.RETAIL, 600, data.today().minusDays(1));
+        data.openingDebt(w, 30_000, data.today().minusDays(30));
+        // магазин другого агента той же компании и выключенный товар агенту не нужны
+        Outlet foreign = data.outletInNewRegion(w, data.person(w, "Другой агент", Role.AGENT));
+        jdbc.update("insert into products (company_id, name, category, active) values (?, 'Снят с продажи', 'Печенье', false)", w.id());
+
+        agentData(w.agent()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.date").value(data.today().toString()))
+                .andExpect(jsonPath("$.settings.visitRadius").value(200))
+                .andExpect(jsonPath("$.settings.gpsInterval").value(5))
+                .andExpect(jsonPath("$.routes", hasSize(1)))
+                .andExpect(jsonPath("$.routes[0].name").value(w.route().getName()))
+                .andExpect(jsonPath("$.routes[0].days", contains(1, 2, 3, 4, 5, 6, 7)))
+                .andExpect(jsonPath("$.routes[0].outlets", contains(w.outlet().getId().intValue())))
+                .andExpect(jsonPath("$.outlets", hasSize(1)))
+                .andExpect(jsonPath("$.outlets[0].name").value(w.outlet().getName()))
+                .andExpect(jsonPath("$.outlets[0].priceKind").value("WHOLESALE"))
+                .andExpect(jsonPath("$.outlets[0].debt").value(30_000))
+                .andExpect(jsonPath("$.outlets[0].overdue").value(30_000))
+                .andExpect(jsonPath("$.products", hasSize(1)))
+                .andExpect(jsonPath("$.products[0].wholesale").value(500))
+                .andExpect(jsonPath("$.products[0].retail").value(600));
+
+        jdbc.update("update outlets set status = 'CLOSED' where id = ?", w.outlet().getId());
+        agentData(w.agent()).andExpect(jsonPath("$.routes[0].outlets", hasSize(0))).andExpect(jsonPath("$.outlets", hasSize(0)));
+        agentData(other.agent()).andExpect(jsonPath("$.outlets[0].name").value(other.outlet().getName()))
+                .andExpect(jsonPath("$.outlets", hasSize(1)));
+        agentData(w.agent()).andExpect(jsonPath("$.outlets[?(@.id == " + foreign.getId() + ")]", hasSize(0)));
+    }
+
+    @Test
+    void экспедиторуДанныеАгентаЗакрыты() throws Exception {
+        World w = data.world("Экспедитор");
+        agentData(w.expeditor()).andExpect(status().isForbidden());
+    }
+}

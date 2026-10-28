@@ -2,6 +2,7 @@ package com.confectionery.distribution;
 
 import com.confectionery.distribution.domain.*;
 import com.confectionery.distribution.repository.*;
+import com.confectionery.distribution.security.JwtService;
 import com.confectionery.distribution.service.Actor;
 import com.confectionery.distribution.service.StockService;
 import com.confectionery.distribution.tenant.TenantContext;
@@ -52,6 +53,7 @@ public class TestData {
     private final Clock clock;
     private final PasswordEncoder encoder;
     private final JdbcTemplate jdbc;
+    private final JwtService jwt;
 
     /** Компания с одним магазином, товаром, агентом, экспедитором с машиной и оператором. */
     public record World(Company company, Employee operator, Employee agent, Employee expeditor, Route route,
@@ -102,6 +104,19 @@ public class TestData {
     public void password(Employee e, String password, boolean mustChange) {
         jdbc.update("update users set password_hash = ?, must_change_password = ?, active = true where id = ?",
                 encoder.encode(password), mustChange, e.getId());
+    }
+
+    /** JWT приложения для агента или экспедитора: вход открыт, пароль уже свой. */
+    public String jwt(Employee e) {
+        jdbc.update("update users set must_change_password = false, active = true where id = ?", e.getId());
+        return jwt.issue(e.getId());
+    }
+
+    /** Цена товара по прайсу компании (опт или розница) с даты. */
+    public void price(World w, PriceKind kind, long price, LocalDate from) {
+        jdbc.update("insert into prices (company_id, product_id, price_type_id, valid_from, price) "
+                        + "select ?, ?, id, ?, ? from price_types where company_id = ? and code = ?",
+                w.id(), w.product().getId(), from, price, w.id(), kind.name());
     }
 
     /** Владелец (один на базу): нет — создаётся; пароль задаётся заново. Возвращает телефон для входа. */
