@@ -177,7 +177,7 @@ public class MobileOrderService {
                         l.getNetPrice(), l.getSum())).toList());
     }
 
-    private static String money(long v) {
+    static String money(long v) {
         return String.format(Locale.ROOT, "%,d", v).replace(',', ' ') + " ₸";
     }
 
