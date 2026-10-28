@@ -27,6 +27,28 @@ void main() {
     expect(data.settings.visitRadius, 200);
   });
 
+  test('карта: свои и чужие магазины, филиал, «Мои»; без точки — не на карте', () {
+    final json = sampleAgentData();
+    (json['outlets'] as List).add({...(json['outlets'] as List).first as Map<String, dynamic>, 'id': 4, 'lat': null});
+    (json['routes'] as List).first['outlets'] = [2, 1, 4];
+    final data = AgentData.fromJson(json);
+
+    expect(data.regions, ['Сайрам', 'Шымкент']);
+    expect(data.mapPoints().map((p) => p.id), [1, 2, 3, 10, 11]);
+    expect(data.mapPoints(mineOnly: true).map((p) => p.id), [1, 2, 3]);
+    expect(data.mapPoints(region: 'Сайрам').map((p) => p.id), [3, 11]);
+    expect(data.mapPoints(region: 'Сайрам', mineOnly: true).map((p) => p.id), [3]);
+
+    final other = data.mapPoints().last;
+    expect([other.mine, other.place, other.region], [null, 'у трассы', 'Сайрам']);
+    final mine = data.mapPoints().first;
+    expect([mine.mine?.debt, mine.region], [45000, 'Шымкент']);
+    expect(data.routeOf(3)?.name, 'Сайрам');
+
+    // старые данные на телефоне — без others
+    expect(AgentData.fromJson(sampleAgentData()..remove('others')).others, isEmpty);
+  });
+
   test('подписи: деньги, склонения, когда обновлено', () {
     expect(money(45000), '45 000 ₸');
     expect(money(-500), '−500 ₸');

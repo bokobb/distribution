@@ -462,4 +462,39 @@ void main() {
     expect(find.text('на проверке'), findsOneWidget);
     expect(find.text('Центр · Шымкент · 3 магазина'), findsOneWidget);
   });
+
+  testWidgets('карта: все магазины компании, филиал и «Мои», свой открывается', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    await t.tap(find.byTooltip('Карта'));
+    await t.pumpAndSettle();
+    expect(find.text('5 точек'), findsOneWidget);
+    expect(find.text('Все филиалы'), findsOneWidget);
+
+    await t.tap(find.text('Мои'));
+    await t.pumpAndSettle();
+    expect(find.text('3 точки'), findsOneWidget);
+    await t.tap(find.text('Все'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Сайрам'));
+    await t.pumpAndSettle();
+    expect(find.text('2 точки'), findsOneWidget);
+
+    await t.tap(find.byTooltip('Магазин «Ак жол»'));
+    await t.pumpAndSettle();
+    expect(find.text('Сайрам · магазин другого торгового'), findsOneWidget);
+    expect(find.text('Открыть магазин'), findsNothing);
+    await t.tapAt(const Offset(400, 50));
+    await t.pumpAndSettle();
+
+    await t.tap(find.byTooltip('Магазин «Сайрам»'));
+    await t.pumpAndSettle();
+    expect(find.text('Сайрам · ваш магазин'), findsOneWidget);
+    await t.tap(find.text('Открыть магазин'));
+    await t.pumpAndSettle();
+    expect(find.text('Начать визит'), findsOneWidget);
+  });
 }

@@ -7,13 +7,14 @@ import '../workday.dart';
 import 'send_screen.dart';
 
 /// Шапка главного экрана: заголовок, кто вошёл; меню — «Обновить» (если есть), «Отправка» и «Выйти» с вопросом.
-/// outletNames — названия магазинов для экрана «Отправка».
+/// outletNames — названия магазинов для экрана «Отправка»; actions — кнопки перед меню.
 AppBar homeAppBar(BuildContext context,
         {required String title,
         required Session session,
         required Workday workday,
         Map<int, String> outletNames = const {},
         VoidCallback? onRefresh,
+        List<Widget> actions = const [],
         required VoidCallback onLogout}) =>
     AppBar(
       title: Column(
@@ -25,6 +26,7 @@ AppBar homeAppBar(BuildContext context,
         ],
       ),
       actions: [
+        ...actions,
         PopupMenuButton<String>(
           tooltip: 'Меню',
           onSelected: (v) => switch (v) {

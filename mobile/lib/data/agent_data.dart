@@ -2,11 +2,11 @@ import 'order.dart';
 import 'visit.dart';
 
 /// Данные торгового агента с сервера (/api/mobile/agent/data): настройки компании, товары с ценами на день
-/// синхронизации, маршруты агента, магазины с долгами, его визиты и заказы за этот день. Хранятся на телефоне
-/// целиком, обновляются целиком.
+/// синхронизации, маршруты агента, магазины с долгами, его визиты и заказы за этот день, а для карты — остальные
+/// магазины компании. Хранятся на телефоне целиком, обновляются целиком.
 class AgentData {
   AgentData._(this.json, this.date, this.syncedAt, this.settings, this.products, this.routes, this.outlets,
-      this.visits, this.orders);
+      this.visits, this.orders, this.others);
 
   /// Как пришло с сервера — так и хранится на телефоне.
   final Map<String, dynamic> json;
@@ -22,6 +22,9 @@ class AgentData {
   /// Визиты и заказы агента за день синхронизации, которые уже на сервере.
   final List<Visit> visits;
   final List<Order> orders;
+
+  /// Магазины других торговых — только для карты.
+  final List<Place> others;
 
   Product? product(int id) => products.where((p) => p.id == id).firstOrNull;
 
@@ -41,6 +44,7 @@ class AgentData {
       outlets,
       [for (final v in json['visits'] as List? ?? const []) Visit.fromServer(v as Map<String, dynamic>)],
       [for (final o in json['orders'] as List? ?? const []) Order.fromServer(o as Map<String, dynamic>)],
+      [for (final p in json['others'] as List? ?? const []) Place.fromJson(p as Map<String, dynamic>)],
     );
   }
 
@@ -49,6 +53,77 @@ class AgentData {
 
   /// Магазины маршрута по порядку обхода.
   List<Outlet> outletsOf(RouteInfo route) => [for (final id in route.outletIds) ?outlets[id]];
+
+  /// Первый маршрут агента, в котором есть магазин.
+  RouteInfo? routeOf(int outletId) => routes.where((r) => r.outletIds.contains(outletId)).firstOrNull;
+
+  /// Филиалы, где есть магазины, — для фильтра карты.
+  List<String> get regions => {
+        for (final r in routes) ?r.region,
+        for (final p in others) ?p.region,
+      }.toList()
+        ..sort();
+
+  /// Точки для карты: свои магазины и (если не [mineOnly]) остальные; [region] — только этого филиала.
+  /// Магазины без точки на карту не попадают.
+  List<MapPoint> mapPoints({String? region, bool mineOnly = false}) => [
+        for (final o in outlets.values)
+          if (o.lat != null && o.lng != null && (region == null || routeOf(o.id)?.region == region))
+            MapPoint(
+                id: o.id,
+                name: o.name,
+                place: o.address ?? o.landmark,
+                lat: o.lat!,
+                lng: o.lng!,
+                region: routeOf(o.id)?.region,
+                mine: o),
+        if (!mineOnly)
+          for (final p in others)
+            if (region == null || p.region == region)
+              MapPoint(id: p.id, name: p.name, place: p.address ?? p.landmark, lat: p.lat, lng: p.lng, region: p.region),
+      ];
+}
+
+/// Магазин другого торгового: название, адрес и точка, без долгов.
+class Place {
+  const Place(
+      {required this.id, required this.name, this.address, this.landmark, required this.lat, required this.lng, this.region});
+
+  final int id;
+  final String name;
+  final String? address;
+  final String? landmark;
+  final double lat;
+  final double lng;
+
+  /// Филиал.
+  final String? region;
+
+  factory Place.fromJson(Map<String, dynamic> j) => Place(
+        id: j['id'] as int,
+        name: j['name'] as String,
+        address: j['address'] as String?,
+        landmark: j['landmark'] as String?,
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+        region: j['region'] as String?,
+      );
+}
+
+/// Точка на карте агента; [mine] — свой магазин (с долгом и визитом), null — другого торгового.
+class MapPoint {
+  const MapPoint(
+      {required this.id, required this.name, this.place, required this.lat, required this.lng, this.region, this.mine});
+
+  final int id;
+  final String name;
+
+  /// Адрес или ориентир.
+  final String? place;
+  final double lat;
+  final double lng;
+  final String? region;
+  final Outlet? mine;
 }
 
 class AgentSettings {

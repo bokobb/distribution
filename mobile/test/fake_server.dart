@@ -186,5 +186,11 @@ Map<String, dynamic> sampleAgentData({DateTime? now}) {
       outlet(2, 'Магазин «Береке»'),
       outlet(3, 'Магазин «Сайрам»'),
     ],
+    'others': [
+      {'id': 10, 'name': 'Магазин «Сосед»', 'address': 'ул. Абая, 1', 'landmark': null, 'lat': 42.31, 'lng': 69.61,
+        'region': 'Шымкент'},
+      {'id': 11, 'name': 'Магазин «Ак жол»', 'address': null, 'landmark': 'у трассы', 'lat': 42.29, 'lng': 69.75,
+        'region': 'Сайрам'},
+    ],
   };
 }

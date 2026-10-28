@@ -12,13 +12,14 @@ import '../visits.dart';
 import '../widgets/visit_panel.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
+import 'agent_map_screen.dart';
 import 'home_parts.dart';
 import 'new_outlet_screen.dart';
 import 'outlet_screen.dart';
 
 /// «Мой день» торгового агента: маршруты выбранного дня (по умолчанию сегодня) и магазины по порядку обхода
 /// с долгами и отметкой визита. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи —
-/// работает с тем, что есть. «Магазин» — новый магазин; пока он не ушёл на сервер, он в списке «Новые магазины»,
+/// работает с тем, что есть. «Карта» — точки всех магазинов компании. «Магазин» — новый магазин; пока он не ушёл на сервер, он в списке «Новые магазины»,
 /// а когда сервер принял — данные обновляются, и он в маршруте «на проверке».
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen(
@@ -140,6 +141,17 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
           workday: widget.workday,
           outletNames: {for (final o in data?.outlets.values ?? const <Outlet>[]) o.id: o.name},
           onRefresh: _pull,
+          actions: [
+            if (data != null)
+              IconButton(
+                tooltip: 'Карта',
+                icon: const Icon(Icons.map_outlined),
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => AgentMapScreen(data: data, visits: widget.visits, workday: widget.workday))),
+              ),
+          ],
           onLogout: widget.onLogout),
       floatingActionButton: data == null
           ? null
