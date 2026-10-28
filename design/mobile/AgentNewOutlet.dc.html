@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Новый магазин</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <div style="box-sizing: border-box; padding: 52px 16px 0; display: flex; flex-direction: column; gap: 12px;">
+    <div style="height: 44px; display: flex; align-items: center; gap: 12px;">
+      <a href="AgentRoute.dc.html" aria-label="Назад к магазинам" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+      </a>
+      <h1 style="margin: 0; font-size: 17px; font-weight: 600;">Новый магазин</h1>
+    </div>
+
+    <form style="margin: 0; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label for="nm" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Название на вывеске</label>
+        <input id="nm" type="text" value="Магазин «Береке-2»" style="height: 50px; box-sizing: border-box; padding: 0 14px; border: 2px solid #4136F1; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label for="ph" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Телефон владельца</label>
+        <input id="ph" type="tel" value="+7 705 000 14 27" style="height: 50px; box-sizing: border-box; padding: 0 14px; border: 1px solid #E1E4EA; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318; font-variant-numeric: tabular-nums;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label for="ad" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Адрес и ориентир</label>
+        <input id="ad" type="text" value="ул. Сейфуллина, 40 — напротив школы" style="height: 50px; box-sizing: border-box; padding: 0 14px; border: 1px solid #E1E4EA; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+      </div>
+    </form>
+
+    <section aria-label="Точка на карте" style="box-sizing: border-box; padding: 10px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 8px;">
+      <div style="position: relative; height: 96px; border-radius: 10px; overflow: hidden;">
+        <img src="/_blob/752a50f4e0517dba7c76b70bfa64b913" alt="Карта: место нового магазина" style="display: block; width: 100%; height: 96px; object-fit: none; object-position: -32px -600px;">
+        <svg aria-hidden="true" width="30" height="38" viewBox="0 0 30 38" style="position: absolute; left: calc(50% - 15px); top: 10px;"><path d="M15 37s13-11.6 13-22A13 13 0 0 0 2 15c0 10.4 13 22 13 22z" fill="#4136F1" stroke="#FFFFFF" stroke-width="2.5"></path><circle cx="15" cy="15" r="5" fill="#FFFFFF"></circle></svg>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px 0 6px;">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #0E6B4C;">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          Точка по GPS · точность 8 м
+        </span>
+        <button type="button" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 12px; border: 0; border-radius: 10px; background: #F1F2F5; font: 600 13px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">Уточнить</button>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+      <button type="button" style="height: 76px; box-sizing: border-box; border: 1.5px dashed #C9CDD5; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font: 600 14px/1.2 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+        Фото фасада
+      </button>
+      <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;">
+        <legend style="padding: 0 4px 6px; font-size: 13px; font-weight: 600; color: #3D434D;">Цены</legend>
+        <div style="height: 44px; box-sizing: border-box; padding: 3px; border-radius: 12px; background: #E9EBEF; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;">
+          <button type="button" aria-pressed="true" style="border: 0; border-radius: 9px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(16,19,24,0.14); font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">Опт</button>
+          <button type="button" aria-pressed="false" style="border: 0; border-radius: 9px; background: transparent; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #5C6370; cursor: pointer;">Розница</button>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 10px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 8px;">
+    <div style="text-align: center; font-size: 13px; color: #5C6370;">Появится в маршруте после проверки руководителем</div>
+    <a href="AgentRoute.dc.html" style="height: 54px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 16px; font-weight: 600;">Отправить на проверку</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

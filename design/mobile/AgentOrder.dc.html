@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Новый заказ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <div style="flex: none; box-sizing: border-box; padding: 52px 16px 0; display: flex; flex-direction: column; gap: 10px;">
+    <div style="height: 44px; display: flex; align-items: center; gap: 12px;">
+      <a href="AgentOutlet.dc.html" aria-label="Назад к визиту" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+      </a>
+      <div style="min-width: 0; display: flex; flex-direction: column;">
+        <h1 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600;">Заказ · «Нур»</h1>
+        <span style="font-size: 13px; line-height: 18px; color: #5C6370;">Опт · доставка в среду, 29 октября</span>
+      </div>
+    </div>
+
+    <div style="position: relative; display: flex; align-items: center;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 14px;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+      <label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Поиск товара</label>
+      <input id="q" type="search" placeholder="Название или штрихкод" style="flex: 1 1 auto; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 52px 0 44px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); font: 400 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+      <button type="button" aria-label="Сканировать штрихкод" style="position: absolute; right: 2px; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 9v6M11 9v6M14 9v6M17 9v6"></path></svg>
+      </button>
+    </div>
+
+    <div role="group" aria-label="Группы товаров" style="margin: 0 -16px; padding: 0 16px; display: flex; gap: 6px; overflow-x: auto;">
+      <sc-for list="{{ cats }}" as="c" hint-placeholder-count="6">
+        <button type="button" aria-pressed="{{ c.pressed }}" onClick="{{ c.pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c.border }}; border-radius: 18px; background: {{ c.bg }}; color: {{ c.color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">{{ c.label }}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+      <button type="button" onClick="{{ fillLast }}" style="height: 40px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); color: #101318; display: flex; align-items: center; justify-content: center; gap: 6px; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+        Как 21 октября
+      </button>
+      <button type="button" onClick="{{ fillRec }}" style="height: 40px; border: 0; border-radius: 12px; background: #EEEDFE; color: #3329D6; display: flex; align-items: center; justify-content: center; gap: 6px; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5zM18.5 15l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9.9-2.6z"></path></svg>
+        Рекомендуемый
+      </button>
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 10px 16px 160px;">
+    <div style="border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); overflow: hidden;">
+      <sc-for list="{{ items }}" as="p" hint-placeholder-count="6">
+        <div style="min-height: 76px; box-sizing: border-box; padding: 12px 12px 12px 16px; border-bottom: 1px solid #EDEFF2; display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; line-height: 20px; font-weight: 600;">{{ p.name }}</span>
+            <span style="font-size: 13px; line-height: 18px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ p.meta }}</span>
+            <sc-if value="{{ p.has }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size: 13px; line-height: 18px; font-weight: 600; color: #101318; font-variant-numeric: tabular-nums;">{{ p.lineText }}</span>
+            </sc-if>
+            <sc-if value="{{ p.showStock }}" hint-placeholder-val="{{ true }}">
+              <span style="font-size: 12px; line-height: 16px; color: #5C6370;">{{ p.stockText }}</span>
+            </sc-if>
+            <sc-if value="{{ p.lowStock }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #9A5B00;">{{ p.stockText }}</span>
+            </sc-if>
+            <sc-if value="{{ p.lapsed }}" hint-placeholder-val="{{ false }}">
+              <span style="margin-top: 2px; align-self: flex-start; height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 5px; background: #FFF4DF; color: #8A5000; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center;">Перестал брать 3 недели назад</span>
+            </sc-if>
+            <sc-if value="{{ p.hasRec }}" hint-placeholder-val="{{ false }}">
+              <span style="margin-top: 2px; display: flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; font-weight: 600; color: #3329D6;"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="flex: none;"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5z"></path></svg>{{ p.recText }}</span>
+            </sc-if>
+            <sc-if value="{{ p.hasPromo }}" hint-placeholder-val="{{ false }}">
+              <span style="margin-top: 3px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px;">
+                <span style="flex: none; height: 20px; box-sizing: border-box; padding: 0 7px 0 5px; border-radius: 5px; background: #E7F5EF; color: #0E6B4C; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 11.5h15V20h-15zM3.5 7.5h17v4h-17zM12 7.5V20"></path><path d="M12 7.5C10.5 4.5 7 4 7 6.2s3 1.3 5 1.3zm0 0c1.5-3 5-3.5 5-1.3s-3 1.3-5 1.3z"></path></svg>{{ p.promoChip }}</span>
+                <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: {{ p.promoColor }}; font-variant-numeric: tabular-nums;">{{ p.promoText }}</span>
+              </span>
+            </sc-if>
+          </div>
+          <sc-if value="{{ p.has }}" hint-placeholder-val="{{ false }}">
+            <div style="flex: none; height: 44px; border-radius: 12px; background: #EEEDFE; display: flex; align-items: center;">
+              <button type="button" aria-label="Убрать коробку" onClick="{{ p.dec }}" style="width: 40px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3329D6" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"></path></svg></button>
+              <span style="min-width: 48px; text-align: center; font-size: 14px; font-weight: 700; color: #3329D6; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ p.qtyText }}</span>
+              <button type="button" aria-label="Добавить коробку" onClick="{{ p.inc }}" style="width: 40px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3329D6" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ p.canAdd }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ p.inc }}" style="flex: none; height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; gap: 6px; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              кор
+            </button>
+          </sc-if>
+          <sc-if value="{{ p.out }}" hint-placeholder-val="{{ false }}">
+            <span style="flex: none; height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 8px; background: #F1F2F5; color: #5C6370; font-size: 12px; font-weight: 600; display: flex; align-items: center;">Нет на складе</span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 10px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 10px;">
+    <sc-if value="{{ promoOn }}" hint-placeholder-val="{{ true }}">
+      <div style="height: 30px; box-sizing: border-box; padding: 0 10px; border-radius: 9px; background: #E7F5EF; color: #0B5A40; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="M4.5 11.5h15V20h-15zM3.5 7.5h17v4h-17zM12 7.5V20"></path><path d="M12 7.5C10.5 4.5 7 4 7 6.2s3 1.3 5 1.3zm0 0c1.5-3 5-3.5 5-1.3s-3 1.3-5 1.3z"></path></svg>
+        <span style="min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;">{{ promoSummary }}</span>
+      </div>
+    </sc-if>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ summary }}</span>
+        <span style="font-size: 22px; line-height: 28px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ total }}</span>
+      </div>
+      <a href="AgentCheckout.dc.html" style="flex: none; height: 52px; box-sizing: border-box; padding: 0 22px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">
+        Далее
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      </a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { qty: { p1: 24, p3: 32, p5: 12, p7: 12 }, cat: 'all' };
+}
+renderVals() {
+const P = [
+{ id: 'p1', name: 'Печенье овсяное, 400 г', cat: 'Печенье', per: 12, price: 620, stock: 18, promo: { kind: 'disc', from: 3, pct: 5, chip: '−5% от 3 кор' } },
+{ id: 'p2', name: 'Печенье сахарное, 350 г', cat: 'Печенье', per: 12, price: 540, stock: 2 },
+{ id: 'p3', name: 'Пряники медовые, 300 г', cat: 'Печенье', per: 16, price: 480, stock: 9, promo: { kind: 'gift', each: 2, chip: 'Акция 2+1' } },
+{ id: 'p4', name: 'Рулет бисквитный, 300 г', cat: 'Рулеты', per: 12, price: 780, stock: 0 },
+{ id: 'p5', name: 'Рулет с маком, 350 г', cat: 'Рулеты', per: 12, price: 860, stock: 6, lapsed: true },
+{ id: 'p6', name: 'Кекс «Столичный», 500 г', cat: 'Кексы', per: 10, price: 1220, stock: 11 },
+{ id: 'p7', name: 'Кекс с изюмом, 300 г', cat: 'Кексы', per: 12, price: 760, stock: 14 },
+{ id: 'p8', name: 'Пирожное «Картошка», 6 шт', cat: 'Пирожные', per: 8, price: 1150, stock: 7, promo: { kind: 'new', pct: 10, chip: 'Новинка −10%' } },
+{ id: 'p9', name: 'Торт «Медовик», 1 кг', cat: 'Торты', per: 4, price: 3600, stock: 5 },
+{ id: 'p10', name: 'Вафли «Сливочные», 250 г', cat: 'Вафли', per: 20, price: 540, stock: 12 }
+];
+const LAST = { p1: 24, p3: 16, p7: 12 };
+const REC = { p1: 24, p3: 16, p7: 12, p5: 12, p10: 20 };
+const money = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
+const plural = (n, one, few, many) => {
+const m10 = n % 10, m100 = n % 100;
+if (m10 === 1 && m100 !== 11) return one;
+if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+return many;
+};
+const q = this.state.qty || {};
+const cat = this.state.cat || 'all';
+const setQty = (id, f) => this.setState((s) => ({ qty: Object.assign({}, s.qty, { [id]: f(s.qty[id] || 0) }) }));
+const promoOf = (p, n) => {
+const pr = p.promo;
+if (!pr) return { disc: 0, gift: 0, text: '', applied: false };
+const boxes = Math.floor(n / p.per);
+if (pr.kind === 'disc') {
+if (boxes >= pr.from) { const d = Math.round(n * p.price * pr.pct / 100); return { disc: d, gift: 0, text: 'Скидка ' + pr.pct + '% · −' + money(d), applied: true }; }
+return { disc: 0, gift: 0, text: boxes > 0 ? 'Ещё ' + (pr.from - boxes) + ' кор — скидка ' + pr.pct + '%' : 'от ' + pr.from + ' коробок', applied: false };
+}
+if (pr.kind === 'gift') {
+const g = Math.floor(boxes / pr.each);
+if (g > 0) return { disc: 0, gift: g, text: 'Подарок: +' + g + ' кор', applied: true };
+return { disc: 0, gift: 0, text: boxes > 0 ? 'Ещё ' + (pr.each - boxes % pr.each) + ' кор — третья в подарок' : 'третья коробка в подарок', applied: false };
+}
+if (n > 0) { const d = Math.round(n * p.price * pr.pct / 100); return { disc: d, gift: 0, text: 'Скидка · −' + money(d), applied: true }; }
+return { disc: 0, gift: 0, text: 'на первый заказ', applied: false };
+};
+const items = P.filter((p) => cat === 'all' || (cat === 'promo' ? !!p.promo : p.cat === cat)).map((p) => {
+const n = q[p.id] || 0;
+const max = p.stock * p.per;
+const boxes = Math.floor(n / p.per), rest = n % p.per;
+const out = p.stock === 0;
+const low = !out && p.stock <= 2;
+const pm = promoOf(p, n);
+return {
+hasPromo: !!p.promo,
+promoChip: p.promo ? p.promo.chip : '',
+promoText: pm.text,
+promoColor: pm.applied ? '#0E6B4C' : '#5C6370',
+name: p.name,
+meta: p.per + ' шт в коробке · ' + money(p.price) + '/шт',
+has: n > 0,
+canAdd: n === 0 && !out,
+out: out,
+showStock: !out && !low && n === 0,
+lowStock: low,
+stockText: low ? 'Осталось на складе ' + p.stock + ' ' + plural(p.stock, 'коробка', 'коробки', 'коробок') : 'На складе ' + p.stock + ' кор',
+lapsed: !!p.lapsed,
+hasRec: !!REC[p.id] && REC[p.id] !== n,
+recText: REC[p.id] ? 'Рекомендуем ' + Math.round(REC[p.id] / p.per) + ' кор' : '',
+qtyText: rest ? boxes + ' кор + ' + rest : boxes + ' кор',
+lineText: n + ' шт · ' + money(n * p.price),
+inc: () => setQty(p.id, (v) => Math.min(max, v + p.per)),
+dec: () => setQty(p.id, (v) => Math.max(0, v - p.per))
+};
+});
+const names = [['all', 'Все'], ['promo', 'Акции · 3'], ['Печенье', 'Печенье'], ['Рулеты', 'Рулеты'], ['Кексы', 'Кексы'], ['Пирожные', 'Пирожные'], ['Торты', 'Торты'], ['Вафли', 'Вафли']];
+const cats = names.map((c) => ({
+label: c[1],
+pressed: c[0] === cat ? 'true' : 'false',
+bg: c[0] === cat ? '#101318' : '#FFFFFF',
+color: c[0] === cat ? '#FFFFFF' : '#101318',
+border: c[0] === cat ? '#101318' : '#E1E4EA',
+pick: () => this.setState({ cat: c[0] })
+}));
+let positions = 0, pieces = 0, sum = 0, disc = 0, gift = 0;
+P.forEach((p) => {
+const n = q[p.id] || 0;
+if (n > 0) { positions++; pieces += n; sum += n * p.price; }
+const pm = promoOf(p, n);
+disc += pm.disc;
+gift += pm.gift;
+});
+const promoParts = [];
+if (gift > 0) promoParts.push('подарок ' + gift + ' кор');
+if (disc > 0) promoParts.push('скидка ' + money(disc));
+return {
+items: items,
+cats: cats,
+fillLast: () => this.setState({ qty: Object.assign({}, LAST) }),
+fillRec: () => this.setState({ qty: Object.assign({}, REC) }),
+summary: positions + ' ' + plural(positions, 'позиция', 'позиции', 'позиций') + ' · ' + pieces + ' шт',
+total: money(sum - disc),
+promoOn: promoParts.length > 0,
+promoSummary: promoParts.length ? 'Акции: ' + promoParts.join(' и ') : ''
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сдача кассы</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <div style="box-sizing: border-box; padding: 52px 16px 0; display: flex; flex-direction: column; gap: 12px;">
+    <div style="height: 44px; display: flex; align-items: center; gap: 12px;">
+      <a href="ExpCash.dc.html" aria-label="Назад к кассе" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+      </a>
+      <div style="min-width: 0; display: flex; flex-direction: column;">
+        <h1 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600;">Сдача кассы</h1>
+        <span style="font-size: 13px; line-height: 18px; color: #5C6370;">Пересчитайте наличные по купюрам</span>
+      </div>
+    </div>
+
+    <section aria-label="Итог пересчёта" style="box-sizing: border-box; padding: 14px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 13px; color: #5C6370;">Нужно сдать</span>
+          <span style="font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; font-variant-numeric: tabular-nums;">102 950 ₸</span>
+          <span style="font-size: 12px; color: #5C6370;">наличные за 3 заказа</span>
+        </div>
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-left: 16px; border-left: 1px solid #EDEFF2;">
+          <span style="font-size: 13px; color: #5C6370;">Посчитано</span>
+          <span style="font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ countedText }}</span>
+          <span style="font-size: 12px; color: #5C6370;">{{ notesText }}</span>
+        </div>
+      </div>
+      <div role="status" style="min-height: 40px; box-sizing: border-box; padding: 8px 12px; border-radius: 10px; background: {{ stBg }}; color: {{ stColor }}; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;">
+        <sc-if value="{{ isOk }}" hint-placeholder-val="{{ false }}">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        </sc-if>
+        <sc-if value="{{ isOff }}" hint-placeholder-val="{{ true }}">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5M12 16h.01"></path></svg>
+        </sc-if>
+        <span style="font-variant-numeric: tabular-nums;">{{ statusText }}</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="notes-h" style="box-sizing: border-box; padding: 0 0 4px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column;">
+      <div style="height: 44px; padding: 0 6px 0 16px; display: flex; align-items: center; justify-content: space-between;">
+        <h2 id="notes-h" style="margin: 0; font-size: 15px; font-weight: 700;">Купюры и монеты</h2>
+        <button type="button" onClick="{{ reset }}" style="height: 36px; box-sizing: border-box; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #4136F1; cursor: pointer;">Сбросить</button>
+      </div>
+      <sc-for list="{{ notes }}" as="d" hint-placeholder-count="6">
+        <div style="height: 56px; box-sizing: border-box; padding: 0 16px; border-top: 1px solid #EDEFF2; display: grid; grid-template-columns: 74px minmax(0, 1fr) 92px; align-items: center; gap: 8px;">
+          <span style="height: 32px; box-sizing: border-box; border: 1px solid #DADDE3; border-radius: 6px; background: linear-gradient(90deg, #F7F8FA 0%, #EEF0F3 100%); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;">{{ d.label }}</span>
+          <div style="justify-self: center; height: 40px; box-sizing: border-box; border: 1px solid #E1E4EA; border-radius: 12px; display: flex; align-items: center;">
+            <button type="button" aria-label="{{ d.decLabel }}" onClick="{{ d.dec }}" style="width: 38px; height: 38px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"></path></svg></button>
+            <input type="text" inputmode="numeric" autocomplete="off" aria-label="{{ d.countLabel }}" value="{{ d.count }}" onChange="{{ d.onCount }}" style="width: 44px; height: 38px; box-sizing: border-box; padding: 0; border: 0; border-left: 1px solid #EDEFF2; border-right: 1px solid #EDEFF2; background: transparent; text-align: center; font: 600 16px/1 'Inter', -apple-system, sans-serif; color: #101318; font-variant-numeric: tabular-nums; outline: none;">
+            <button type="button" aria-label="{{ d.incLabel }}" onClick="{{ d.inc }}" style="width: 38px; height: 38px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+          </div>
+          <span style="text-align: right; font-size: 15px; font-weight: 600; white-space: nowrap; color: {{ d.sumColor }}; font-variant-numeric: tabular-nums;">{{ d.sumText }}</span>
+        </div>
+      </sc-for>
+      <div style="height: 56px; box-sizing: border-box; padding: 0 16px; border-top: 1px solid #EDEFF2; display: grid; grid-template-columns: 74px minmax(0, 1fr) 92px; align-items: center; gap: 8px;">
+        <label for="coins" style="height: 32px; box-sizing: border-box; border: 1px solid #DADDE3; border-radius: 16px; background: #F7F8FA; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;">Монеты</label>
+        <div style="justify-self: center; position: relative; display: flex; align-items: center;">
+          <input id="coins" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="{{ coins }}" onChange="{{ onCoins }}" style="width: 122px; height: 40px; box-sizing: border-box; padding: 0 30px 0 12px; border: 1px solid #E1E4EA; border-radius: 12px; background: #FFFFFF; text-align: right; font: 600 16px/1 'Inter', -apple-system, sans-serif; color: #101318; font-variant-numeric: tabular-nums; outline: none;">
+          <span aria-hidden="true" style="position: absolute; right: 12px; font-size: 15px; font-weight: 600; color: #8C929C;">₸</span>
+        </div>
+        <span style="text-align: right; font-size: 15px; font-weight: 600; white-space: nowrap; color: {{ coinsColor }}; font-variant-numeric: tabular-nums;">{{ coinsText }}</span>
+      </div>
+    </section>
+
+    <div style="padding: 0 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px; color: #5C6370;">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+      <span style="font-variant-numeric: tabular-nums;">Kaspi 52 850 ₸ уже на счёте — его сдавать не нужно</span>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 10px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 8px;">
+    <div style="height: 18px; text-align: center; font-size: 13px; color: #5C6370;">{{ footNote }}</div>
+    <a href="ExpCash.dc.html" style="height: 54px; border-radius: 14px; background: #101318; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2.5"></rect><circle cx="12" cy="12.5" r="2.6"></circle></svg>
+      {{ submitText }}
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = {
+counts: { '20000': 3, '10000': 2, '5000': 3, '2000': 2, '1000': 2, '500': 1 },
+coins: '450'
+};
+}
+renderVals() {
+const EXPECTED = 102950;
+const DENOMS = [20000, 10000, 5000, 2000, 1000, 500];
+const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const money = (n) => group(n) + ' ₸';
+const plural = (n, one, few, many) => {
+const m10 = n % 10, m100 = n % 100;
+if (m10 === 1 && m100 !== 11) return one;
+if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+return many;
+};
+const st = this.state;
+const counts = st.counts || {};
+const setCount = (k, f) => this.setState((s) => ({ counts: Object.assign({}, s.counts, { [k]: Math.max(0, Math.min(999, f(s.counts[k] || 0))) }) }));
+let notesSum = 0, notesQty = 0;
+const notes = DENOMS.map((v) => {
+const k = String(v);
+const n = counts[k] || 0;
+notesSum += n * v;
+notesQty += n;
+return {
+label: group(v),
+count: String(n),
+sumText: n > 0 ? money(n * v) : '—',
+sumColor: n > 0 ? '#101318' : '#B4B9C2',
+decLabel: 'Убрать купюру ' + group(v),
+incLabel: 'Добавить купюру ' + group(v),
+countLabel: 'Купюр по ' + group(v),
+dec: () => setCount(k, (x) => x - 1),
+inc: () => setCount(k, (x) => x + 1),
+onCount: (e) => {
+const raw = String((e && e.target && e.target.value) || '').replace(/\D/g, '').slice(0, 3);
+setCount(k, () => (raw ? parseInt(raw, 10) : 0));
+}
+};
+});
+const coinsRaw = st.coins || '';
+const coins = coinsRaw ? parseInt(coinsRaw, 10) : 0;
+const counted = notesSum + coins;
+const diff = counted - EXPECTED;
+const ok = diff === 0;
+return {
+notes: notes,
+coins: coinsRaw ? group(coinsRaw) : '',
+onCoins: (e) => {
+const raw = String((e && e.target && e.target.value) || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 6);
+this.setState({ coins: raw });
+},
+coinsText: coins > 0 ? money(coins) : '—',
+coinsColor: coins > 0 ? '#101318' : '#B4B9C2',
+countedText: money(counted),
+notesText: notesQty + ' ' + plural(notesQty, 'купюра', 'купюры', 'купюр') + (coins > 0 ? ' и монеты' : ''),
+isOk: ok,
+isOff: !ok,
+statusText: ok ? 'Сходится с суммой к сдаче' : diff < 0 ? 'Не хватает ' + money(-diff) + ' — пересчитайте' : 'Лишние ' + money(diff) + ' — проверьте купюры',
+stBg: ok ? '#E7F5EF' : diff < 0 ? '#FFF4DF' : '#FDECEA',
+stColor: ok ? '#0B5A40' : diff < 0 ? '#8A5000' : '#A3241A',
+reset: () => this.setState({ counts: {}, coins: '' }),
+footNote: ok ? 'Оператор пересчитает и подтвердит приём' : 'Расхождение ' + money(Math.abs(diff)) + ' попадёт в акт приёма',
+submitText: 'Сдать ' + money(counted)
+};
+}
+}
+</script>
+</body>
+</html>

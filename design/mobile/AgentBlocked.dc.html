@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Заказ закрыт по просрочке</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+@keyframes dcWait{0%,80%,100%{opacity:.25}40%{opacity:1}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <div style="box-sizing: border-box; padding: 52px 16px 0; display: flex; flex-direction: column; gap: 12px;">
+    <div style="height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <a href="AgentToday.dc.html" aria-label="Назад к маршруту" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+      </a>
+      <span style="font-size: 17px; font-weight: 600;">Визит · точка 10</span>
+      <button type="button" aria-label="Позвонить в магазин" style="flex: none; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h3.2l1.6 4.2-2.2 1.4a11 11 0 0 0 7.3 7.3l1.4-2.2 4.2 1.6V19a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.1 1.5 1.5 0 0 1 5 3.5z"></path></svg>
+      </button>
+    </div>
+
+    <div style="padding: 0 4px; display: flex; flex-direction: column; gap: 2px;">
+      <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.015em;">Магазин «Алтын»</h1>
+      <div style="font-size: 14px; line-height: 20px; color: #5C6370;">ИП «Алтын» · Марат Е. · мкр. Нурсат, 112</div>
+    </div>
+
+    <section role="alert" style="box-sizing: border-box; padding: 14px; border-radius: 16px; background: #FDECEA; color: #7E1D15; display: flex; align-items: flex-start; gap: 12px;">
+      <span aria-hidden="true" style="flex: none; width: 36px; height: 36px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C4291C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg></span>
+      <div style="min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+        <b style="font-size: 16px; line-height: 22px; font-weight: 700; color: #A3241A;">Новые заказы закрыты</b>
+        <span style="font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums;">Просрочка 32 000 ₸ — 18 дней. Заказ откроется после оплаты просрочки или с разрешения руководителя.</span>
+        <span style="margin-top: 2px; font-size: 12px; line-height: 16px; color: #A3241A;">Правило компании: просрочка больше 14 дней или больше 30 000 ₸</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="debt" style="box-sizing: border-box; padding: 14px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+        <h2 id="debt" style="margin: 0; font-size: 14px; font-weight: 600; color: #5C6370;">Долг магазина</h2>
+        <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">лимит 50 000 ₸</span>
+      </div>
+      <span style="font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">61 000 ₸</span>
+      <div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #E8EAEE; overflow: hidden;">
+        <div style="width: 100%; height: 6px; border-radius: 3px; background: #C4291C;"></div>
+      </div>
+      <div style="margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px;">
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #FDECEA; color: #A3241A; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;">Просрочено 32 000 ₸ · 18 дней</span>
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #F1F2F5; color: #3D434D; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Отсрочка 7 дней</span>
+      </div>
+      <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">Последняя оплата — 3 октября, 15 000 ₸</span>
+    </section>
+
+    <sc-if value="{{ isIdle }}" hint-placeholder-val="{{ true }}">
+      <section aria-label="Запрос руководителю" style="box-sizing: border-box; padding: 14px 16px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 13px; font-weight: 600; color: #3D434D;">Когда магазин обещает оплатить</span>
+        <div role="radiogroup" aria-label="Срок оплаты" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+          <button type="button" role="radio" aria-checked="{{ w1_checked }}" onClick="{{ w1_pick }}" style="height: 40px; box-sizing: border-box; border: 1.5px solid {{ w1_border }}; border-radius: 12px; background: {{ w1_bg }}; color: {{ w1_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Завтра</button>
+          <button type="button" role="radio" aria-checked="{{ w2_checked }}" onClick="{{ w2_pick }}" style="height: 40px; box-sizing: border-box; border: 1.5px solid {{ w2_border }}; border-radius: 12px; background: {{ w2_bg }}; color: {{ w2_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">В пятницу</button>
+          <button type="button" role="radio" aria-checked="{{ w3_checked }}" onClick="{{ w3_pick }}" style="height: 40px; box-sizing: border-box; border: 1.5px solid {{ w3_border }}; border-radius: 12px; background: {{ w3_bg }}; color: {{ w3_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Через неделю</button>
+        </div>
+        <button type="button" onClick="{{ request }}" style="height: 48px; border: 0; border-radius: 12px; background: #101318; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 15px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4 10 15M21 4l-7 17-4-6-6-4z"></path></svg>
+          Попросить разрешение у руководителя
+        </button>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isSent }}" hint-placeholder-val="{{ false }}">
+      <section role="status" style="box-sizing: border-box; padding: 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; align-items: center; gap: 12px;">
+        <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; gap: 3px;">
+          <span style="width: 5px; height: 5px; border-radius: 50%; background: #4136F1; animation: dcWait 1.2s infinite;"></span>
+          <span style="width: 5px; height: 5px; border-radius: 50%; background: #4136F1; animation: dcWait 1.2s 0.2s infinite;"></span>
+          <span style="width: 5px; height: 5px; border-radius: 50%; background: #4136F1; animation: dcWait 1.2s 0.4s infinite;"></span>
+        </span>
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <b style="font-size: 15px; font-weight: 600;">Запрос отправлен руководителю</b>
+          <span style="font-size: 13px; line-height: 18px; color: #5C6370;">{{ sentText }}</span>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isOk }}" hint-placeholder-val="{{ false }}">
+      <section role="status" style="box-sizing: border-box; padding: 16px; border-radius: 16px; background: #E7F5EF; color: #0B5A40; display: flex; align-items: center; gap: 12px;">
+        <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#12805C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+        <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <b style="font-size: 15px; font-weight: 700;">Разрешён один заказ до 30 000 ₸</b>
+          <span style="font-size: 13px; line-height: 18px;">Руководитель ответил в 11:34 · действует сегодня</span>
+        </div>
+      </section>
+    </sc-if>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 12px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 8px;">
+    <a href="AgentNoOrder.dc.html" style="height: 54px; border-radius: 14px; background: #F1F2F5; color: #101318; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 16px; font-weight: 600;">Без заказа</a>
+    <div style="min-width: 0; display: flex; flex-direction: column;">
+    <sc-if value="{{ isOk }}" hint-placeholder-val="{{ false }}">
+      <a href="AgentOrder.dc.html" style="height: 54px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">
+        Новый заказ
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      </a>
+    </sc-if>
+    <sc-if value="{{ locked }}" hint-placeholder-val="{{ true }}">
+      <button type="button" disabled style="height: 54px; border: 0; border-radius: 14px; background: #E9EBEF; color: #8C929C; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 16px/1 'Inter', -apple-system, sans-serif;">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+        Заказ закрыт
+      </button>
+    </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { step: 'idle', when: 'fri' };
+}
+componentWillUnmount() {
+if (this.timer) clearTimeout(this.timer);
+}
+renderVals() {
+const OPTIONS = [['tomorrow', 'Завтра', 'завтра, 29 октября'], ['fri', 'В пятницу', 'в пятницу, 31 октября'], ['week', 'Через неделю', 'через неделю, 4 ноября']];
+const st = this.state;
+const chosen = OPTIONS.find((o) => o[0] === st.when) || OPTIONS[1];
+const vals = {};
+OPTIONS.forEach((o, i) => {
+const on = o[0] === st.when;
+const k = 'w' + (i + 1) + '_';
+vals[k + 'checked'] = on ? 'true' : 'false';
+vals[k + 'border'] = on ? '#4136F1' : '#E1E4EA';
+vals[k + 'bg'] = on ? '#EEEDFE' : '#FFFFFF';
+vals[k + 'color'] = on ? '#3329D6' : '#101318';
+vals[k + 'pick'] = () => this.setState({ when: o[0] });
+});
+return Object.assign(vals, {
+isIdle: st.step === 'idle',
+isSent: st.step === 'sent',
+isOk: st.step === 'ok',
+locked: st.step !== 'ok',
+sentText: 'Обещают оплатить ' + chosen[2] + '. Ответ придёт сюда и в уведомления.',
+request: () => {
+this.setState({ step: 'sent' });
+if (this.timer) clearTimeout(this.timer);
+this.timer = setTimeout(() => this.setState({ step: 'ok' }), 2600);
+}
+});
+}
+}
+</script>
+</body>
+</html>

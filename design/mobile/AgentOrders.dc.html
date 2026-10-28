@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Заказы агента</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <div style="flex: none; box-sizing: border-box; padding: 54px 16px 0; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em;">Заказы</h1>
+      <div style="font-size: 14px; line-height: 20px; color: #5C6370;">Вторник, 28 октября</div>
+    </div>
+
+    <section aria-label="План продаж" style="box-sizing: border-box; padding: 16px; border-radius: 20px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+        <span style="font-size: 13px; color: #5C6370;">План на октябрь</span>
+        <span style="font-size: 13px; color: #5C6370;">осталось 3 рабочих дня</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">2 856 000 ₸</span>
+        <span style="font-size: 15px; color: #5C6370; font-variant-numeric: tabular-nums;">из 4 200 000 ₸</span>
+      </div>
+      <div aria-hidden="true" style="margin-top: 6px; height: 6px; border-radius: 3px; background: #E8EAEE; overflow: hidden;">
+        <div style="width: 68%; height: 6px; border-radius: 3px; background: #4136F1;"></div>
+      </div>
+      <span style="margin-top: 2px; font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">68% · чтобы успеть — по 448 000 ₸ в день</span>
+    </section>
+
+    <div role="tablist" aria-label="День" style="height: 40px; box-sizing: border-box; padding: 3px; border-radius: 12px; background: #E9EBEF; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;">
+      <button type="button" role="tab" aria-selected="{{ todaySelected }}" onClick="{{ toToday }}" style="border: 0; border-radius: 9px; background: {{ todayBg }}; box-shadow: {{ todayShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ todayColor }}; cursor: pointer;">Сегодня · 6</button>
+      <button type="button" role="tab" aria-selected="{{ ydaySelected }}" onClick="{{ toYday }}" style="border: 0; border-radius: 9px; background: {{ ydayBg }}; box-shadow: {{ ydayShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ ydayColor }}; cursor: pointer;">Вчера · 14</button>
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 16px 104px; display: flex; flex-direction: column;">
+    <div style="flex: none; margin-bottom: 10px; padding: 0 4px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+      <span style="font-size: 14px; color: #5C6370;">{{ headLeft }}</span>
+      <span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;">{{ headRight }}</span>
+    </div>
+    <section aria-label="Заказы" style="flex: none; box-sizing: border-box; padding: 4px 0; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06);">
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+        <div style="min-height: 60px; box-sizing: border-box; padding: 8px 16px; border-top: {{ r.border }}; display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+            <span style="font-size: 15px; font-weight: 600;">{{ r.name }}</span>
+            <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ r.meta }}</span>
+          </div>
+          <div style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+            <span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;">{{ r.sum }}</span>
+            <span style="height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 5px; background: {{ r.badgeBg }}; color: {{ r.badgeColor }}; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center;">{{ r.status }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+    <div style="flex: none; margin-top: 12px; padding: 0 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12px; color: #5C6370;">
+      <span style="display: flex; align-items: center; gap: 6px;"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #4136F1;"></span>Новый — ещё не доставлен</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #12805C;"></span>Доставлен — экспедитор отдал товар</span>
+    </div>
+  </div>
+
+  <nav aria-label="Разделы" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; box-sizing: border-box; padding: 6px 8px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+    <a href="AgentToday.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.2"></circle><circle cx="18" cy="5" r="2.2"></circle><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"></path></svg>
+      Маршрут
+    </a>
+    <a href="AgentOrders.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #4136F1; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>
+      Заказы
+    </a>
+    <a href="AgentRoute.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"></path><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"></path><path d="M5 11.5V20h14v-8.5M10 20v-5h4v5"></path></svg>
+      Магазины
+    </a>
+    <a href="AgentProfile.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+      Профиль
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { tab: 'yday' };
+}
+renderVals() {
+const TODAY = [
+{ name: '«Айгуль»', meta: '10:48 · 3 позиции', sum: 21300 },
+{ name: '«Жулдыз»', meta: '10:05 · 5 позиций · сверх лимита', sum: 27450 },
+{ name: '«Нурлы»', meta: '09:48 · 6 позиций', sum: 41300 },
+{ name: '«Камила»', meta: '09:15 · сам через бот · 3 позиции', sum: 24960 },
+{ name: '«Береке»', meta: '08:55 · 3 позиции', sum: 18900 },
+{ name: '«Асель»', meta: '08:31 · 4 позиции', sum: 32400 }
+];
+const YDAY = [
+{ name: '«Береке»', items: 5, pay: 'наличные', sum: 34200, time: '09:12' },
+{ name: '«Асель»', items: 3, pay: 'Kaspi', sum: 18900, time: '09:31' },
+{ name: '«Нурлы»', items: 6, pay: 'наличные', sum: 41300, time: '09:58' },
+{ name: '«Жулдыз»', items: 4, pay: 'наличные', sum: 27450, time: '10:20' },
+{ name: '«Дос-Маркет»', items: 5, pay: 'Kaspi', sum: 45200, time: '10:47' },
+{ name: '«Достык»', items: 4, pay: 'наличные', sum: 51120 },
+{ name: '«Арман»', items: 3, pay: 'наличные', sum: 22800 },
+{ name: '«Сая»', items: 2, pay: 'в долг', sum: 15600 },
+{ name: '«Мерей»', items: 5, pay: 'наличные', sum: 38400 },
+{ name: '«Алтын»', items: 3, pay: 'Kaspi', sum: 19750 },
+{ name: '«Шанырак»', items: 6, pay: 'наличные', sum: 44100 },
+{ name: '«Самал»', items: 2, pay: 'наличные', sum: 12300 },
+{ name: '«Айгуль»', items: 4, pay: 'наличные', sum: 26900 },
+{ name: '«Нур»', items: 4, pay: 'в долг', sum: 31200 }
+];
+const money = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
+const plural = (n, one, few, many) => {
+const m10 = n % 10, m100 = n % 100;
+if (m10 === 1 && m100 !== 11) return one;
+if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+return many;
+};
+const NEW = { status: 'Новый', badgeBg: '#EEEDFE', badgeColor: '#3329D6' };
+const DONE = { status: 'Доставлен', badgeBg: '#E7F5EF', badgeColor: '#0E6B4C' };
+const t = this.state.tab;
+const isToday = t === 'today';
+let rows;
+if (isToday) {
+rows = TODAY.map((o, i) => Object.assign({ name: o.name, meta: o.meta, sum: money(o.sum), border: i === 0 ? '0' : '1px solid #EDEFF2' }, NEW));
+} else {
+rows = YDAY.map((o, i) => Object.assign({
+name: o.name,
+meta: o.items + ' ' + plural(o.items, 'позиция', 'позиции', 'позиций') + ' · ' + o.pay + (o.time ? ' · в ' + o.time : ''),
+sum: money(o.sum),
+border: i === 0 ? '0' : '1px solid #EDEFF2'
+}, o.time ? DONE : NEW));
+}
+const delivered = YDAY.filter((o) => o.time).length;
+const total = (list) => list.reduce((a, o) => a + o.sum, 0);
+const seg = (on) => ({ bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 3px rgba(16,19,24,0.14)' : 'none', color: on ? '#101318' : '#5C6370', sel: on ? 'true' : 'false' });
+const a = seg(isToday), b = seg(!isToday);
+return {
+rows: rows,
+headLeft: isToday ? 'Доставка завтра, 29 октября' : 'Сегодня доставлено ' + delivered + ' из ' + YDAY.length,
+headRight: money(total(isToday ? TODAY : YDAY)),
+todayBg: a.bg, todayShadow: a.shadow, todayColor: a.color, todaySelected: a.sel,
+ydayBg: b.bg, ydayShadow: b.shadow, ydayColor: b.color, ydaySelected: b.sel,
+toToday: () => this.setState({ tab: 'today' }),
+toYday: () => this.setState({ tab: 'yday' })
+};
+}
+}
+</script>
+</body>
+</html>

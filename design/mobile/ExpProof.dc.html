@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Подтверждение доставки</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <div style="box-sizing: border-box; padding: 52px 16px 0; display: flex; flex-direction: column; gap: 12px;">
+    <div style="height: 44px; display: flex; align-items: center; gap: 12px;">
+      <a href="ExpTrip.dc.html" aria-label="Назад к доставкам" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+      </a>
+      <h1 style="margin: 0; font-size: 17px; font-weight: 600;">Подтверждение доставки</h1>
+    </div>
+
+    <div style="padding: 0 4px; display: flex; flex-direction: column; gap: 2px;">
+      <h2 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.015em;">Магазин «Достык»</h2>
+      <div style="font-size: 14px; line-height: 20px; color: #5C6370;">Заказ С-1042 · ул. Желтоксан, 22</div>
+    </div>
+
+    <section aria-label="Получено от магазина" style="box-sizing: border-box; padding: 12px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+      <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 12px; color: #5C6370;">За заказ</span>
+        <span style="font-size: 15px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;">38 940 ₸</span>
+      </div>
+      <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 1px solid #EDEFF2;">
+        <span style="font-size: 12px; color: #5C6370;">Старый долг</span>
+        <span style="font-size: 15px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;">15 400 ₸</span>
+      </div>
+      <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 1px solid #EDEFF2;">
+        <span style="font-size: 12px; color: #5C6370;">Всего</span>
+        <span style="font-size: 15px; font-weight: 700; white-space: nowrap; color: #0E6B4C; font-variant-numeric: tabular-nums;">54 340 ₸</span>
+      </div>
+    </section>
+
+    <div role="tablist" aria-label="Способ подтверждения" style="height: 40px; box-sizing: border-box; padding: 3px; border-radius: 12px; background: #E9EBEF; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;">
+      <button type="button" role="tab" aria-selected="{{ signPressed }}" onClick="{{ toSign }}" style="border: 0; border-radius: 9px; background: {{ signBg }}; box-shadow: {{ signShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ signColor }}; cursor: pointer;">Подпись на экране</button>
+      <button type="button" role="tab" aria-selected="{{ photoPressed }}" onClick="{{ toPhoto }}" style="border: 0; border-radius: 9px; background: {{ photoBg }}; box-shadow: {{ photoShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ photoColor }}; cursor: pointer;">Фото накладной</button>
+    </div>
+
+    <sc-if value="{{ isSign }}" hint-placeholder-val="{{ true }}">
+      <section aria-label="Подпись получателя" style="box-sizing: border-box; padding: 12px 14px 14px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 10px;">
+        <div style="height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-left: 2px;">
+          <span style="font-size: 13px; font-weight: 600; color: #3D434D;">Подпись получателя</span>
+          <button type="button" onClick="{{ clear }}" style="height: 32px; box-sizing: border-box; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: {{ clearColor }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Очистить</button>
+        </div>
+        <button type="button" onClick="{{ sign }}" aria-label="Поле для подписи" style="position: relative; display: block; width: 100%; height: 160px; box-sizing: border-box; padding: 0; border: 1.5px dashed {{ padBorder }}; border-radius: 12px; background: #FBFBFC; cursor: crosshair; overflow: hidden;">
+          <span aria-hidden="true" style="position: absolute; left: 22px; right: 22px; bottom: 38px; height: 1px; background: #D5D9E0;"></span>
+          <span aria-hidden="true" style="position: absolute; left: 22px; bottom: 42px; font-size: 18px; line-height: 18px; color: #8C929C;">×</span>
+          <sc-if value="{{ notSigned }}" hint-placeholder-val="{{ false }}">
+            <span style="position: absolute; left: 0; right: 0; top: 50px; text-align: center; font: 500 15px/1.4 'Inter', -apple-system, sans-serif; color: #8C929C;">Распишитесь здесь пальцем</span>
+          </sc-if>
+          <sc-if value="{{ signed }}" hint-placeholder-val="{{ true }}">
+            <svg aria-hidden="true" width="290" height="116" viewBox="0 0 300 120" fill="none" stroke="#101318" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 18px; top: 10px;"><path d="M34 62C22 52 24 34 42 32C54 31 58 40 50 46C40 53 26 58 30 74C34 90 58 90 72 78C80 71 84 60 92 62C100 64 96 80 104 80C112 80 114 58 124 58C134 58 128 82 140 80C150 78 152 56 162 56C170 56 168 78 178 78C188 78 192 60 200 62C208 64 206 80 216 78C226 76 232 66 240 60M46 98C96 90 170 88 262 84C272 83 280 86 276 92"></path></svg>
+          </sc-if>
+        </button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label for="who" style="flex: none; padding-left: 2px; font-size: 14px; color: #5C6370;">Получил</label>
+          <input id="who" type="text" value="Ерлан Б." autocomplete="off" style="flex: 1 1 auto; min-width: 0; height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #E1E4EA; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isPhoto }}" hint-placeholder-val="{{ false }}">
+      <section aria-label="Фото накладной" style="box-sizing: border-box; padding: 12px 14px 14px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 10px;">
+        <div style="height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-left: 2px;">
+          <span style="font-size: 13px; font-weight: 600; color: #3D434D;">Накладная с подписью и печатью</span>
+          <sc-if value="{{ hasPhoto }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ retake }}" style="height: 32px; box-sizing: border-box; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: #4136F1; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Переснять</button>
+          </sc-if>
+        </div>
+        <sc-if value="{{ noPhoto }}" hint-placeholder-val="{{ true }}">
+          <button type="button" onClick="{{ shoot }}" style="width: 100%; height: 204px; box-sizing: border-box; border: 1.5px dashed #C9CDD5; border-radius: 12px; background: #FBFBFC; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font: inherit; color: #101318; cursor: pointer;">
+            <span aria-hidden="true" style="width: 52px; height: 52px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4136F1" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span>
+            <span style="margin-top: 2px; font-size: 15px; font-weight: 600;">Сфотографировать накладную</span>
+            <span style="max-width: 240px; font-size: 13px; line-height: 18px; color: #5C6370; text-align: center;">Чтобы в кадре были подпись и печать магазина</span>
+          </button>
+        </sc-if>
+        <sc-if value="{{ hasPhoto }}" hint-placeholder-val="{{ false }}">
+          <div style="position: relative; height: 204px; border-radius: 12px; overflow: hidden; background: linear-gradient(160deg, #5A606A 0%, #2B2F36 100%);">
+            <div aria-hidden="true" style="position: absolute; left: 50%; top: 14px; width: 214px; height: 214px; margin-left: -107px; box-sizing: border-box; padding: 14px 16px; border-radius: 2px; background: #FFFFFF; box-shadow: 0 10px 24px rgba(0,0,0,0.38); transform: rotate(-3deg); display: flex; flex-direction: column; gap: 6px;">
+              <span style="width: 58%; height: 6px; border-radius: 1px; background: #3D434D;"></span>
+              <span style="width: 34%; height: 4px; border-radius: 1px; background: #B4B9C2;"></span>
+              <span style="margin-top: 6px; display: flex; gap: 6px;"><span style="width: 10%; height: 4px; background: #C9CDD5;"></span><span style="width: 52%; height: 4px; background: #DADDE3;"></span><span style="width: 12%; height: 4px; background: #DADDE3;"></span><span style="width: 18%; height: 4px; background: #C9CDD5;"></span></span>
+              <span style="display: flex; gap: 6px;"><span style="width: 10%; height: 4px; background: #C9CDD5;"></span><span style="width: 46%; height: 4px; background: #DADDE3;"></span><span style="width: 12%; height: 4px; background: #DADDE3;"></span><span style="width: 18%; height: 4px; background: #C9CDD5;"></span></span>
+              <span style="display: flex; gap: 6px;"><span style="width: 10%; height: 4px; background: #C9CDD5;"></span><span style="width: 50%; height: 4px; background: #DADDE3;"></span><span style="width: 12%; height: 4px; background: #DADDE3;"></span><span style="width: 18%; height: 4px; background: #C9CDD5;"></span></span>
+              <span style="display: flex; gap: 6px;"><span style="width: 10%; height: 4px; background: #C9CDD5;"></span><span style="width: 42%; height: 4px; background: #DADDE3;"></span><span style="width: 12%; height: 4px; background: #DADDE3;"></span><span style="width: 18%; height: 4px; background: #C9CDD5;"></span></span>
+              <span style="align-self: flex-end; width: 30%; height: 5px; background: #3D434D;"></span>
+              <span style="margin-top: 26px; display: flex; gap: 16px;"><span style="flex: 1; height: 1px; background: #8C929C;"></span><span style="flex: 1; height: 1px; background: #8C929C;"></span></span>
+              <svg width="70" height="26" viewBox="0 0 70 26" fill="none" stroke="#1E2F86" stroke-width="1.6" stroke-linecap="round" style="position: absolute; left: 26px; top: 128px;"><path d="M4 18C10 6 16 4 18 12S22 22 28 14 34 6 38 14 46 20 52 10 60 8 66 12"></path></svg>
+              <span style="position: absolute; right: 18px; top: 104px; width: 62px; height: 62px; box-sizing: border-box; border: 2px solid rgba(43,76,214,0.78); border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: rotate(-14deg);"><span style="width: 46px; height: 46px; box-sizing: border-box; border: 1px solid rgba(43,76,214,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 700; letter-spacing: 0.06em; color: rgba(43,76,214,0.85);">ДОСТЫК</span></span>
+            </div>
+            <span style="position: absolute; left: 10px; bottom: 10px; height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 14px; background: rgba(16,19,24,0.72); color: #FFFFFF; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5BD69B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              Снято в 11:24
+            </span>
+          </div>
+        </sc-if>
+        <div style="padding: 0 2px; font-size: 13px; line-height: 18px; color: #5C6370;">Фото уйдёт в офис вместе с отметкой о доставке</div>
+      </section>
+    </sc-if>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 10px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 8px;">
+    <div role="status" style="height: 18px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; color: {{ readyColor }};">
+      <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      </sc-if>
+      {{ readyText }}
+    </div>
+    <sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+      <a href="ExpTrip.dc.html" style="height: 54px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        Подтвердить доставку
+      </a>
+    </sc-if>
+    <sc-if value="{{ notReady }}" hint-placeholder-val="{{ false }}">
+      <button type="button" disabled style="height: 54px; border: 0; border-radius: 14px; background: #E9EBEF; color: #8C929C; font: 600 16px/1 'Inter', -apple-system, sans-serif;">Подтвердить доставку</button>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { mode: 'sign', signed: true, photo: false };
+}
+renderVals() {
+const st = this.state;
+const isSign = st.mode === 'sign';
+const ready = isSign ? !!st.signed : !!st.photo;
+const seg = (on) => ({
+bg: on ? '#FFFFFF' : 'transparent',
+shadow: on ? '0 1px 3px rgba(16,19,24,0.14)' : 'none',
+color: on ? '#101318' : '#5C6370',
+pressed: on ? 'true' : 'false'
+});
+const a = seg(isSign);
+const b = seg(!isSign);
+return {
+isSign: isSign,
+isPhoto: !isSign,
+signBg: a.bg, signShadow: a.shadow, signColor: a.color, signPressed: a.pressed,
+photoBg: b.bg, photoShadow: b.shadow, photoColor: b.color, photoPressed: b.pressed,
+toSign: () => this.setState({ mode: 'sign' }),
+toPhoto: () => this.setState({ mode: 'photo' }),
+signed: !!st.signed,
+notSigned: !st.signed,
+padBorder: st.signed ? '#E1E4EA' : '#B4B9C2',
+sign: () => this.setState({ signed: true }),
+clear: () => this.setState({ signed: false }),
+clearColor: st.signed ? '#4136F1' : '#B4B9C2',
+hasPhoto: !!st.photo,
+noPhoto: !st.photo,
+shoot: () => this.setState({ photo: true }),
+retake: () => this.setState({ photo: false }),
+ready: ready,
+notReady: !ready,
+readyText: ready ? (isSign ? 'Подпись получена' : 'Фото накладной приложено') : (isSign ? 'Нужна подпись получателя' : 'Нужно фото накладной с печатью'),
+readyColor: ready ? '#12805C' : '#5C6370'
+};
+}
+}
+</script>
+</body>
+</html>
