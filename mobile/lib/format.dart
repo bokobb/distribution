@@ -16,6 +16,9 @@ String money(int amount) {
 
 String two(int n) => n.toString().padLeft(2, '0');
 
+/// «08:42».
+String time(DateTime t) => '${two(t.hour)}:${two(t.minute)}';
+
 /// «28.10.2026».
 String date(DateTime d) => '${two(d.day)}.${two(d.month)}.${d.year}';
 
@@ -24,10 +27,9 @@ String when(DateTime t, {DateTime? now}) {
   final n = now ?? DateTime.now();
   final today = DateTime(n.year, n.month, n.day);
   final day = DateTime(t.year, t.month, t.day);
-  final time = '${two(t.hour)}:${two(t.minute)}';
-  if (day == today) return 'сегодня в $time';
-  if (day == today.subtract(const Duration(days: 1))) return 'вчера в $time';
-  return '${two(t.day)}.${two(t.month)} в $time';
+  if (day == today) return 'сегодня в ${time(t)}';
+  if (day == today.subtract(const Duration(days: 1))) return 'вчера в ${time(t)}';
+  return '${two(t.day)}.${two(t.month)} в ${time(t)}';
 }
 
 /// «1 магазин», «3 магазина», «12 магазинов».

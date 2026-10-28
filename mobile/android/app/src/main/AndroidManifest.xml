@@ -1,5 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Рабочий день: точка GPS раз в несколько минут фоновой службой с уведомлением «Рабочий день идёт».
+         Служба запускается, пока приложение открыто, поэтому доступ «в фоне всегда» не нужен. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- Без резервной копии в облако Google: ключ устройства из защищённого хранилища на другом телефоне
          не расшифруется, а вход сотрудника не должен переезжать с телефоном. -->
     <application

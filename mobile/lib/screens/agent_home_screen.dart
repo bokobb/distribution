@@ -6,6 +6,8 @@ import '../data/agent_repo.dart';
 import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
+import '../widgets/workday_card.dart';
+import '../workday.dart';
 import 'home_parts.dart';
 import 'outlet_screen.dart';
 
@@ -13,10 +15,16 @@ import 'outlet_screen.dart';
 /// с долгами. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем, что есть.
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen(
-      {super.key, required this.repo, required this.session, required this.onSession, required this.onLogout});
+      {super.key,
+      required this.repo,
+      required this.session,
+      required this.workday,
+      required this.onSession,
+      required this.onLogout});
 
   final AgentRepo repo;
   final Session session;
+  final Workday workday;
   final ValueChanged<Session> onSession;
   final VoidCallback onLogout;
 
@@ -38,7 +46,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
 
   Future<void> _start() async {
     final local = await widget.repo.local();
-    if (mounted) setState(() => _data = local);
+    if (mounted) _show(local);
     await _pull();
     if (mounted) checkSession(widget.repo.api, widget.session, widget.onSession);
   }
@@ -48,10 +56,8 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
     try {
       final data = await widget.repo.pull();
       if (mounted) {
-        setState(() {
-          _data = data;
-          _syncError = null;
-        });
+        _show(data);
+        setState(() => _syncError = null);
       }
     } on SessionClosedException {
       // приложение уже вернулось на вход
@@ -62,16 +68,28 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
     }
   }
 
+  /// Данные на экран; интервал GPS — из настроек компании.
+  void _show(AgentData? data) {
+    setState(() => _data = data);
+    if (data != null) widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = _data;
     return Scaffold(
-      appBar: homeAppBar(context, title: 'Мой день', session: widget.session, onRefresh: _pull, onLogout: widget.onLogout),
+      appBar: homeAppBar(context,
+          title: 'Мой день',
+          session: widget.session,
+          workday: widget.workday,
+          onRefresh: _pull,
+          onLogout: widget.onLogout),
       body: RefreshIndicator(
         onRefresh: _pull,
         child: ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
+            Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), child: WorkdayCard(workday: widget.workday)),
             _days(),
             _status(data),
             if (data == null && !_loading)

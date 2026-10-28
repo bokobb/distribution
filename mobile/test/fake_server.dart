@@ -19,6 +19,11 @@ class FakeServer {
   /// Что сервер отдаёт агенту: сегодня маршрут «Центр» из двух магазинов, у второго долг с просрочкой.
   Map<String, dynamic> agentData = sampleAgentData();
 
+  /// Что пришло на /api/mobile/track.
+  final trackEvents = <Map<String, dynamic>>[];
+  final trackPoints = <Map<String, dynamic>>[];
+  int? lastUnsent;
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -49,6 +54,12 @@ class FakeServer {
       case '/api/mobile/me':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(_user(), 200);
+      case '/api/mobile/track':
+        if (!authed) return _json({'message': 'Войдите заново'}, 401);
+        trackEvents.addAll((body['events'] as List).cast<Map<String, dynamic>>());
+        trackPoints.addAll((body['points'] as List).cast<Map<String, dynamic>>());
+        lastUnsent = body['unsent'] as int?;
+        return _json({'events': 0, 'points': 0, 'duplicates': 0, 'outsideDay': 0, 'invalid': 0}, 200);
       case '/api/mobile/agent/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         return _json(agentData, 200);

@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../session.dart';
+import '../widgets/workday_card.dart';
+import '../workday.dart';
 import 'home_parts.dart';
 
 /// Главный экран экспедитора — «Рейс». Рейс, выдача и оплата появятся на этапе приложения экспедитора.
 class ExpeditorHomeScreen extends StatefulWidget {
   const ExpeditorHomeScreen(
-      {super.key, required this.api, required this.session, required this.onSession, required this.onLogout});
+      {super.key,
+      required this.api,
+      required this.session,
+      required this.workday,
+      required this.onSession,
+      required this.onLogout});
 
   final ApiClient api;
   final Session session;
+  final Workday workday;
   final ValueChanged<Session> onSession;
   final VoidCallback onLogout;
 
@@ -27,13 +35,18 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: homeAppBar(context, title: 'Рейс', session: widget.session, onLogout: widget.onLogout),
-        body: const Center(
-          child: EmptyState(
-            icon: Icons.local_shipping_outlined,
-            title: 'Рейс на сегодня',
-            text: 'Появится здесь, когда приложение получит данные с сервера.',
-          ),
+        appBar: homeAppBar(context,
+            title: 'Рейс', session: widget.session, workday: widget.workday, onLogout: widget.onLogout),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            WorkdayCard(workday: widget.workday),
+            const EmptyState(
+              icon: Icons.local_shipping_outlined,
+              title: 'Рейс на сегодня',
+              text: 'Появится здесь, когда приложение получит данные с сервера.',
+            ),
+          ],
         ),
       );
 }

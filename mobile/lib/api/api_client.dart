@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../data/track.dart';
 import '../session.dart';
 
 /// Ошибка, которую можно показать человеку как есть.
@@ -73,6 +74,13 @@ class ApiClient {
 
   /// Данные агента для работы без сети (AgentData) — как есть, чтобы сохранить на телефоне.
   Future<Map<String, dynamic>> agentData() => _authed('GET', '/api/mobile/agent/data');
+
+  /// Журнал приложения и точки GPS пачкой; unsent — сколько записей на телефоне останется после неё.
+  Future<void> track(TrackBatch batch, {required int unsent}) => _authed('POST', '/api/mobile/track', body: {
+        'events': [for (final e in batch.events) e.toJson(appVersion: appVersion, device: device)],
+        'points': [for (final p in batch.points) p.toJson()],
+        'unsent': unsent,
+      });
 
   /// Свой пароль вместо временного; вход на остальных телефонах сотрудника закрывается.
   Future<Session> changePassword(String current, String password, String confirm) async =>

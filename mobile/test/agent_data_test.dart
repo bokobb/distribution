@@ -1,5 +1,6 @@
 import 'package:distribution_mobile/data/agent_data.dart';
 import 'package:distribution_mobile/data/local_store.dart';
+import 'package:distribution_mobile/data/track.dart';
 import 'package:distribution_mobile/format.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -45,6 +46,29 @@ void main() {
     expect(await store.read('agent'), {'a': 2});
     await store.clear();
     expect(await store.read('agent'), isNull);
+    await store.close();
+  });
+
+  test('SQLite: журнал и точки ждут отправки, отправленное помечается', () async {
+    sqfliteFfiInit();
+    final store = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
+    final start = DateTime(2026, 10, 28, 8, 40);
+    await store.addEvent(TrackEvent(uuid: 'u1', at: start, kind: 'DAY_START'));
+    await store.addPoint(TrackPoint(at: start.add(const Duration(minutes: 1)), lat: 42.3, lng: 69.6, accuracy: 10, battery: 80));
+    await store.addPoint(TrackPoint(at: start.add(const Duration(minutes: 1)), lat: 42.3, lng: 69.6)); // та же точка
+    await store.addPoint(TrackPoint(at: start.add(const Duration(minutes: 6)), lat: 42.31, lng: 69.61));
+
+    expect(await store.unsentCount(), 3);
+    final first = await store.unsent(2);
+    expect(first.events.single.kind, 'DAY_START');
+    expect(first.points.single.accuracy, 10);
+    await store.markSent(first);
+    expect(await store.unsentCount(), 1);
+    expect((await store.unsent(10)).points.single.lat, 42.31);
+    // отправленное остаётся видно: по нему открыт ли рабочий день
+    expect((await store.eventsSince(DateTime(2026, 10, 28))).single.uuid, 'u1');
+    await store.clear();
+    expect(await store.unsentCount(), 0);
     await store.close();
   });
 }

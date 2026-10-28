@@ -16,8 +16,8 @@ build/
 .settings
 
 ### Локальные данные и секреты ###
-data/
-backups/
+/data/
+/backups/
 *.env
 application-local.properties
 
