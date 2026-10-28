@@ -50,8 +50,15 @@ public class ExpeditorDataService {
     public record StopDto(int position, OutletDto outlet, OrderDto order) {
     }
 
+    /**
+     * Деньги и возвраты рейса, как их увидит касса: наличные и Kaspi — все оплаты рейса (за заказы и в счёт долгов),
+     * oldDebt — из них оплаты долгов; возвраты негодного — штук и на сколько уменьшили долги.
+     */
+    public record CashDto(long cash, long kaspi, long oldDebt, int returnsQty, long returnsTotal) {
+    }
+
     public record TripDto(Long id, String number, LocalDate date, String status, String statusLabel, String vehicle,
-                          List<StopDto> stops) {
+                          List<StopDto> stops, CashDto cash) {
     }
 
     public record CompanyDto(String name, String phone) {
@@ -101,6 +108,7 @@ public class ExpeditorDataService {
                             o.getTotal(), paid.getOrDefault(o.getId(), 0L), lines)));
         }
         return new TripDto(t.getId(), t.getNumber(), t.getDate(), t.getStatus().name(), t.getStatus().getLabel(),
-                t.getVehicle() == null ? null : t.getVehicle().getPlate(), stops);
+                t.getVehicle() == null ? null : t.getVehicle().getPlate(), stops,
+                new CashDto(t.getCash(), t.getKaspi(), t.getOldDebtCollected(), t.getReturnsQty(), t.getReturnsTotal()));
     }
 }

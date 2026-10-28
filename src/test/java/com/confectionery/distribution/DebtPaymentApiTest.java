@@ -85,7 +85,8 @@ class DebtPaymentApiTest {
 
     @Test
     void оплатаДолгаВКассуРейса_повторБезДубля() throws Exception {
-        String json = pay(UUID.randomUUID(), w.outlet().getId(), "CASH", 20_000, earlier());
+        UUID uuid = UUID.randomUUID();
+        String json = pay(uuid, w.outlet().getId(), "CASH", 20_000, earlier());
         send(json).andExpect(status().isOk())
                 .andExpect(jsonPath("$.outletId").value(w.outlet().getId()))
                 .andExpect(jsonPath("$.method").value("CASH"))
@@ -94,7 +95,7 @@ class DebtPaymentApiTest {
         send(json).andExpect(status().isOk()).andExpect(jsonPath("$.debt").value(10_000));
 
         assertThat(oldDebtPayments()).isEqualTo(1);
-        assertThat(jdbc.queryForObject("select trip_id from payments where order_id is null", Long.class)).isEqualTo(trip.getId());
+        assertThat(jdbc.queryForObject("select trip_id from payments where uuid = ?", Long.class, uuid)).isEqualTo(trip.getId());
         send(pay("KASPI", 4_000)).andExpect(status().isOk()).andExpect(jsonPath("$.debt").value(6_000));
         mvc.perform(get("/api/mobile/expeditor/data").header("Authorization", "Bearer " + data.jwt(w.expeditor())))
                 .andExpect(jsonPath("$.trips[0].stops[0].outlet.debt").value(6_000));

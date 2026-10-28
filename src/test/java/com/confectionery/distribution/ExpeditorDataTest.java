@@ -51,6 +51,8 @@ class ExpeditorDataTest {
         Trip t = data.trip(w, TripStatus.ON_ROAD, first, second);
         data.delivered(w, first, t, 8, data.today().atTime(10, 0));
         data.payment(w, first, t, PaymentMethod.CASH, 8_000, data.today().atTime(10, 0));
+        data.payment(w, null, t, PaymentMethod.KASPI, 3_000, data.today().atTime(10, 5)); // в счёт долга
+        data.productReturn(w, t, 2, 500, data.today());
 
         expeditorData(w.expeditor()).andExpect(status().isOk())
                 .andExpect(jsonPath("$.date").value(data.today().toString()))
@@ -63,7 +65,12 @@ class ExpeditorDataTest {
                 .andExpect(jsonPath("$.trips[0].stops", hasSize(2)))
                 .andExpect(jsonPath("$.trips[0].stops[0].position").value(0))
                 .andExpect(jsonPath("$.trips[0].stops[0].outlet.name").value(w.outlet().getName()))
-                .andExpect(jsonPath("$.trips[0].stops[0].outlet.debt").value(20_000 + 8_000 - 8_000))
+                .andExpect(jsonPath("$.trips[0].stops[0].outlet.debt").value(20_000 + 8_000 - 8_000 - 3_000 - 1_000))
+                .andExpect(jsonPath("$.trips[0].cash.cash").value(8_000))
+                .andExpect(jsonPath("$.trips[0].cash.kaspi").value(3_000))
+                .andExpect(jsonPath("$.trips[0].cash.oldDebt").value(3_000))
+                .andExpect(jsonPath("$.trips[0].cash.returnsQty").value(2))
+                .andExpect(jsonPath("$.trips[0].cash.returnsTotal").value(1_000))
                 .andExpect(jsonPath("$.trips[0].stops[0].order.number").value(first.getNumber()))
                 .andExpect(jsonPath("$.trips[0].stops[0].order.status").value("PARTIAL"))
                 .andExpect(jsonPath("$.trips[0].stops[0].order.total").value(10_000))
