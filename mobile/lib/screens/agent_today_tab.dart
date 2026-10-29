@@ -13,6 +13,7 @@ import '../widgets/workday_card.dart';
 import '../workday.dart';
 import 'agent_order_screen.dart';
 import 'home_parts.dart';
+import 'my_path_screen.dart';
 import 'pick_shop_screen.dart';
 
 /// «Сегодня» торгового по макету AgentToday: «Создать заказ» (магазин по GPS из всей базы; идёт визит —
@@ -72,7 +73,13 @@ class AgentTodayTab extends StatelessWidget {
                 PageHeader(
                   title: 'Сегодня',
                   subtitle: '${dayTitle(DateTime.now())} · $name',
-                  trailing: [_TrackChip(workday: workday)],
+                  trailing: [
+                    _TrackChip(
+                      workday: workday,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => MyPathScreen(data: d, visits: visits, workday: workday))),
+                    ),
+                  ],
                 ),
                 _status(),
                 Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: WorkdayCard(workday: workday)),
@@ -410,31 +417,39 @@ class _VisitRow extends StatelessWidget {
   }
 }
 
-/// «Путь пишется» в шапке «Сегодня», пока идёт рабочий день.
+/// «Путь пишется» в шапке «Сегодня», пока идёт рабочий день; нажать — «Мой путь».
 class _TrackChip extends StatelessWidget {
-  const _TrackChip({required this.workday});
+  const _TrackChip({required this.workday, required this.onTap});
 
   final Workday workday;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => !workday.open
       ? const SizedBox.shrink()
-      : Container(
-          height: 36,
-          padding: const EdgeInsets.fromLTRB(10, 0, 12, 0),
-          decoration: const BoxDecoration(color: AppColors.okBg, borderRadius: BorderRadius.all(Radius.circular(18))),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: workday.gpsOff ? AppColors.err : AppColors.ok, shape: BoxShape.circle)),
-              const SizedBox(width: 7),
-              Text(workday.gpsOff ? 'GPS выключен' : 'Путь пишется',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0B5A40))),
-            ],
+      : Material(
+          color: AppColors.okBg,
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.fromLTRB(10, 0, 12, 0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                          color: workday.gpsOff ? AppColors.err : AppColors.ok, shape: BoxShape.circle)),
+                  const SizedBox(width: 7),
+                  Text(workday.gpsOff ? 'GPS выключен' : 'Путь пишется',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0B5A40))),
+                ],
+              ),
+            ),
           ),
         );
 }

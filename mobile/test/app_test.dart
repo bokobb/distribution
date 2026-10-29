@@ -540,6 +540,70 @@ void main() {
     expect(find.text(money(7200)), findsOneWidget);
   });
 
+  testWidgets('«Заказы»: сегодня — новый, вчера — доставлен во сколько; «Мой путь» — путь, визиты, начало дня',
+      (t) async {
+    final gps = FakeLocation();
+    final local = MemoryStore();
+    await t.pumpWidget(DistributionApp(
+        location: gps, camera: FakeCamera(), local: local, api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
+    await logIn(t);
+    await tapVisible(t, find.text('Начать рабочий день'));
+    await t.pumpAndSettle();
+    // три точки GPS через 6 минут: 556 м на север и 822 м на восток
+    final start = DateTime.now();
+    for (final (i, (lat, lng)) in [(42.300, 69.600), (42.305, 69.600), (42.305, 69.610)].indexed) {
+      gps.fix(start.add(Duration(minutes: 6 * i)), lat: lat, lng: lng);
+      await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await t.pump();
+    }
+    expect(local.points, hasLength(3));
+
+    await tapVisible(t, find.text('Создать заказ'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Заказ здесь'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Как 21 октября'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Далее'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Отправить заказ'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+
+    await openTab(t, 'Заказы');
+    expect(find.text('Сегодня · 1'), findsOneWidget);
+    expect(find.text('Вчера · 2'), findsOneWidget);
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    expect(find.text('Доставка завтра, ${dayMonth(tomorrow)}'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^\d\d:\d\d · 2 позиции$')), findsOneWidget);
+    expect(find.text(money(32000)), findsNWidgets(2)); // итог дня и строка: 64 шт × 500
+    expect(find.text('Новый'), findsOneWidget);
+
+    await t.tap(find.text('Вчера · 2'));
+    await t.pumpAndSettle();
+    expect(find.text('Сегодня доставлено 1 из 2'), findsOneWidget);
+    expect(find.text('2 позиции · наличные · в 09:12'), findsOneWidget);
+    expect(find.text('1 позиция · в долг'), findsOneWidget);
+    expect(find.text('Доставлен'), findsOneWidget);
+    expect(find.text('Новый'), findsOneWidget);
+    expect(find.text(money(20000)), findsOneWidget); // 15 000 + 5 000
+
+    await openTab(t, 'Сегодня');
+    await t.tap(find.text('Путь пишется'));
+    await t.pumpAndSettle();
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    await t.pumpAndSettle();
+    expect(find.text('Мой путь'), findsOneWidget);
+    expect(find.text('1,4 км'), findsOneWidget);
+    expect(find.text('с ${time(start)}'), findsOneWidget);
+    expect(find.text('1 визит · 1 заказ'), findsOneWidget);
+    expect(find.textContaining('заказ ${money(32000)}'), findsOneWidget);
+    expect(find.text('Начало рабочего дня'), findsOneWidget);
+    expect(find.text('Путь пишется сам, пока идёт рабочий день. Руководитель видит его в админке на карте.'),
+        findsOneWidget);
+  });
+
   testWidgets('«Отправка»: без сети ждёт, «Отправить сейчас» отправляет', (t) async {
     final server = FakeServer();
     await t.pumpWidget(DistributionApp(

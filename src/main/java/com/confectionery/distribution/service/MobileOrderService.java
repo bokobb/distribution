@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,9 +68,10 @@ public class MobileOrderService {
 
     /** status — имя OrderStatus; note — для агента: почему ждёт разрешения или отменён; returnTotal — сколько вычтется
      * за возврат. */
+    /** deliveredAt — когда экспедитор отдал товар (последняя выдача); не отдал — null. */
     public record OrderOut(UUID uuid, Long outletId, String number, LocalDateTime createdAt, LocalDate deliveryDate,
                            String payment, String status, String statusLabel, String note, long total,
-                           List<LineOut> lines, long returnTotal, List<ReturnLineOut> returns) {
+                           List<LineOut> lines, long returnTotal, List<ReturnLineOut> returns, LocalDateTime deliveredAt) {
     }
 
     @Transactional
@@ -159,8 +161,28 @@ public class MobileOrderService {
     /** Заказы агента за день — телефону: номер, статус и причина отмены видны в приложении. */
     @Transactional(readOnly = true)
     public List<OrderOut> of(Long agentId, LocalDate day) {
-        return orders.findByAgentIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(agentId,
-                day.atStartOfDay(), day.plusDays(1).atStartOfDay()).stream().map(MobileOrderService::out).toList();
+        List<Order> list = orders.findByAgentIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(agentId,
+                day.atStartOfDay(), day.plusDays(1).atStartOfDay());
+        Map<Long, LocalDateTime> delivered = new HashMap<>();
+        if (!list.isEmpty()) {
+            jdbc.query("""
+                    select d.order_id, max(d.delivered_at) at from deliveries d join orders o on o.id = d.order_id
+                    where d.company_id = ? and o.agent_id = ? and o.created_at >= ? and o.created_at < ?
+                      and d.status in ('DELIVERED', 'PARTIAL')
+                    group by d.order_id""", rs -> {
+                delivered.put(rs.getLong("order_id"), rs.getTimestamp("at").toLocalDateTime());
+            }, list.get(0).getCompanyId(), agentId, day.atStartOfDay(), day.plusDays(1).atStartOfDay());
+        }
+        return list.stream().map(o -> out(o, delivered.get(o.getId()))).toList();
+    }
+
+    /** Последний день до before, когда агент брал заказы (не дальше двух недель); не брал — null. */
+    public LocalDate previousDay(Long agentId, Long companyId, LocalDate before) {
+        Timestamp at = jdbc.queryForObject("""
+                select max(created_at) from orders
+                where company_id = ? and agent_id = ? and created_at >= ? and created_at < ?""",
+                Timestamp.class, companyId, agentId, before.minusDays(14).atStartOfDay(), before.atStartOfDay());
+        return at == null ? null : at.toLocalDateTime().toLocalDate();
     }
 
     /** В долг, ещё не доставлено — уже будущий долг магазина. */
@@ -201,6 +223,10 @@ public class MobileOrderService {
     }
 
     static OrderOut out(Order o) {
+        return out(o, null);
+    }
+
+    static OrderOut out(Order o, LocalDateTime deliveredAt) {
         String note = switch (o.getStatus()) {
             case NEEDS_APPROVAL -> "Долг сверх лимита — ждёт разрешения оператора";
             case CANCELLED, REFUSED -> o.getEvents().isEmpty() ? null : o.getEvents().get(o.getEvents().size() - 1).getText();
@@ -212,7 +238,8 @@ public class MobileOrderService {
                         l.getNetPrice(), l.getSum())).toList(),
                 o.getReturnTotal(),
                 o.getReturnLines().stream().map(l -> new ReturnLineOut(l.getProduct().getId(), l.getProduct().getName(),
-                        l.getQty(), l.getPrice(), l.getSum(), l.getReason().name())).toList());
+                        l.getQty(), l.getPrice(), l.getSum(), l.getReason().name())).toList(),
+                deliveredAt);
     }
 
     static String money(long v) {

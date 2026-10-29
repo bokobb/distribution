@@ -75,6 +75,9 @@ abstract class LocalStore {
   /// Записи журнала с этого времени, по порядку — отправленные тоже (по ним видно, открыт ли рабочий день).
   Future<List<TrackEvent>> eventsSince(DateTime from);
 
+  /// Точки GPS с этого времени, по порядку — отправленные тоже (по ним рисуется путь за день).
+  Future<List<TrackPoint>> pointsSince(DateTime from);
+
   /// Самые старые неотправленные записи, не больше limit.
   Future<TrackBatch> unsent(int limit);
 
@@ -297,23 +300,25 @@ class SqliteStore implements LocalStore {
   }
 
   @override
+  Future<List<TrackPoint>> pointsSince(DateTime from) async {
+    final rows = await _db.query('gps', where: 'at >= ?', whereArgs: [from.toIso8601String()], orderBy: 'at');
+    return rows.map(_point).toList();
+  }
+
+  @override
   Future<TrackBatch> unsent(int limit) async {
     final events = await _db.query('journal', where: 'sent = 0', orderBy: 'at', limit: limit);
     final points = await _db.query('gps', where: 'sent = 0', orderBy: 'at', limit: limit - events.length);
-    return TrackBatch(
-      events.map(_event).toList(),
-      [
-        for (final r in points)
-          TrackPoint(
-            at: DateTime.parse(r['at'] as String),
-            lat: r['lat'] as double,
-            lng: r['lng'] as double,
-            accuracy: r['accuracy'] as int?,
-            battery: r['battery'] as int?,
-          ),
-      ],
-    );
+    return TrackBatch(events.map(_event).toList(), points.map(_point).toList());
   }
+
+  static TrackPoint _point(Map<String, Object?> r) => TrackPoint(
+        at: DateTime.parse(r['at'] as String),
+        lat: r['lat'] as double,
+        lng: r['lng'] as double,
+        accuracy: r['accuracy'] as int?,
+        battery: r['battery'] as int?,
+      );
 
   @override
   Future<void> markSent(TrackBatch batch) => _db.transaction((tx) async {

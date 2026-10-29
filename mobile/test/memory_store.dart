@@ -44,6 +44,10 @@ class MemoryStore implements LocalStore {
       (events.where((e) => !e.at.isBefore(from)).toList()..sort((a, b) => a.at.compareTo(b.at)));
 
   @override
+  Future<List<TrackPoint>> pointsSince(DateTime from) async =>
+      (points.where((p) => !p.at.isBefore(from)).toList()..sort((a, b) => a.at.compareTo(b.at)));
+
+  @override
   Future<TrackBatch> unsent(int limit) async {
     final e = events.where((x) => !sent.contains(x.uuid)).take(limit).toList();
     final p = points.where((x) => !sent.contains(x.at)).take(limit - e.length).toList();

@@ -72,11 +72,15 @@ public class AgentDataService {
     public record LastOrderDto(Long outletId, LocalDate date, List<ItemDto> items) {
     }
 
-    /** others — магазины компании не из маршрутов агента; stats — последний визит и средний заказ всех магазинов. */
+    /**
+     * others — магазины компании не из маршрутов агента; stats — последний визит и средний заказ всех магазинов;
+     * previousOrders — заказы агента за прошлый рабочий день previousDate (вкладка «Вчера»: доставлены или нет).
+     */
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
                             List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits,
                             List<MobileOrderService.OrderOut> orders, List<PlaceDto> others, List<LastOrderDto> lastOrders,
-                            List<OutletCardService.StatDto> stats) {
+                            List<OutletCardService.StatDto> stats, LocalDate previousDate,
+                            List<MobileOrderService.OrderOut> previousOrders) {
     }
 
     /** Магазин для телефона; долг и последняя оплата — если заполнены (DebtService). */
@@ -112,6 +116,7 @@ public class AgentDataService {
         catalog.fillPrices(active);
 
         LocalDate today = LocalDate.now(clock);
+        LocalDate previous = orders.previousDay(agentId, companyId, today);
         return new AgentData(today, LocalDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS),
                 new Settings(s.getVisitRadius(), s.isShelfPhotoRequired(), s.isRefuseReasonRequired(), s.getDeliveryDays(),
                         s.isAllowCredit(), s.isApprovalOverLimit(), s.isAgentDiscount(), s.isAcceptKaspi(), s.getGpsInterval()),
@@ -120,7 +125,7 @@ public class AgentDataService {
                 routeDtos,
                 outlets.values().stream().map(AgentDataService::outlet).toList(),
                 visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()), lastOrders(companyId),
-                cards.stats(companyId));
+                cards.stats(companyId), previous, previous == null ? List.of() : orders.of(agentId, previous));
     }
 
     private List<PlaceDto> others(Set<Long> mine) {

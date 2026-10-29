@@ -10,11 +10,12 @@ import '../widgets/layout.dart';
 import '../workday.dart';
 import 'agent_today_tab.dart';
 import 'home_parts.dart';
+import 'orders_tab.dart';
 import 'profile_screen.dart';
 import 'shops_tab.dart';
 
-/// Главный экран торгового: разделы «Сегодня» (создать заказ, итоги и визиты дня), «Магазины» (карта и список
-/// всей базы) и «Профиль». Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем,
+/// Главный экран торгового: разделы «Сегодня» (создать заказ, итоги и визиты дня), «Заказы» (сегодня и прошлого
+/// рабочего дня — доставлены или нет), «Магазины» (карта и список всей базы) и «Профиль». Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем,
 /// что есть. Новый магазин с телефона сразу в базе (в нём можно оформить заказ) и в «Новых магазинах», пока не ушёл
 /// на сервер; сервер принял — данные обновляются, и он в базе «на проверке» уже с сервера.
 class AgentHomeScreen extends StatefulWidget {
@@ -125,9 +126,15 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final data = _view;
+    const noData = Center(
+        child: EmptyState(
+            icon: Icons.cloud_off_outlined,
+            title: 'Нет данных',
+            text: 'Подключитесь к интернету и обновите «Сегодня», чтобы получить магазины.'));
     return HomeShell(
       tabs: const [
         TabItem('Сегодня', Icons.today_outlined, Icons.today),
+        TabItem('Заказы', Icons.receipt_long_outlined, Icons.receipt_long),
         TabItem('Магазины', Icons.storefront_outlined, Icons.storefront),
         TabItem('Профиль', Icons.person_outline, Icons.person),
       ],
@@ -143,12 +150,9 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
           newOutlets: _newOutlets,
         ),
         data == null
-            ? const Center(
-                child: EmptyState(
-                    icon: Icons.cloud_off_outlined,
-                    title: 'Нет данных',
-                    text: 'Подключитесь к интернету и обновите «Сегодня», чтобы получить магазины.'))
-            : ShopsTab(data: data, visits: widget.visits, workday: widget.workday),
+            ? noData
+            : OrdersTab(data: data, visits: widget.visits, workday: widget.workday, onRefresh: _pull),
+        data == null ? noData : ShopsTab(data: data, visits: widget.visits, workday: widget.workday),
         ProfileTab(
           api: widget.repo.api,
           session: widget.session,

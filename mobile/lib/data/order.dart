@@ -24,6 +24,7 @@ class Order {
     this.status,
     this.statusLabel,
     this.note,
+    this.deliveredAt,
   });
 
   final String uuid;
@@ -60,6 +61,9 @@ class Order {
   String? statusLabel;
   String? note;
 
+  /// С сервера: когда экспедитор отдал товар; не отдал — null.
+  DateTime? deliveredAt;
+
   static const paymentLabels = {'CASH': 'Наличные', 'KASPI': 'Kaspi', 'CREDIT': 'В долг'};
 
   int get qty => items.values.fold(0, (a, b) => a + b);
@@ -85,6 +89,7 @@ class Order {
         status: status,
         statusLabel: statusLabel,
         note: note,
+        deliveredAt: deliveredAt,
       );
 
   /// Для сервера.
@@ -107,6 +112,8 @@ class Order {
     status = j['status'] as String?;
     statusLabel = j['statusLabel'] as String?;
     note = j['note'] as String?;
+    final at = j['deliveredAt'] as String?;
+    deliveredAt = at == null ? null : DateTime.parse(at);
     total = (j['total'] as num?)?.toInt() ?? total;
     returnTotal = (j['returnTotal'] as num?)?.toInt() ?? returnTotal;
   }

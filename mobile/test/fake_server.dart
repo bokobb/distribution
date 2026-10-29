@@ -405,8 +405,27 @@ Map<String, dynamic> sampleAgentData({DateTime? now}) {
       {'outletId': 11, 'lastVisit': d(t.subtract(const Duration(days: 8))), 'avgOrder': 13900, 'createdOn': '2025-02-01'},
       {'outletId': 12, 'lastVisit': null, 'avgOrder': 0, 'createdOn': '2026-10-24'},
     ],
+    // вчера: «Арай» доставлен утром, «Береке» в долг — ещё нет
+    'previousDate': d(t.subtract(const Duration(days: 1))),
+    'previousOrders': [
+      _order(31, 1, t.subtract(const Duration(days: 1)), 'CASH', [(1, 24, 500), (2, 10, 300)],
+          status: 'DELIVERED', label: 'Доставлен', deliveredAt: '${d(t)}T09:12:00'),
+      _order(32, 2, t.subtract(const Duration(days: 1)), 'CREDIT', [(1, 10, 500)]),
+    ],
   };
 }
+
+/// Заказ агента, как его отдаёт сервер: строки (товар, штук, цена).
+Map<String, dynamic> _order(int id, int outletId, DateTime day, String payment, List<(int, int, int)> lines,
+        {String status = 'ACCEPTED', String label = 'Принят', String? deliveredAt}) =>
+    {
+      'uuid': '00000000-0000-0000-0000-0000000000$id', 'outletId': outletId, 'number': 'З-$id',
+      'createdAt': '${_day(day)}T10:${id % 60}:00', 'deliveryDate': _day(day.add(const Duration(days: 1))),
+      'payment': payment, 'status': status, 'statusLabel': label, 'note': null,
+      'total': lines.fold<int>(0, (a, l) => a + l.$2 * l.$3),
+      'lines': [for (final l in lines) {'productId': l.$1, 'qty': l.$2, 'price': l.$3, 'sum': l.$2 * l.$3}],
+      'returnTotal': 0, 'returns': [], 'deliveredAt': deliveredAt,
+    };
 
 /// Карточка «Арай»: средний заказ, раз в неделю, возвраты 3 %, перестал брать вафли; заказ с возвратом и визит без заказа.
 Map<String, dynamic> sampleCard() => {

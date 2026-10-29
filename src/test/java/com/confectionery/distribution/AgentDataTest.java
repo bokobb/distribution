@@ -2,7 +2,9 @@ package com.confectionery.distribution;
 
 import com.confectionery.distribution.TestData.World;
 import com.confectionery.distribution.domain.Employee;
+import com.confectionery.distribution.domain.Order;
 import com.confectionery.distribution.domain.Outlet;
+import com.confectionery.distribution.domain.PaymentMethod;
 import com.confectionery.distribution.domain.PriceKind;
 import com.confectionery.distribution.domain.Role;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+
+import java.time.LocalDate;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -104,6 +108,39 @@ class AgentDataTest {
 
         jdbc.update("update outlets set status = 'CLOSED' where id in (?, ?)", near.getId(), noPoint.getId());
         agentData(w.agent()).andExpect(jsonPath("$.others", empty()));
+    }
+
+    @Test
+    void заказыПрошлогоРабочегоДня_иКогдаДоставлены() throws Exception {
+        World w = data.world("Вчерашние заказы");
+        Order early = data.order(w, data.today(), PaymentMethod.CASH, 10, 100);
+        Order delivered = data.order(w, data.today(), PaymentMethod.KASPI, 5, 100);
+        Order waiting = data.order(w, data.today(), PaymentMethod.CASH, 3, 100);
+        Order today = data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 1, 100);
+        // у другого агента вчера был заказ — прошлый день считается по своим
+        Order foreign = data.order(w, w.outlet(), data.person(w, "Сосед по складу", Role.AGENT), data.today(), PaymentMethod.CASH, 1, 100);
+        LocalDate previous = data.today().minusDays(3);
+        jdbc.update("update orders set created_at = ? where id = ?", data.today().minusDays(10).atTime(9, 0), early.getId());
+        jdbc.update("update orders set created_at = ? where id in (?, ?)", previous.atTime(11, 0), delivered.getId(), waiting.getId());
+        jdbc.update("update orders set created_at = ? where id = ?", data.today().minusDays(1).atTime(12, 0), foreign.getId());
+        data.delivered(w, delivered, null, 5, data.today().minusDays(2).atTime(10, 15));
+
+        String at = "$.previousOrders[?(@.uuid == '%s')]";
+        agentData(w.agent()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.orders", hasSize(1)))
+                .andExpect(jsonPath("$.orders[0].uuid").value(today.getUuid().toString()))
+                .andExpect(jsonPath("$.orders[0].deliveredAt").doesNotExist())
+                .andExpect(jsonPath("$.previousDate").value(previous.toString()))
+                .andExpect(jsonPath("$.previousOrders", hasSize(2)))
+                .andExpect(jsonPath(at.formatted(delivered.getUuid()) + ".deliveredAt")
+                        .value(data.today().minusDays(2).atTime(10, 15).toString() + ":00"))
+                .andExpect(jsonPath(at.formatted(delivered.getUuid()) + ".status").value("DELIVERED"))
+                .andExpect(jsonPath(at.formatted(waiting.getUuid()) + ".deliveredAt", contains((Object) null)));
+
+        // две недели без заказов — вкладки «Вчера» нет
+        World fresh = data.world("Без прошлых заказов");
+        agentData(fresh.agent()).andExpect(jsonPath("$.previousDate").doesNotExist())
+                .andExpect(jsonPath("$.previousOrders", empty()));
     }
 
     @Test

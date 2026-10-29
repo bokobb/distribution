@@ -4,11 +4,12 @@ import 'visit.dart';
 
 /// Данные торгового агента с сервера (/api/mobile/agent/data): настройки компании, товары с ценами на день
 /// синхронизации, маршруты агента, его магазины с долгами, его визиты и заказы за этот день, остальные магазины
-/// компании (заказ принимают в любом — без долгов), последний заказ каждого магазина и сводка по магазинам для карты.
+/// компании (заказ принимают в любом — без долгов), последний заказ каждого магазина, сводка по магазинам для карты и
+/// заказы прошлого рабочего дня (доставлены или нет).
 /// Хранятся на телефоне целиком, обновляются целиком. К ним добавляются новые магазины с телефона ([withLocal]).
 class AgentData {
   AgentData._(this.json, this.date, this.syncedAt, this.settings, this.products, this.routes, this.outlets,
-      this.visits, this.orders, this.others, this.lastOrders, this.stats,
+      this.visits, this.orders, this.others, this.lastOrders, this.stats, this.previousDate, this.previousOrders,
       [this.local = const []]);
 
   /// Как пришло с сервера — так и хранится на телефоне.
@@ -34,6 +35,11 @@ class AgentData {
 
   /// Последний визит, средний заказ, день в базе: id магазина → сводка.
   final Map<int, OutletStat> stats;
+
+  /// Прошлый день, когда агент брал заказы (не дальше двух недель), и его заказы со временем доставки; не было — null
+  /// и пусто.
+  final DateTime? previousDate;
+  final List<Order> previousOrders;
 
   /// Новые магазины с телефона (не отклонённые сервером).
   final List<NewOutlet> local;
@@ -63,7 +69,8 @@ class AgentData {
 
   /// Те же данные с новыми магазинами с телефона.
   AgentData withLocal(List<NewOutlet> list) => AgentData._(json, date, syncedAt, settings, products, routes, outlets,
-      visits, orders, others, lastOrders, stats, [for (final n in list) if (n.error == null) n]);
+      visits, orders, others, lastOrders, stats, previousDate, previousOrders,
+      [for (final n in list) if (n.error == null) n]);
 
   factory AgentData.fromJson(Map<String, dynamic> json) {
     final outlets = <int, Outlet>{};
@@ -90,6 +97,8 @@ class AgentData {
         for (final st in json['stats'] as List? ?? const [])
           (st as Map<String, dynamic>)['outletId'] as int: OutletStat.fromJson(st),
       },
+      json['previousDate'] == null ? null : DateTime.parse(json['previousDate'] as String),
+      [for (final o in json['previousOrders'] as List? ?? const []) Order.fromServer(o as Map<String, dynamic>)],
     );
   }
 

@@ -10,6 +10,7 @@ import '../geo.dart';
 import '../location.dart';
 import '../theme.dart';
 import '../visits.dart';
+import '../widgets/map_parts.dart';
 import '../workday.dart';
 import 'outlet_screen.dart';
 import 'shop_facts.dart';
@@ -180,7 +181,7 @@ class _ShopsMapState extends State<ShopsMap> {
                 ),
                 MarkerLayer(markers: [
                   if (fix != null)
-                    Marker(point: LatLng(fix.lat, fix.lng), width: 44, height: 44, child: const _Me()),
+                    Marker(point: LatLng(fix.lat, fix.lng), width: 44, height: 44, child: const MapMe()),
                   // не подходящие снизу, выбранный — поверх всех
                   for (final o in [
                     ...points.where((o) => !_matches(o, f)),
@@ -217,7 +218,7 @@ class _ShopsMapState extends State<ShopsMap> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Row(children: [
                     if (widget.pushed) ...[
-                      _Round(tooltip: 'Назад', icon: Icons.arrow_back, onTap: () => Navigator.maybePop(context)),
+                      MapRound(tooltip: 'Назад', icon: Icons.arrow_back, onTap: () => Navigator.maybePop(context)),
                       const SizedBox(width: 8),
                     ],
                     Expanded(child: _SearchPill(controller: _search, onChanged: _find)),
@@ -273,7 +274,7 @@ class _ShopsMapState extends State<ShopsMap> {
               right: 16,
               top: searching ? 176 : 130,
               child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                _Round(
+                MapRound(
                   tooltip: 'Показать меня',
                   icon: Icons.my_location,
                   busy: _locating,
@@ -406,32 +407,6 @@ class _Tail extends CustomPainter {
   bool shouldRepaint(_Tail old) => old.color != color;
 }
 
-/// Где торговый: точка с ореолом.
-class _Me extends StatelessWidget {
-  const _Me();
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        label: 'Вы здесь',
-        child: Container(
-          decoration: const BoxDecoration(color: Color(0x3D4136F1), shape: BoxShape.circle),
-          alignment: Alignment.center,
-          child: Container(
-            width: 17,
-            height: 17,
-            decoration: BoxDecoration(
-              color: AppColors.accent,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: const [BoxShadow(color: Color(0x4D101318), blurRadius: 4, offset: Offset(0, 1))],
-            ),
-          ),
-        ),
-      );
-}
-
-const _shadow = [BoxShadow(color: Color(0x29101318), blurRadius: 10, offset: Offset(0, 2))];
-
 class _SearchPill extends StatelessWidget {
   const _SearchPill({required this.controller, required this.onChanged});
 
@@ -441,7 +416,7 @@ class _SearchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         height: 48,
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(24)), boxShadow: _shadow),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.all(Radius.circular(24)), boxShadow: mapShadow),
         child: TextField(
           controller: controller,
           onChanged: onChanged,
@@ -468,7 +443,7 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(24)), boxShadow: _shadow),
+        decoration: const BoxDecoration(borderRadius: BorderRadius.all(Radius.circular(24)), boxShadow: mapShadow),
         child: TextButton.icon(
           onPressed: onTap,
           style: TextButton.styleFrom(
@@ -481,29 +456,6 @@ class _Pill extends StatelessWidget {
           ),
           icon: Icon(icon, size: 20),
           label: Text(label),
-        ),
-      );
-}
-
-class _Round extends StatelessWidget {
-  const _Round({required this.tooltip, required this.icon, required this.onTap, this.busy = false});
-
-  final String tooltip;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 44,
-        height: 44,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: _shadow),
-        child: IconButton(
-          tooltip: tooltip,
-          onPressed: busy ? null : onTap,
-          icon: busy
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Icon(icon, size: 22, color: AppColors.text),
         ),
       );
 }
@@ -597,7 +549,7 @@ class _Legend extends StatelessWidget {
         decoration: const BoxDecoration(
           color: Color(0xF2FFFFFF),
           borderRadius: BorderRadius.all(Radius.circular(12)),
-          boxShadow: _shadow,
+          boxShadow: mapShadow,
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           for (final (kind, label) in [
