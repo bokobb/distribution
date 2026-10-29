@@ -42,7 +42,8 @@ class ExpeditorData {
 }
 
 class ExpeditorSettings {
-  const ExpeditorSettings({required this.acceptKaspi, required this.allowCredit, required this.gpsInterval});
+  const ExpeditorSettings(
+      {required this.acceptKaspi, required this.allowCredit, required this.gpsInterval, this.workStart, this.workEnd});
 
   final bool acceptKaspi;
   final bool allowCredit;
@@ -50,10 +51,16 @@ class ExpeditorSettings {
   /// Как часто снимать точку GPS в рабочий день, минут.
   final int gpsInterval;
 
+  /// Рабочее время компании, «08:00» — «20:00»: в эти часы день начинается сам, когда открыли приложение.
+  final String? workStart;
+  final String? workEnd;
+
   factory ExpeditorSettings.fromJson(Map<String, dynamic> j) => ExpeditorSettings(
         acceptKaspi: j['acceptKaspi'] as bool,
         allowCredit: j['allowCredit'] as bool,
         gpsInterval: j['gpsInterval'] as int? ?? 5,
+        workStart: j['workStart'] as String?,
+        workEnd: j['workEnd'] as String?,
       );
 }
 

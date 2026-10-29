@@ -15,6 +15,8 @@
     <section class="card">
         <div class="card-h"><h2>GPS и журнал приложения</h2></div>
         <div class="card-b form">
+            <label class="field">Рабочее время с<input class="inp" type="time" name="workStart" th:value="${f.workStart}"></label>
+            <label class="field">до<input class="inp" type="time" name="workEnd" th:value="${f.workEnd}"><span class="hint">открыл приложение в это время — рабочий день начинается сам, без кнопки; в конце — заканчивается сам. Раньше или позже — кнопкой «Начать рабочий день»</span></label>
             <label class="field">Интервал GPS, минут<input class="inp" name="gpsInterval" inputmode="numeric" th:value="${f.gpsInterval}"><span class="hint">телефон снимает точку раз в столько минут — только в рабочий день, от «Начал день» до «Закончил день»</span></label>
             <p class="muted">Точки GPS хранятся 6 месяцев, журнал приложения — год, старше удаляются сами.</p>
         </div>

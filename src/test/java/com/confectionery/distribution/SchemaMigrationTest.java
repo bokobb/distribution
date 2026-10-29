@@ -58,6 +58,8 @@ class SchemaMigrationTest {
                 company, agent)).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("insert into company_settings (company_id, gps_interval_min) values (?, 0)", company))
                 .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("insert into company_settings (company_id, work_start, work_end) values (?, '20:00', '08:00')", company))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

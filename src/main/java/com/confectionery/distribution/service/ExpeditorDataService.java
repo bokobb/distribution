@@ -35,7 +35,8 @@ public class ExpeditorDataService {
     private final Clock clock;
 
     /** Что экспедитор может принять: Kaspi, отдать в долг; интервал GPS рабочего дня. */
-    public record Settings(boolean acceptKaspi, boolean allowCredit, int gpsInterval) {
+    /** workStart, workEnd — рабочее время «08:00»: открыл приложение в это время — день начинается сам. */
+    public record Settings(boolean acceptKaspi, boolean allowCredit, int gpsInterval, String workStart, String workEnd) {
     }
 
     /** price — за штуку с учётом скидки строки; delivered — сколько выдано, null — ещё не выдавали. */
@@ -90,7 +91,8 @@ public class ExpeditorDataService {
 
         return new ExpeditorData(today, LocalDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS),
                 company == null ? null : new CompanyDto(company.getName(), company.getPhone()),
-                new Settings(s.isAcceptKaspi(), s.isAllowCredit(), s.getGpsInterval()),
+                new Settings(s.isAcceptKaspi(), s.isAllowCredit(), s.getGpsInterval(), s.getWorkStart().toString(),
+                        s.getWorkEnd().toString()),
                 active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
                         p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
                 mine.stream().map(ExpeditorDataService::trip).toList());

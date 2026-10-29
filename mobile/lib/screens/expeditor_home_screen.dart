@@ -98,7 +98,10 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   void _show(ExpeditorData? data) {
     setState(() => _data = data);
     _shared.value = data;
-    if (data != null) widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
+    if (data == null) return;
+    widget.workday
+      ..setInterval(Duration(minutes: data.settings.gpsInterval))
+      ..setHours(data.settings.workStart, data.settings.workEnd);
   }
 
   @override

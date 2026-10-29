@@ -12,6 +12,10 @@ import 'outbox.dart';
 /// открыт, и журнал приложения. Всё сначала записывается на телефон и уходит на сервер через [outbox], когда
 /// есть сеть; сервер принимает точки только рабочего дня. Состояние дня — по журналу на телефоне, поэтому
 /// переживает перезапуск приложения.
+///
+/// Рабочее время компании ([setHours]): сотрудник открыл приложение в эти часы ([opened]) — день начинается сам,
+/// если доступ к местоположению уже разрешён и сегодня день не закрывали; в конце рабочего времени день
+/// закрывается сам. Начатый вручную после конца рабочего времени — только вручную.
 class Workday extends ChangeNotifier {
   Workday({
     required this.outbox,
@@ -51,8 +55,23 @@ class Workday extends ChangeNotifier {
   /// Идёт «Начать день» (спрашиваем доступ к местоположению).
   bool busy = false;
 
+  /// День начинается сам, а доступа к местоположению нет — подсказка на главной.
+  bool noAccess = false;
+
+  /// В журнал — день начат или закончен сам, по рабочему времени.
+  static const auto = 'сам, по рабочему времени';
+
   DateTime? _startedAt;
   DateTime? _endedAt;
+
+  /// Рабочее время — минуты от полуночи; null — не знаем, день сам не начинается и не заканчивается.
+  int? _from;
+  int? _to;
+
+  /// Сотрудник в приложении: открыл, не под замком.
+  bool _present = false;
+  bool _restored = false;
+  Timer? _clock;
   DateTime? _lastSaved;
   StreamSubscription<Fix>? _fixes;
   StreamSubscription<bool>? _status;
@@ -75,8 +94,37 @@ class Workday extends ChangeNotifier {
     _startedAt = open;
     _endedAt = ended;
     if (open != null) _track();
+    _restored = true;
     _changed();
+    _plan();
     unawaited(flush());
+  }
+
+  /// «с 08:00 до 20:00»; рабочее время не знаем — null.
+  String? get hours => _from == null || _to == null ? null : 'с ${_hhmm(_from!)} до ${_hhmm(_to!)}';
+
+  /// Рабочее время из настроек компании, «08:00» и «20:00».
+  void setHours(String? from, String? to) {
+    var f = _minutes(from), t = _minutes(to);
+    if (f == null || t == null || f >= t) f = t = null;
+    if (f == _from && t == _to) return;
+    _from = f;
+    _to = t;
+    _changed();
+    _plan();
+  }
+
+  /// Сотрудник открыл приложение (или снял замок): рабочее время — день начинается сам.
+  void opened() {
+    _present = true;
+    noAccess = false; // мог разрешить в настройках телефона, пока приложение было свёрнуто
+    _plan();
+  }
+
+  /// Приложение свернули.
+  void away() {
+    _present = false;
+    _plan();
   }
 
   /// «Начать день». Без доступа к местоположению день не начинается — тогда текст, что сделать человеку.
@@ -87,30 +135,94 @@ class Workday extends ChangeNotifier {
     try {
       final problem = await location.ensureAccess();
       if (problem != null) return problem;
-      final at = _now();
-      await _log('DAY_START', at: at);
-      _startedAt = at;
-      _endedAt = null;
-      _lastSaved = null;
-      _track();
+      noAccess = false;
+      await _begin();
       return null;
     } finally {
       busy = false;
       _changed();
+      _plan();
       unawaited(flush());
     }
   }
 
   /// «Закончить день»: GPS останавливается, в журнал — «Закончил день».
-  Future<void> end() async {
-    if (!open) return;
-    await _stopTracking();
+  Future<void> end() => _finish();
+
+  Future<void> _begin({String? note}) async {
     final at = _now();
-    await _log('DAY_END', at: at);
+    await _log('DAY_START', at: at, note: note);
+    _startedAt = at;
+    _endedAt = null;
+    _lastSaved = null;
+    _track();
+  }
+
+  Future<void> _finish({DateTime? at, String? note}) async {
+    if (!open) return;
+    final end = at ?? _now();
+    // сразу: второй вызов (таймер и точка GPS одновременно) день уже не закроет
     _startedAt = null;
-    _endedAt = at;
+    _endedAt = end;
+    _clock?.cancel();
+    unawaited(_stopTracking());
+    await _log('DAY_END', at: end, note: note);
     _changed();
     await flush();
+  }
+
+  /// По рабочему времени. День идёт и начат до конца рабочего времени — закрыть в конце (прошёл — сразу, временем
+  /// конца). Не идёт, сотрудник в приложении, сегодня день не закрывали — начать: сейчас или в начале рабочего
+  /// времени.
+  void _plan() {
+    _clock?.cancel();
+    _clock = null;
+    final from = _from, to = _to;
+    if (!_restored || busy || from == null || to == null) return;
+    final now = _now();
+    final started = _startedAt;
+    if (started != null) {
+      final end = _at(started, to);
+      if (!started.isBefore(end)) return;
+      if (now.isBefore(end)) {
+        _clock = Timer(end.difference(now), _plan);
+      } else {
+        unawaited(_finish(at: end, note: auto));
+      }
+      return;
+    }
+    final ended = _endedAt;
+    if (!_present || noAccess || (ended != null && _sameDay(ended, now))) return;
+    final start = _at(now, from);
+    if (now.isBefore(start)) {
+      _clock = Timer(start.difference(now), _plan);
+    } else if (now.isBefore(_at(now, to))) {
+      unawaited(_autoStart());
+    }
+  }
+
+  /// Без вопросов человеку: нет разрешения — день не начинается, на главной подсказка и «Начать рабочий день».
+  Future<void> _autoStart() async {
+    busy = true;
+    _changed();
+    try {
+      if (!await location.allowed()) {
+        noAccess = true;
+        return;
+      }
+      if (open) return;
+      await _begin(note: auto);
+      // поток включения GPS сообщает только об изменениях — выключенный сейчас видно лишь так
+      if (!await location.gpsOn()) {
+        gpsOff = true;
+        await _log('GPS_OFF');
+      }
+    } finally {
+      busy = false;
+      _changed();
+      _plan();
+      unawaited(flush());
+    }
   }
 
   /// Интервал из настроек компании; день открыт — GPS перезапускается с новым.
@@ -124,7 +236,11 @@ class Workday extends ChangeNotifier {
   Future<void> flush() => outbox.flush();
 
   /// Выход из приложения: GPS остановить.
-  Future<void> stop() => _stopTracking();
+  Future<void> stop() {
+    _clock?.cancel();
+    _present = false;
+    return _stopTracking();
+  }
 
   void _track() {
     _fixes?.cancel();
@@ -132,15 +248,18 @@ class Workday extends ChangeNotifier {
     _status ??= location.serviceStatus().listen(_onStatus, onError: (Object _) {});
   }
 
-  Future<void> _stopTracking() async {
-    await _fixes?.cancel();
-    await _status?.cancel();
+  /// Подписки снимаются сразу — точки после этого не приходят; ждать стоит только самой службы GPS.
+  Future<void> _stopTracking() {
+    final fixes = _fixes, status = _status;
     _fixes = null;
     _status = null;
     gpsOff = false;
+    return Future.wait([?fixes?.cancel(), ?status?.cancel()]);
   }
 
   Future<void> _onFix(Fix f) async {
+    _plan(); // рабочее время кончилось, а таймер проспал (телефон спал) — день закрывается, точка не нужна
+    if (!open) return;
     // поток может присылать точки чаще, чем просили, — сохраняем не чаще интервала
     if (_lastSaved != null && f.at.difference(_lastSaved!) < interval * 0.9) return;
     _lastSaved = f.at;
@@ -163,6 +282,20 @@ class Workday extends ChangeNotifier {
   Future<void> _log(String kind, {DateTime? at, String? note}) =>
       store.addEvent(TrackEvent(uuid: const Uuid().v4(), at: at ?? _now(), kind: kind, note: note));
 
+  static int? _minutes(String? hhmm) {
+    final p = hhmm?.split(':');
+    if (p == null || p.length < 2) return null;
+    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+    return h == null || m == null ? null : h * 60 + m;
+  }
+
+  static String _hhmm(int minutes) =>
+      '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
+
+  static DateTime _at(DateTime day, int minutes) => DateTime(day.year, day.month, day.day, minutes ~/ 60, minutes % 60);
+
+  static bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
   void _changed() {
     if (!_disposed) notifyListeners();
   }
@@ -170,6 +303,7 @@ class Workday extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _clock?.cancel();
     outbox.removeListener(_changed);
     _fixes?.cancel();
     _status?.cancel();

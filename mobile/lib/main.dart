@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/api_client.dart';
 import 'app_lock.dart';
@@ -12,6 +13,7 @@ import 'location.dart';
 import 'outbox.dart';
 import 'screens/agent_home_screen.dart';
 import 'screens/expeditor_home_screen.dart';
+import 'screens/gps_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/password_screen.dart';
@@ -45,6 +47,7 @@ class DistributionApp extends StatefulWidget {
       this.location,
       this.camera,
       this.biometrics,
+      this.clock,
       this.session});
 
   final ApiClient api;
@@ -61,6 +64,9 @@ class DistributionApp extends StatefulWidget {
 
   /// Отпечаток и лицо для замка; null — замка нет.
   final Biometrics? biometrics;
+
+  /// Часы для рабочего времени; null — настоящие (в тестах — подставные).
+  final DateTime Function()? clock;
 
   /// Кто вошёл в прошлый раз; null — показать вход.
   final Session? session;
@@ -89,6 +95,10 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
   /// Почему снова вход: сервер закрыл вход на этом телефоне.
   String? _notice;
 
+  /// Спросить доступ к местоположению — один раз после входа, если его ещё нет.
+  bool _askGps = false;
+  static const _gpsAsked = 'gps.asked';
+
   @override
   void initState() {
     super.initState();
@@ -96,10 +106,12 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     widget.api.onSessionClosed = (message) => _forget(message);
     final s = widget.session;
     if (s != null && !s.mustChangePassword) _startWorkday();
+    _lock.addListener(_present);
     _lock.load().then((_) {
       // ещё не вошёл — замок не нужен: пароль он введёт сейчас
       if (_session == null) _lock.open();
       if (mounted) setState(() => _lockReady = true);
+      _present();
     });
   }
 
@@ -110,22 +122,45 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     _visits?.dispose();
     _deliveries?.dispose();
     _outbox?.dispose();
-    _lock.dispose();
+    _lock
+      ..removeListener(_present)
+      ..dispose();
     super.dispose();
   }
 
   /// Вернулись в приложение — отправить накопленное (сеть могла появиться, пока оно было свёрнуто); свёрнуто было
-  /// долго — замок.
+  /// долго — замок; нет — в рабочее время день начинается сам.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
         _lock.shown();
+        _present();
         _outbox?.flush();
       case AppLifecycleState.paused || AppLifecycleState.hidden:
         _lock.hidden();
+        _workday?.away();
       default:
     }
+  }
+
+  /// Сотрудник в приложении — не под замком и не на вопросе о местоположении: в рабочее время день начинается сам.
+  void _present() {
+    if (_lockReady && !_lock.locked && !_askGps) _workday?.opened();
+  }
+
+  /// Доступа к местоположению нет и ещё не спрашивали — экран «Местоположение».
+  Future<void> _checkGps() async {
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool(_gpsAsked) == true || await _location.allowed()) return;
+    if (mounted && _workday != null) setState(() => _askGps = true);
+  }
+
+  Future<void> _gpsDone() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_gpsAsked, true);
+    if (mounted) setState(() => _askGps = false);
+    _present();
   }
 
   /// Под замком «Назад» не листает экраны, которых не видно.
@@ -134,9 +169,10 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
 
   void _startWorkday() {
     final outbox = _outbox = Outbox(api: widget.api, store: widget.local)..start();
-    _workday = Workday(outbox: outbox, store: widget.local, location: _location)..restore();
+    _workday = Workday(outbox: outbox, store: widget.local, location: _location, clock: widget.clock)..restore();
     _visits = VisitBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
     _deliveries = DeliveryBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
+    _checkGps();
   }
 
   Future<void> _stopWorkday() async {
@@ -168,6 +204,7 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
         _notice = null;
       });
     }
+    _present();
   }
 
   /// «Выйти»: открытый рабочий день закрывается, накопленное пробуем отправить, ключ закрывается на сервере.
@@ -186,6 +223,7 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
       _session = null;
       _notice = notice;
     });
+    _askGps = false;
     await _stopWorkday();
     await widget.store.clear();
     await widget.local.clear();
@@ -204,9 +242,11 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
         child: ListenableBuilder(
           listenable: _lock,
           builder: (context, _) {
-            final closed = s != null && !s.mustChangePassword && (!_lockReady || _lock.locked);
+            final working = s != null && !s.mustChangePassword;
+            final closed = working && (!_lockReady || _lock.locked);
             return Stack(children: [
               child!,
+              if (working && _askGps) Positioned.fill(child: GpsScreen(location: _location, onDone: _gpsDone)),
               if (closed)
                 Positioned.fill(
                   child: _lockReady

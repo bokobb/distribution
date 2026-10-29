@@ -1,5 +1,7 @@
 package com.confectionery.distribution.service;
 
+import java.time.LocalTime;
+
 /** Разбор полей форм: пробелы по краям убираются, пустое поле — null, ошибка — {@link FormException}. */
 public final class Forms {
 
@@ -34,6 +36,17 @@ public final class Forms {
         if (s == null || !s.matches("-?\\d{1,9}") || Integer.parseInt(s) < min || Integer.parseInt(s) > max)
             throw new FormException("«" + label + "» — число от " + min + " до " + max);
         return Integer.parseInt(s);
+    }
+
+    /** Время дня «08:00», «8:30», «8» (часы). Пусто или не время — ошибка. */
+    public static LocalTime time(String raw, String label) {
+        String s = raw == null ? "" : raw.strip().replace('.', ':');
+        if (s.matches("\\d{1,2}")) s += ":00";
+        if (s.matches("\\d{1,2}:\\d{2}")) {
+            int h = Integer.parseInt(s.substring(0, s.indexOf(':'))), m = Integer.parseInt(s.substring(s.indexOf(':') + 1));
+            if (h < 24 && m < 60) return LocalTime.of(h, m);
+        }
+        throw new FormException("«" + label + "» — время, например 08:00");
     }
 
     /** Координата: дробное число (точка или запятая) по модулю не больше limit. Пусто — null. */

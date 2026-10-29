@@ -207,6 +207,8 @@ class AgentSettings {
     required this.agentDiscount,
     required this.acceptKaspi,
     required this.gpsInterval,
+    this.workStart,
+    this.workEnd,
   });
 
   /// «Агент на месте», если до магазина не дальше стольких метров.
@@ -224,6 +226,10 @@ class AgentSettings {
   /// Точка GPS — раз в столько минут рабочего дня.
   final int gpsInterval;
 
+  /// Рабочее время компании, «08:00» — «20:00»: в эти часы день начинается сам, когда открыли приложение.
+  final String? workStart;
+  final String? workEnd;
+
   factory AgentSettings.fromJson(Map<String, dynamic> j) => AgentSettings(
         visitRadius: j['visitRadius'] as int,
         shelfPhotoRequired: j['shelfPhotoRequired'] as bool,
@@ -234,6 +240,8 @@ class AgentSettings {
         agentDiscount: j['agentDiscount'] as bool,
         acceptKaspi: j['acceptKaspi'] as bool,
         gpsInterval: j['gpsInterval'] as int,
+        workStart: j['workStart'] as String?,
+        workEnd: j['workEnd'] as String?,
       );
 }
 

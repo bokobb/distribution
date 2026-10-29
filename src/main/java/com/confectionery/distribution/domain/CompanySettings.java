@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 
+import java.time.LocalTime;
+
 /** Настройки компании (раздел «Настройки»). */
 @Entity
 @Table(name = "company_settings")
@@ -35,4 +37,7 @@ public class CompanySettings extends CompanyEntity {
     /** Телефон торгового и экспедитора снимает точку GPS раз в столько минут — только в рабочий день. */
     @Column(name = "gps_interval_min")
     private int gpsInterval = 5;
+    /** Рабочее время: открыл приложение в это время — день начинается сам, в workEnd — заканчивается сам. */
+    private LocalTime workStart = LocalTime.of(8, 0);
+    private LocalTime workEnd = LocalTime.of(20, 0);
 }

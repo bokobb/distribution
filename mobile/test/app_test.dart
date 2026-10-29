@@ -409,11 +409,54 @@ void main() {
         location: gps, camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
     await logIn(t);
 
+    // после входа один раз спрашиваем местоположение; «Позже» — день кнопкой
+    expect(find.text('Местоположение'), findsOneWidget);
+    await t.tap(find.text('Позже'));
+    await t.pumpAndSettle();
+    expect(find.text('Местоположение'), findsNothing);
+
     await t.tap(find.text('Начать рабочий день'));
     await t.pump();
 
     expect(find.text('Разрешите приложению доступ к местоположению в настройках телефона'), findsOneWidget);
     expect(find.text('Рабочий день не начат'), findsOneWidget);
+  });
+
+  testWidgets('рабочее время: после входа спрашиваем GPS, дальше день начинается сам — без кнопки', (t) async {
+    final today = DateTime.now();
+    final server = FakeServer();
+    (server.agentData['settings'] as Map)
+      ..['workStart'] = '08:00'
+      ..['workEnd'] = '20:00';
+    final gps = FakeLocation()..problem = 'Включите местоположение (GPS) на телефоне и нажмите ещё раз';
+    await t.pumpWidget(DistributionApp(
+        location: gps, camera: FakeCamera(), local: MemoryStore(), clock: () => DateTime(today.year, today.month, today.day, 10),
+        api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    expect(find.text('Местоположение'), findsOneWidget);
+    expect(find.textContaining('рабочий день будет начинаться сам'), findsOneWidget);
+    await t.tap(find.text('Разрешить'));
+    await t.pumpAndSettle();
+    expect(find.text('Включите местоположение (GPS) на телефоне и нажмите ещё раз'), findsOneWidget);
+
+    gps.problem = null;
+    await t.tap(find.text('Разрешить'));
+    await t.pumpAndSettle();
+
+    expect(find.text('Местоположение'), findsNothing);
+    expect(find.text('Рабочий день не начат'), findsNothing);
+    expect(find.text('Начать рабочий день'), findsNothing);
+    expect(server.trackEvents.where((e) => e['kind'] == 'DAY_START').single['note'], 'сам, по рабочему времени');
+    await openTab(t, 'Профиль');
+    expect(find.text('с 10:00'), findsOneWidget);
+    expect(find.text('с 08:00 до 20:00'), findsOneWidget);
+    await logOut(t);
+
+    // вошёл снова: уже спрашивали и доступ есть — экрана нет, день сам
+    await logIn(t);
+    expect(find.text('Местоположение'), findsNothing);
+    expect(find.text('Начать рабочий день'), findsNothing);
   });
 
   testWidgets('«Без заказа»: причина и комментарий — визит на сервер, в «Визитах сегодня»', (t) async {

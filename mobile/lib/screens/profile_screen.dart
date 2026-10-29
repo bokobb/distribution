@@ -120,6 +120,7 @@ class ProfileTab extends StatelessWidget {
                         ? 'закончен в ${time(w.endedAt!)}'
                         : 'не начат',
               ),
+              if (w.hours != null) InfoRow(label: 'Рабочее время', value: w.hours!),
               InfoRow(
                 label: 'GPS',
                 dot: w.gpsOff ? AppColors.err : w.open ? AppColors.ok : AppColors.icon,

@@ -59,6 +59,8 @@ class AgentDataTest {
                 .andExpect(jsonPath("$.date").value(data.today().toString()))
                 .andExpect(jsonPath("$.settings.visitRadius").value(200))
                 .andExpect(jsonPath("$.settings.gpsInterval").value(5))
+                .andExpect(jsonPath("$.settings.workStart").value("08:00"))
+                .andExpect(jsonPath("$.settings.workEnd").value("20:00"))
                 .andExpect(jsonPath("$.routes", hasSize(1)))
                 .andExpect(jsonPath("$.routes[0].name").value(w.route().getName()))
                 .andExpect(jsonPath("$.routes[0].days", contains(1, 2, 3, 4, 5, 6, 7)))

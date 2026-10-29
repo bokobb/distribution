@@ -11,6 +11,8 @@ import lombok.Setter;
 public class SettingsForm {
     private String visitRadius;
     private String gpsInterval;
+    private String workStart;
+    private String workEnd;
     private boolean shelfPhoto;
     private boolean refuseReason;
     private int deliveryDays = 1;
@@ -27,6 +29,8 @@ public class SettingsForm {
         SettingsForm f = new SettingsForm();
         f.visitRadius = String.valueOf(st.getVisitRadius());
         f.gpsInterval = String.valueOf(st.getGpsInterval());
+        f.workStart = st.getWorkStart().toString();
+        f.workEnd = st.getWorkEnd().toString();
         f.shelfPhoto = st.isShelfPhotoRequired();
         f.refuseReason = st.isRefuseReasonRequired();
         f.deliveryDays = st.getDeliveryDays();

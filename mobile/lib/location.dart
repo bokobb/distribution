@@ -15,8 +15,14 @@ class Fix {
 
 /// Местоположение телефона и заряд батареи — отдельно от Workday, чтобы проверять его без телефона.
 abstract class LocationSource {
-  /// Доступ к местоположению: null — есть; иначе — что сделать человеку.
+  /// Доступ к местоположению: null — есть; иначе — что сделать человеку. Может спросить разрешение.
   Future<String?> ensureAccess();
+
+  /// Разрешение уже есть — без вопросов человеку (для дня, который начинается сам).
+  Future<bool> allowed();
+
+  /// Местоположение (GPS) на телефоне включено сейчас.
+  Future<bool> gpsOn();
 
   /// Точки раз в interval, пока на поток подписаны. На Android — фоновой службой с уведомлением
   /// «Рабочий день идёт»: точки идут и при погашенном экране.
@@ -50,6 +56,25 @@ class DeviceLocation implements LocationSource {
       return 'Без доступа к местоположению рабочий день не начать';
     }
     return null;
+  }
+
+  @override
+  Future<bool> allowed() async {
+    try {
+      final p = await Geolocator.checkPermission();
+      return p == LocationPermission.whileInUse || p == LocationPermission.always;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> gpsOn() async {
+    try {
+      return await Geolocator.isLocationServiceEnabled();
+    } catch (_) {
+      return true; // не узнали — не пугаем
+    }
   }
 
   @override

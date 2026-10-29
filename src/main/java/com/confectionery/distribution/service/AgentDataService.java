@@ -42,7 +42,7 @@ public class AgentDataService {
 
     public record Settings(int visitRadius, boolean shelfPhotoRequired, boolean refuseReasonRequired, int deliveryDays,
                            boolean allowCredit, boolean approvalOverLimit, boolean agentDiscount, boolean acceptKaspi,
-                           int gpsInterval) {
+                           int gpsInterval, String workStart, String workEnd) {
     }
 
     public record ProductDto(Long id, String name, String category, String unit, int perBox, String barcode,
@@ -119,7 +119,8 @@ public class AgentDataService {
         LocalDate previous = orders.previousDay(agentId, companyId, today);
         return new AgentData(today, LocalDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS),
                 new Settings(s.getVisitRadius(), s.isShelfPhotoRequired(), s.isRefuseReasonRequired(), s.getDeliveryDays(),
-                        s.isAllowCredit(), s.isApprovalOverLimit(), s.isAgentDiscount(), s.isAcceptKaspi(), s.getGpsInterval()),
+                        s.isAllowCredit(), s.isApprovalOverLimit(), s.isAgentDiscount(), s.isAcceptKaspi(), s.getGpsInterval(),
+                        s.getWorkStart().toString(), s.getWorkEnd().toString()),
                 active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
                         p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
                 routeDtos,

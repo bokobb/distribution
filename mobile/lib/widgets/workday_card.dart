@@ -6,7 +6,8 @@ import '../workday.dart';
 import 'message_box.dart';
 
 /// Рабочий день на главном экране — только когда нужно действие: день не начат («Начать рабочий день») или GPS
-/// выключен на телефоне. Идёт — ничего не показывает: время начала и GPS — в «Профиле».
+/// выключен на телефоне. Идёт — ничего не показывает: время начала и GPS — в «Профиле». В рабочее время день
+/// начинается сам — карточка видна до начала, после конца или когда нет доступа к местоположению.
 class WorkdayCard extends StatelessWidget {
   const WorkdayCard({super.key, required this.workday});
 
@@ -25,6 +26,11 @@ class WorkdayCard extends StatelessWidget {
                   )
                 : const SizedBox.shrink();
           }
+          final hint = w.noAccess
+              ? 'Разрешите доступ к местоположению — тогда день будет начинаться сам.'
+              : w.hours != null && w.endedAt == null
+                  ? 'Начнётся сам в рабочее время ${w.hours}, когда вы откроете приложение.'
+                  : 'Начните день — приложение будет отмечать путь и визиты.';
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Card(
@@ -36,8 +42,7 @@ class WorkdayCard extends StatelessWidget {
                     Text(w.endedAt != null ? 'День закончен в ${time(w.endedAt!)}' : 'Рабочий день не начат',
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 2),
-                    const Text('Начните день — приложение будет отмечать путь и визиты.',
-                        style: TextStyle(color: AppColors.text2)),
+                    Text(hint, style: const TextStyle(color: AppColors.text2)),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: w.busy ? null : () => startWorkday(context, workday),

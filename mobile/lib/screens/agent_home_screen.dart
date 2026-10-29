@@ -112,14 +112,16 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
     }
   }
 
-  /// Данные на экран; интервал GPS — из настроек компании, визиты с сервера — к телефонным.
+  /// Данные на экран; интервал GPS и рабочее время — из настроек компании, визиты с сервера — к телефонным.
   void _show(AgentData? data) {
     setState(() {
       _data = data;
       _view = data?.withLocal(_local);
     });
     if (data == null) return;
-    widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
+    widget.workday
+      ..setInterval(Duration(minutes: data.settings.gpsInterval))
+      ..setHours(data.settings.workStart, data.settings.workEnd);
     widget.visits.serverVisits(data);
   }
 
