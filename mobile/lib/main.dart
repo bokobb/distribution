@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api/api_client.dart';
+import 'app_lock.dart';
 import 'camera.dart';
 import 'data/agent_repo.dart';
 import 'data/expeditor_repo.dart';
@@ -11,6 +12,7 @@ import 'location.dart';
 import 'outbox.dart';
 import 'screens/agent_home_screen.dart';
 import 'screens/expeditor_home_screen.dart';
+import 'screens/lock_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/password_screen.dart';
 import 'session.dart';
@@ -30,7 +32,8 @@ Future<void> main() async {
     device: about.device,
     appVersion: about.version,
   );
-  runApp(DistributionApp(api: api, store: store, local: await SqliteStore.open(), session: session));
+  runApp(DistributionApp(
+      api: api, store: store, local: await SqliteStore.open(), biometrics: DeviceBiometrics(), session: session));
 }
 
 class DistributionApp extends StatefulWidget {
@@ -41,6 +44,7 @@ class DistributionApp extends StatefulWidget {
       required this.local,
       this.location,
       this.camera,
+      this.biometrics,
       this.session});
 
   final ApiClient api;
@@ -55,6 +59,9 @@ class DistributionApp extends StatefulWidget {
   /// Камера для фото полки; null — настоящая.
   final PhotoSource? camera;
 
+  /// Отпечаток и лицо для замка; null — замка нет.
+  final Biometrics? biometrics;
+
   /// Кто вошёл в прошлый раз; null — показать вход.
   final Session? session;
 
@@ -68,6 +75,10 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
   late final _expeditor = ExpeditorRepo(widget.api, widget.local);
   late final _location = widget.location ?? DeviceLocation();
   late final _camera = widget.camera ?? DeviceCamera();
+  late final _lock = AppLock(widget.biometrics ?? const NoBiometrics());
+
+  /// Замок узнал, есть ли отпечаток, — до этого вошедшему показывается пустой экран, не приложение.
+  bool _lockReady = false;
 
   /// Отправка на сервер, рабочий день с GPS, визиты и выдачи — пока вошёл сотрудник со своим паролем.
   Outbox? _outbox;
@@ -85,6 +96,11 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     widget.api.onSessionClosed = (message) => _forget(message);
     final s = widget.session;
     if (s != null && !s.mustChangePassword) _startWorkday();
+    _lock.load().then((_) {
+      // ещё не вошёл — замок не нужен: пароль он введёт сейчас
+      if (_session == null) _lock.open();
+      if (mounted) setState(() => _lockReady = true);
+    });
   }
 
   @override
@@ -94,14 +110,27 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     _visits?.dispose();
     _deliveries?.dispose();
     _outbox?.dispose();
+    _lock.dispose();
     super.dispose();
   }
 
-  /// Вернулись в приложение — отправить накопленное (сеть могла появиться, пока оно было свёрнуто).
+  /// Вернулись в приложение — отправить накопленное (сеть могла появиться, пока оно было свёрнуто); свёрнуто было
+  /// долго — замок.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _outbox?.flush();
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _lock.shown();
+        _outbox?.flush();
+      case AppLifecycleState.paused || AppLifecycleState.hidden:
+        _lock.hidden();
+      default:
+    }
   }
+
+  /// Под замком «Назад» не листает экраны, которых не видно.
+  @override
+  Future<bool> didPopRoute() async => _lock.locked && _session != null;
 
   void _startWorkday() {
     final outbox = _outbox = Outbox(api: widget.api, store: widget.local)..start();
@@ -121,6 +150,12 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     v?.dispose();
     d?.dispose();
     o?.dispose();
+  }
+
+  /// Вошёл с паролем — замок не нужен.
+  Future<void> _loggedIn(Session s) async {
+    _lock.open();
+    await _signedIn(s);
   }
 
   Future<void> _signedIn(Session s) async {
@@ -164,8 +199,26 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
       title: 'Дистрибуция',
       debugShowCheckedModeBanner: false,
       theme: appTheme(),
+      builder: (context, child) => AppLockScope(
+        lock: _lock,
+        child: ListenableBuilder(
+          listenable: _lock,
+          builder: (context, _) {
+            final closed = s != null && !s.mustChangePassword && (!_lockReady || _lock.locked);
+            return Stack(children: [
+              child!,
+              if (closed)
+                Positioned.fill(
+                  child: _lockReady
+                      ? LockScreen(lock: _lock, name: s.name)
+                      : const ColoredBox(color: AppColors.bg),
+                ),
+            ]);
+          },
+        ),
+      ),
       home: s == null
-          ? LoginScreen(api: widget.api, store: widget.store, notice: _notice, onLogin: _signedIn)
+          ? LoginScreen(api: widget.api, store: widget.store, notice: _notice, onLogin: _loggedIn)
           : s.mustChangePassword
               ? PasswordScreen(api: widget.api, session: s, onDone: _signedIn, onLogout: _logout)
               : s.isAgent

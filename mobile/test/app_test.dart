@@ -4,6 +4,7 @@ import 'package:distribution_mobile/api/api_client.dart';
 import 'package:distribution_mobile/format.dart';
 import 'package:distribution_mobile/location.dart';
 import 'package:distribution_mobile/main.dart';
+import 'package:distribution_mobile/screens/profile_screen.dart';
 import 'package:distribution_mobile/session.dart';
 import 'package:distribution_mobile/widgets/layout.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_biometrics.dart';
 import 'fake_camera.dart';
 import 'fake_location.dart';
 import 'fake_server.dart';
@@ -46,6 +48,8 @@ Finder header(String title) => find.widgetWithText(PageHeader, title);
 /// «Профиль» → «Выйти из аккаунта» → «Выйти» в вопросе.
 Future<void> logOut(WidgetTester t, {String? warning}) async {
   await openTab(t, 'Профиль');
+  await t.scrollUntilVisible(find.text('Выйти из аккаунта'), 200,
+      scrollable: find.descendant(of: find.byType(ProfileTab), matching: find.byType(Scrollable)).first);
   await tapVisible(t, find.text('Выйти из аккаунта'));
   await t.pumpAndSettle();
   if (warning != null) expect(find.textContaining(warning), findsOneWidget);
@@ -192,6 +196,46 @@ void main() {
     expect(find.text('Войти'), findsOneWidget);
     expect(await store.load(), isNull);
     expect(await store.deviceToken(), isNull);
+  });
+
+  testWidgets('отпечаток: вошедший при запуске открывает приложение пальцем; вход с паролем — без замка', (t) async {
+    final bio = FakeBiometrics()..answer = false;
+    final local = MemoryStore()..data['agent'] = sampleAgentData();
+    const s = Session(userId: 1, name: 'Ержан Т.', role: 'AGENT');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), biometrics: bio, local: local,
+        api: ApiClient(baseUrl: 'http://s', client: FakeServer().client, deviceToken: 'ключ'), store: SessionStore(), session: s));
+    await t.pumpAndSettle();
+
+    // окно открылось само и не узнало — замок на месте, «Сегодня» не видно
+    expect(bio.asked, 1);
+    expect(find.text('Войти по отпечатку'), findsOneWidget);
+    expect(find.textContaining('можно ввести и PIN-код телефона'), findsOneWidget);
+    expect(find.text('Создать заказ').hitTestable(), findsNothing);
+    bio.answer = true;
+    await t.tap(find.text('Войти по отпечатку'));
+    await t.pumpAndSettle();
+    expect(find.text('Войти по отпечатку'), findsNothing);
+    expect(header('Сегодня'), findsOneWidget);
+
+    // в «Профиле» вход по отпечатку можно выключить
+    await openTab(t, 'Профиль');
+    expect(find.text('Вход по отпечатку'), findsOneWidget);
+    await t.tap(find.byType(Switch));
+    await t.pumpAndSettle();
+    expect(t.widget<Switch>(find.byType(Switch)).value, isFalse);
+    await logOut(t);
+
+    // вход с паролем: пароль только что введён — замка нет
+    final again = FakeBiometrics();
+    await t.pumpWidget(DistributionApp(
+        key: const ValueKey('второй запуск'),
+        location: FakeLocation(), camera: FakeCamera(), biometrics: again, local: MemoryStore(),
+        api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
+    await t.pumpAndSettle();
+    await logIn(t);
+    expect(header('Сегодня'), findsOneWidget);
+    expect(again.asked, 0);
   });
 
   testWidgets('без сети при запуске — работаем с тем, что на телефоне', (t) async {

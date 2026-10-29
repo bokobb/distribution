@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app_lock.dart';
 import '../api/api_client.dart';
 import '../format.dart';
 import '../session.dart';
@@ -66,6 +67,7 @@ class ProfileTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final lock = AppLockScope.maybeOf(context);
     return ListenableBuilder(
       listenable: Listenable.merge([workday, workday.outbox]),
       builder: (context, _) {
@@ -136,7 +138,20 @@ class ProfileTab extends StatelessWidget {
               ),
             ]),
             const SizedBox(height: 12),
-            GroupCard(children: [InfoRow(label: 'Сменить пароль', onTap: () => _password(context))]),
+            GroupCard(children: [
+              if (lock != null && lock.available)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 52),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 2, 8, 2),
+                    child: Row(children: [
+                      Expanded(child: Text('Вход ${lock.by}')),
+                      Switch(value: lock.enabled, onChanged: lock.setEnabled),
+                    ]),
+                  ),
+                ),
+              InfoRow(label: 'Сменить пароль', onTap: () => _password(context)),
+            ]),
             const SizedBox(height: 16),
             if (w.open)
               FilledButton(

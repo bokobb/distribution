@@ -47,3 +47,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // тема Theme.AppCompat для окна отпечатка и лица (local_auth)
+    implementation("androidx.appcompat:appcompat:1.7.0")
+}
