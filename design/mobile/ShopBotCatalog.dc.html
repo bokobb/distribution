@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Каталог в боте</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <header style="flex: none; box-sizing: border-box; padding: 50px 8px 8px; background: #FFFFFF; border-bottom: 1px solid #E1E4EA; display: grid; grid-template-columns: 88px minmax(0, 1fr) 88px; align-items: center;">
+    <a href="ShopBot.dc.html" style="justify-self: start; height: 40px; box-sizing: border-box; padding: 0 8px; display: flex; align-items: center; text-decoration: none; font-size: 15px; font-weight: 600; color: #4136F1;">Закрыть</a>
+    <div style="min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center;">
+      <span style="font-size: 16px; line-height: 21px; font-weight: 600;">Каталог</span>
+      <span style="font-size: 12px; line-height: 16px; color: #5C6370;">заказ в магазин «Камила»</span>
+    </div>
+    <button type="button" aria-label="Ещё" style="justify-self: end; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="#101318"><circle cx="5.5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="18.5" cy="12" r="1.8"></circle></svg>
+    </button>
+  </header>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 16px 150px; display: flex; flex-direction: column; gap: 10px;">
+    <section aria-label="Доставка" style="flex: none; box-sizing: border-box; padding: 12px 14px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; align-items: center; gap: 12px;">
+      <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 12px; background: #F1F2F5; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"></path><circle cx="7" cy="17.5" r="1.8"></circle><circle cx="17" cy="17.5" r="1.8"></circle></svg></span>
+      <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+        <span style="font-size: 15px; font-weight: 600;">Среда, 29 октября</span>
+        <span style="font-size: 13px; color: #5C6370;">с 10:00 до 13:00 · оплата при доставке</span>
+      </div>
+      <span style="flex: none; height: 24px; box-sizing: border-box; padding: 0 8px; border-radius: 6px; background: #E7F5EF; color: #0E6B4C; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Долга нет</span>
+    </section>
+
+    <button type="button" onClick="{{ fillLast }}" style="flex: none; height: 44px; border: 0; border-radius: 12px; background: #EEEDFE; color: #3329D6; display: flex; align-items: center; justify-content: center; gap: 8px; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">
+      <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+      Как в прошлый раз — 22 октября
+    </button>
+
+    <div role="group" aria-label="Группы товаров" style="flex: none; margin: 0 -16px; padding: 0 16px; display: flex; gap: 6px; overflow-x: auto;">
+      <button type="button" aria-pressed="{{ c1_on }}" onClick="{{ c1_pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c1_border }}; border-radius: 18px; background: {{ c1_bg }}; color: {{ c1_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Все</button>
+      <button type="button" aria-pressed="{{ c2_on }}" onClick="{{ c2_pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c2_border }}; border-radius: 18px; background: {{ c2_bg }}; color: {{ c2_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Акции</button>
+      <button type="button" aria-pressed="{{ c3_on }}" onClick="{{ c3_pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c3_border }}; border-radius: 18px; background: {{ c3_bg }}; color: {{ c3_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Печенье</button>
+      <button type="button" aria-pressed="{{ c4_on }}" onClick="{{ c4_pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c4_border }}; border-radius: 18px; background: {{ c4_bg }}; color: {{ c4_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Вафли</button>
+      <button type="button" aria-pressed="{{ c5_on }}" onClick="{{ c5_pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c5_border }}; border-radius: 18px; background: {{ c5_bg }}; color: {{ c5_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Кексы</button>
+      <button type="button" aria-pressed="{{ c6_on }}" onClick="{{ c6_pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c6_border }}; border-radius: 18px; background: {{ c6_bg }}; color: {{ c6_color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Пирожные</button>
+    </div>
+
+    <section aria-label="Товары" style="flex: none; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); overflow: hidden;">
+      <sc-for list="{{ items }}" as="p" hint-placeholder-count="6">
+        <div style="min-height: 74px; box-sizing: border-box; padding: 12px 12px 12px 16px; border-top: {{ p.border }}; display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 15px; line-height: 20px; font-weight: 600;">{{ p.name }}</span>
+            <span style="font-size: 13px; line-height: 18px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ p.meta }}</span>
+            <sc-if value="{{ p.hasPromo }}" hint-placeholder-val="{{ false }}">
+              <span style="margin-top: 3px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px;">
+                <span style="flex: none; height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 5px; background: #E7F5EF; color: #0E6B4C; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center;">{{ p.promoChip }}</span>
+                <span style="font-size: 12px; line-height: 16px; font-weight: 600; color: {{ p.promoColor }}; font-variant-numeric: tabular-nums;">{{ p.promoText }}</span>
+              </span>
+            </sc-if>
+          </div>
+          <sc-if value="{{ p.has }}" hint-placeholder-val="{{ false }}">
+            <div style="flex: none; height: 44px; border-radius: 12px; background: #EEEDFE; display: flex; align-items: center;">
+              <button type="button" aria-label="Убрать коробку" onClick="{{ p.dec }}" style="width: 40px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3329D6" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"></path></svg></button>
+              <span style="min-width: 44px; text-align: center; font-size: 14px; font-weight: 700; color: #3329D6; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ p.qtyText }}</span>
+              <button type="button" aria-label="Добавить коробку" onClick="{{ p.inc }}" style="width: 40px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3329D6" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ p.none }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ p.inc }}" style="flex: none; height: 44px; box-sizing: border-box; padding: 0 14px; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; gap: 6px; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              кор
+            </button>
+          </sc-if>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 10px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 8px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">
+      <span>{{ summary }}</span>
+      <span style="font-weight: 600; color: #0E6B4C;">{{ promoSummary }}</span>
+    </div>
+    <a href="ShopBot.dc.html" style="height: 54px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums;">{{ buyText }}</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { qty: { w: 1, s: 1, p: 1 }, cat: 'all' };
+}
+renderVals() {
+const P = [
+{ id: 'w', name: 'Вафли «Сливочные», 250 г', cat: 'Вафли', per: 20, price: 540 },
+{ id: 's', name: 'Печенье сахарное, 350 г', cat: 'Печенье', per: 12, price: 540 },
+{ id: 'p', name: 'Пряники медовые, 300 г', cat: 'Печенье', per: 16, price: 480, promo: { kind: 'gift', each: 2, chip: 'Акция 2+1' } },
+{ id: 'o', name: 'Печенье овсяное, 400 г', cat: 'Печенье', per: 12, price: 620, promo: { kind: 'disc', from: 3, pct: 5, chip: '−5% от 3 кор' } },
+{ id: 'k', name: 'Кекс с изюмом, 300 г', cat: 'Кексы', per: 12, price: 760 },
+{ id: 'c', name: 'Пирожное «Картошка», 6 шт', cat: 'Пирожные', per: 8, price: 1150, promo: { kind: 'new', pct: 10, chip: 'Новинка −10%' } }
+];
+const LAST = { w: 1, s: 1, p: 1 };
+const CATS = [['all', 'Все'], ['promo', 'Акции'], ['Печенье', 'Печенье'], ['Вафли', 'Вафли'], ['Кексы', 'Кексы'], ['Пирожные', 'Пирожные']];
+const money = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
+const plural = (n, one, few, many) => {
+const m10 = n % 10, m100 = n % 100;
+if (m10 === 1 && m100 !== 11) return one;
+if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+return many;
+};
+const st = this.state;
+const q = st.qty || {};
+const cat = st.cat || 'all';
+const promoOf = (p, b) => {
+const pr = p.promo;
+if (!pr) return { disc: 0, gift: 0, text: '', on: false };
+const sum = b * p.per * p.price;
+if (pr.kind === 'disc') {
+if (b >= pr.from) { const d = Math.round(sum * pr.pct / 100); return { disc: d, gift: 0, text: 'скидка −' + money(d), on: true }; }
+return { disc: 0, gift: 0, text: b > 0 ? 'ещё ' + (pr.from - b) + ' кор до скидки' : '', on: false };
+}
+if (pr.kind === 'gift') {
+const g = Math.floor(b / pr.each);
+if (g > 0) return { disc: 0, gift: g, text: 'подарок +' + g + ' кор', on: true };
+return { disc: 0, gift: 0, text: b > 0 ? 'ещё 1 кор — третья в подарок' : '', on: false };
+}
+if (b > 0) { const d = Math.round(sum * pr.pct / 100); return { disc: d, gift: 0, text: 'скидка −' + money(d), on: true }; }
+return { disc: 0, gift: 0, text: 'на первый заказ', on: false };
+};
+const setQty = (id, f) => this.setState((s) => ({ qty: Object.assign({}, s.qty, { [id]: Math.max(0, Math.min(20, f((s.qty || {})[id] || 0))) }) }));
+const shown = P.filter((p) => cat === 'all' || (cat === 'promo' ? !!p.promo : p.cat === cat));
+const items = shown.map((p, i) => {
+const b = q[p.id] || 0;
+const pm = promoOf(p, b);
+return {
+border: i === 0 ? '0' : '1px solid #EDEFF2',
+name: p.name,
+meta: p.per + ' шт · ' + money(p.per * p.price) + ' за коробку',
+hasPromo: !!p.promo,
+promoChip: p.promo ? p.promo.chip : '',
+promoText: pm.text,
+promoColor: pm.on ? '#0E6B4C' : '#5C6370',
+has: b > 0,
+none: b === 0,
+qtyText: b + ' кор',
+inc: () => setQty(p.id, (v) => v + 1),
+dec: () => setQty(p.id, (v) => v - 1)
+};
+});
+let positions = 0, sum = 0, disc = 0, gift = 0;
+P.forEach((p) => {
+const b = q[p.id] || 0;
+if (b > 0) { positions++; sum += b * p.per * p.price; }
+const pm = promoOf(p, b);
+disc += pm.disc;
+gift += pm.gift;
+});
+const promo = [];
+if (gift > 0) promo.push('подарок ' + gift + ' кор');
+if (disc > 0) promo.push('−' + money(disc));
+const vals = {};
+CATS.forEach((c, i) => {
+const on = c[0] === cat;
+const k = 'c' + (i + 1) + '_';
+vals[k + 'on'] = on ? 'true' : 'false';
+vals[k + 'bg'] = on ? '#101318' : '#FFFFFF';
+vals[k + 'color'] = on ? '#FFFFFF' : '#101318';
+vals[k + 'border'] = on ? '#101318' : '#E1E4EA';
+vals[k + 'pick'] = () => this.setState({ cat: c[0] });
+});
+return Object.assign(vals, {
+items: items,
+fillLast: () => this.setState({ qty: Object.assign({}, LAST) }),
+summary: positions + ' ' + plural(positions, 'позиция', 'позиции', 'позиций'),
+promoSummary: promo.join(' · '),
+buyText: positions > 0 ? 'Заказать · ' + money(sum - disc) : 'Добавьте товар'
+});
+}
+}
+</script>
+</body>
+</html>

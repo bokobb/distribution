@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Профиль агента</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <div style="box-sizing: border-box; padding: 54px 16px 0; display: flex; flex-direction: column; gap: 12px;">
+    <h1 style="margin: 0 0 2px; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em;">Профиль</h1>
+
+    <section style="box-sizing: border-box; padding: 16px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; align-items: center; gap: 14px;">
+      <span aria-hidden="true" style="flex: none; width: 56px; height: 56px; border-radius: 50%; background: #EEEDFE; color: #3329D6; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center;">ЕТ</span>
+      <div style="min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 18px; line-height: 24px; font-weight: 700;">Ержан Т.</span>
+        <span style="font-size: 14px; color: #5C6370;">Торговый представитель · Своя доставка</span>
+        <span style="font-size: 14px; color: #5C6370; font-variant-numeric: tabular-nums;">+7 701 000 01 04</span>
+      </div>
+    </section>
+
+    <div role="status" style="box-sizing: border-box; padding: 12px 14px; border-radius: 14px; background: #E7F5EF; color: #0B5A40; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600;">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      Всё отправлено · последняя синхронизация в 11:04
+    </div>
+
+    <section style="box-sizing: border-box; padding: 4px 0; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column;">
+      <a href="AgentMap.dc.html" style="min-height: 52px; box-sizing: border-box; padding: 0 12px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-decoration: none; color: #101318;">
+        <span>Мой путь сегодня</span>
+        <span style="display: flex; align-items: center; gap: 6px; color: #5C6370;">6,4 км · 8 визитов <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C929C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+      </a>
+      <div style="min-height: 52px; box-sizing: border-box; padding: 0 16px; border-top: 1px solid #EDEFF2; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <span>Рабочий день</span>
+        <span style="color: #5C6370; font-variant-numeric: tabular-nums;">с 08:12</span>
+      </div>
+      <div style="min-height: 52px; box-sizing: border-box; padding: 0 16px; border-top: 1px solid #EDEFF2; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <span>GPS</span>
+        <span style="display: flex; align-items: center; gap: 8px; color: #5C6370;"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #12805C;"></span>включён · путь пишется</span>
+      </div>
+      <button type="button" style="min-height: 52px; box-sizing: border-box; padding: 0 12px 0 16px; border: 0; border-top: 1px solid #EDEFF2; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 12px; font: 400 15px/1.4 'Inter', -apple-system, sans-serif; color: #101318; text-align: left; cursor: pointer;">
+        <span>Каталог и цены</span>
+        <span style="display: flex; align-items: center; gap: 6px; color: #5C6370;">обновлены сегодня <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C929C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+      </button>
+    </section>
+
+    <section style="box-sizing: border-box; padding: 4px 0; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column;">
+      <button type="button" style="min-height: 52px; box-sizing: border-box; padding: 0 12px 0 16px; border: 0; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 12px; font: 400 15px/1.4 'Inter', -apple-system, sans-serif; color: #101318; text-align: left; cursor: pointer;">
+        <span>Сменить пароль</span>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C929C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+      </button>
+    </section>
+
+    <button type="button" style="margin-top: 4px; height: 52px; border: 0; border-radius: 14px; background: #FDECEA; color: #B0261A; font: 600 16px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Закончить рабочий день</button>
+    <a href="Main.dc.html" style="height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 15px; font-weight: 600; color: #5C6370;">Выйти из аккаунта</a>
+  </div>
+
+  <nav aria-label="Разделы" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; box-sizing: border-box; padding: 6px 8px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+    <a href="AgentToday.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"></path></svg>
+      Сегодня
+    </a>
+    <a href="AgentOrders.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>
+      Заказы
+    </a>
+    <a href="AgentShopsMap.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"></path><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"></path><path d="M5 11.5V20h14v-8.5M10 20v-5h4v5"></path></svg>
+      Магазины
+    </a>
+    <a href="AgentProfile.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #4136F1; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+      Профиль
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

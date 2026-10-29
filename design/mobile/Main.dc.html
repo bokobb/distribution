@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Вход</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #FFFFFF; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <div style="position: relative; flex: none; height: 300px; overflow: hidden; background: #F5F4FF;">
+    <svg aria-hidden="true" width="390" height="300" viewBox="0 0 390 300" fill="none" style="position: absolute; left: 0; top: 0;">
+      <path d="M-10 250 C 60 250, 70 170, 140 170 S 230 230, 280 160 S 340 70, 400 70" stroke="#DCD9FD" stroke-width="12" stroke-linecap="round"></path>
+      <path d="M-10 250 C 60 250, 70 170, 140 170 S 230 230, 280 160 S 340 70, 400 70" stroke="#8E87F7" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round"></path>
+      <circle cx="140" cy="170" r="7" fill="#FFFFFF" stroke="#4136F1" stroke-width="2.5"></circle>
+      <circle cx="280" cy="160" r="7" fill="#FFFFFF" stroke="#4136F1" stroke-width="2.5"></circle>
+      <circle cx="355" cy="79" r="9" fill="#4136F1" stroke="#FFFFFF" stroke-width="3"></circle>
+    </svg>
+    <div style="position: absolute; left: 24px; top: 72px; width: 56px; height: 56px; border-radius: 16px; background: #4136F1; box-shadow: 0 10px 24px -10px rgba(65,54,241,0.6); display: flex; align-items: center; justify-content: center;">
+      <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="18" r="2.4"></circle><circle cx="18" cy="6" r="2.4"></circle><path d="M8.4 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.6"></path></svg>
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; box-sizing: border-box; padding: 28px 24px 0; display: flex; flex-direction: column; gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -0.02em;">Дистрибуция</h1>
+      <p style="margin: 0; font-size: 15px; line-height: 22px; color: #5C6370;">Вход для экспедиторов и торговых агентов</p>
+    </div>
+
+    <form style="margin: 0; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <label for="phone" style="font-size: 13px; font-weight: 600; color: #3D434D;">Телефон</label>
+        <input id="phone" type="tel" value="+7 701 000 01 06" style="height: 56px; box-sizing: border-box; padding: 0 16px; border: 1.5px solid #E1E4EA; border-radius: 14px; background: #FFFFFF; font: 500 17px/1 'Inter', -apple-system, sans-serif; color: #101318; font-variant-numeric: tabular-nums;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <label for="pass" style="font-size: 13px; font-weight: 600; color: #3D434D;">Пароль</label>
+        <div style="position: relative; display: flex; align-items: center;">
+          <input id="pass" type="password" value="hq7m2vpx" style="flex: 1 1 auto; min-width: 0; height: 56px; box-sizing: border-box; padding: 0 56px 0 16px; border: 2px solid #4136F1; border-radius: 14px; background: #FFFFFF; font: 500 17px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+          <button type="button" aria-label="Показать пароль" style="position: absolute; right: 6px; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+      </div>
+      <a href="ExpTrip.dc.html" style="margin-top: 6px; height: 56px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 16px; font-weight: 600; box-shadow: 0 10px 22px -12px rgba(65,54,241,0.7);">Войти</a>
+    </form>
+
+    <p style="margin: 0; font-size: 14px; line-height: 20px; color: #5C6370;">Первый пароль выдаёт руководитель — после входа придумаете свой. Забыли пароль? Попросите новый у руководителя.</p>
+  </div>
+
+  <div style="flex: none; padding: 0 24px 34px; text-align: center; font-size: 13px; color: #5C6370;">Версия 1.0.0</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

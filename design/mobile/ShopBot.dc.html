@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Заказ магазина в Telegram</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #E6E9EE; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <header style="flex: none; box-sizing: border-box; padding: 50px 10px 10px 6px; background: #FFFFFF; border-bottom: 1px solid #E1E4EA; display: flex; align-items: center; gap: 8px;">
+    <button type="button" aria-label="Назад к чатам" style="flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+    </button>
+    <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: #4136F1; display: flex; align-items: center; justify-content: center;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"></path><path d="M9 10.5V7a3 3 0 0 1 6 0v3.5"></path></svg></span>
+    <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+      <span style="font-size: 16px; line-height: 21px; font-weight: 600;">Дистрибуция · заказы</span>
+      <span style="font-size: 13px; line-height: 17px; color: #5C6370;">бот для магазинов</span>
+    </div>
+    <button type="button" aria-label="Ещё" style="flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="#101318"><circle cx="12" cy="5.5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="18.5" r="1.8"></circle></svg>
+    </button>
+  </header>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column-reverse;">
+    <div style="box-sizing: border-box; padding: 12px 12px 14px; display: flex; flex-direction: column;">
+      <div style="align-self: center; margin-bottom: 12px; height: 26px; box-sizing: border-box; padding: 0 12px; border-radius: 13px; background: rgba(16,19,24,0.08); color: #3D434D; font-size: 12px; font-weight: 600; display: flex; align-items: center;">Сегодня</div>
+
+      <div style="align-self: flex-start; width: 318px; box-sizing: border-box; padding: 10px 14px 7px; border-radius: 16px 16px 16px 6px; background: #FFFFFF; box-shadow: 0 1px 1px rgba(16,19,24,0.08); font-size: 15px; line-height: 21px; font-variant-numeric: tabular-nums;">
+        <div>Камила, здравствуйте! Завтра, в среду, доставка в ваш район. Повторить прошлый заказ?</div>
+        <div style="margin-top: 8px; box-sizing: border-box; padding: 8px 10px; border-left: 3px solid #4136F1; border-radius: 4px; background: #F4F5F7; font-size: 14px; line-height: 20px;">
+          <div style="font-weight: 700;">Заказ от 22 октября</div>
+          <div>Вафли «Сливочные» — 1 кор</div>
+          <div>Печенье сахарное — 1 кор</div>
+          <div>Пряники медовые — 1 кор</div>
+          <div style="font-weight: 600;">24 960 ₸</div>
+        </div>
+        <span style="display: block; text-align: right; font-size: 11px; color: #8C929C;">09:00</span>
+      </div>
+      <sc-if value="{{ step0 }}" hint-placeholder-val="{{ false }}">
+        <div style="width: 318px; margin-top: 6px; margin-bottom: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+          <button type="button" onClick="{{ repeat }}" style="height: 42px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.92); box-shadow: 0 1px 1px rgba(16,19,24,0.08); font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #3329D6; cursor: pointer;">Повторить заказ</button>
+          <a href="ShopBotCatalog.dc.html" style="height: 42px; border-radius: 12px; background: rgba(255,255,255,0.92); box-shadow: 0 1px 1px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; font-weight: 600; color: #3329D6;">Изменить</a>
+        </div>
+      </sc-if>
+      <sc-if value="{{ after0 }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top: 10px; margin-bottom: 10px; display: flex; flex-direction: column;">
+          <div style="align-self: flex-end; max-width: 260px; box-sizing: border-box; padding: 8px 12px 6px; border-radius: 16px 16px 6px 16px; background: #4136F1; color: #FFFFFF; font-size: 15px; line-height: 21px;">
+            Повторить заказ
+            <span style="display: block; text-align: right; font-size: 11px; color: rgba(255,255,255,0.72);">09:14</span>
+          </div>
+          <div style="align-self: flex-start; width: 318px; margin-top: 10px; box-sizing: border-box; padding: 10px 14px 7px; border-radius: 16px 16px 16px 6px; background: #FFFFFF; box-shadow: 0 1px 1px rgba(16,19,24,0.08); font-size: 15px; line-height: 21px; font-variant-numeric: tabular-nums;">
+            <div style="font-weight: 700;">Проверьте заказ</div>
+            <div>Вафли «Сливочные» — 1 кор · 10 800 ₸</div>
+            <div>Печенье сахарное — 1 кор · 6 480 ₸</div>
+            <div>Пряники медовые — 1 кор · 7 680 ₸</div>
+            <div style="margin-top: 6px; font-weight: 700;">Итого 24 960 ₸</div>
+            <div style="margin-top: 6px; font-size: 14px; line-height: 20px; color: #3D434D;">Доставка: среда, 29 октября, 10:00–13:00. Оплата при доставке — наличными или Kaspi.</div>
+            <div style="margin-top: 6px; font-size: 14px; line-height: 20px; color: #0E6B4C;">Акция: возьмите 2 коробки пряников — третья в подарок.</div>
+            <span style="display: block; text-align: right; font-size: 11px; color: #8C929C;">09:14</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ step1 }}" hint-placeholder-val="{{ true }}">
+        <div style="width: 318px; margin-bottom: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;">
+          <button type="button" onClick="{{ confirm }}" style="height: 42px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.92); box-shadow: 0 1px 1px rgba(16,19,24,0.08); font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #3329D6; cursor: pointer;">Подтвердить</button>
+          <a href="ShopBotCatalog.dc.html" style="height: 42px; border-radius: 12px; background: rgba(255,255,255,0.92); box-shadow: 0 1px 1px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 14px; font-weight: 600; color: #3329D6;">Изменить</a>
+        </div>
+      </sc-if>
+      <sc-if value="{{ step2 }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom: 10px; display: flex; flex-direction: column;">
+          <div style="align-self: flex-end; max-width: 260px; box-sizing: border-box; padding: 8px 12px 6px; border-radius: 16px 16px 6px 16px; background: #4136F1; color: #FFFFFF; font-size: 15px; line-height: 21px;">
+            Подтвердить
+            <span style="display: block; text-align: right; font-size: 11px; color: rgba(255,255,255,0.72);">09:15</span>
+          </div>
+          <div style="align-self: flex-start; width: 318px; margin-top: 10px; box-sizing: border-box; padding: 10px 14px 7px; border-radius: 16px 16px 16px 6px; background: #FFFFFF; box-shadow: 0 1px 1px rgba(16,19,24,0.08); font-size: 15px; line-height: 21px; font-variant-numeric: tabular-nums;">
+            <div style="font-weight: 700;">Заказ С-1088 принят</div>
+            <div>Статус: Новый. Привезём в среду, 29 октября, с 10:00 до 13:00.</div>
+            <div style="margin-top: 6px; font-size: 14px; line-height: 20px; color: #3D434D;">Когда экспедитор отдаст товар, статус сменится на «Доставлен» — пришлём сообщение.</div>
+            <span style="display: block; text-align: right; font-size: 11px; color: #8C929C;">09:15</span>
+          </div>
+          <sc-if value="{{ noOrders }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ myOrders }}" style="width: 318px; height: 42px; margin-top: 6px; border: 0; border-radius: 12px; background: rgba(255,255,255,0.92); box-shadow: 0 1px 1px rgba(16,19,24,0.08); font: 600 14px/1 'Inter', -apple-system, sans-serif; color: #3329D6; cursor: pointer;">Мои заказы</button>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ showOrders }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom: 10px; display: flex; flex-direction: column;">
+          <div style="align-self: flex-end; max-width: 260px; box-sizing: border-box; padding: 8px 12px 6px; border-radius: 16px 16px 6px 16px; background: #4136F1; color: #FFFFFF; font-size: 15px; line-height: 21px;">
+            Мои заказы
+            <span style="display: block; text-align: right; font-size: 11px; color: rgba(255,255,255,0.72);">09:16</span>
+          </div>
+          <div style="align-self: flex-start; width: 318px; margin-top: 10px; box-sizing: border-box; padding: 10px 14px 7px; border-radius: 16px 16px 16px 6px; background: #FFFFFF; box-shadow: 0 1px 1px rgba(16,19,24,0.08); font-size: 15px; line-height: 21px; font-variant-numeric: tabular-nums;">
+            <div style="font-weight: 700;">Ваши заказы</div>
+            <div>С-1088 · на 29 окт · 24 960 ₸ — <b style="font-weight: 600;">Новый</b></div>
+            <div>С-1031 · 22 окт · 24 960 ₸ — <b style="font-weight: 600;">Доставлен</b></div>
+            <div>С-0987 · 15 окт · 21 900 ₸ — <b style="font-weight: 600;">Доставлен</b></div>
+            <div style="margin-top: 6px; font-size: 14px; line-height: 20px; color: #3D434D;">Долга нет.</div>
+            <span style="display: block; text-align: right; font-size: 11px; color: #8C929C;">09:16</span>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div style="flex: none; box-sizing: border-box; padding: 8px 10px 30px; background: #FFFFFF; border-top: 1px solid #E1E4EA; display: flex; align-items: center; gap: 8px;">
+    <a href="ShopBotCatalog.dc.html" style="flex: none; height: 40px; box-sizing: border-box; padding: 0 14px; border-radius: 20px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; gap: 6px; text-decoration: none; font-size: 14px; font-weight: 600;">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"></path></svg>
+      Каталог
+    </a>
+    <div style="flex: 1 1 auto; min-width: 0; height: 40px; box-sizing: border-box; padding: 0 14px; border-radius: 20px; background: #F1F2F5; display: flex; align-items: center; font-size: 15px; color: #8C929C;">Сообщение</div>
+    <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8C929C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg></span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { step: 1, orders: false };
+}
+renderVals() {
+const st = this.state;
+return {
+step0: st.step === 0,
+after0: st.step >= 1,
+step1: st.step === 1,
+step2: st.step >= 2,
+showOrders: st.step >= 2 && !!st.orders,
+noOrders: !st.orders,
+repeat: () => this.setState({ step: 1 }),
+confirm: () => this.setState({ step: 2 }),
+myOrders: () => this.setState({ orders: true })
+};
+}
+}
+</script>
+</body>
+</html>

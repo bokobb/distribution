@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Новый магазин</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <div style="flex: none; box-sizing: border-box; padding: 52px 16px 10px; display: flex; align-items: center; gap: 12px;">
+    <a href="AgentPickShop.dc.html" aria-label="Назад к выбору магазина" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5.5 8.5 12l6.5 6.5"></path></svg>
+    </a>
+    <div style="min-width: 0; display: flex; flex-direction: column;">
+      <h1 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600;">Новый магазин</h1>
+      <span style="font-size: 13px; line-height: 18px; color: #5C6370;">Магазина нет в базе — заполните на месте</span>
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 4px 16px 140px; display: flex; flex-direction: column; gap: 12px;">
+    <section aria-label="Точка на карте" style="flex: none; box-sizing: border-box; padding: 10px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); display: flex; flex-direction: column; gap: 8px;">
+      <div style="position: relative; height: 104px; border-radius: 10px; overflow: hidden; background: #EEF0F3;">
+        <img src="/_blob/62579e89cceea95c923157cccdba123b" alt="Карта: место нового магазина" style="display: block; width: 100%; height: 104px; object-fit: none; object-position: -151px -508px;">
+        <span aria-hidden="true" style="position: absolute; left: calc(50% - 22px); top: 30px; width: 44px; height: 44px; border-radius: 50%; background: rgba(65,54,241,0.14);"></span>
+        <svg aria-hidden="true" width="30" height="38" viewBox="0 0 30 38" style="position: absolute; left: calc(50% - 15px); top: 14px;"><path d="M15 37s13-11.6 13-22A13 13 0 0 0 2 15c0 10.4 13 22 13 22z" fill="#4136F1" stroke="#FFFFFF" stroke-width="2.5"></path><circle cx="15" cy="15" r="5" fill="#FFFFFF"></circle></svg>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px 0 4px;">
+        <span style="min-width: 0; display: flex; flex-direction: column;">
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #0E6B4C;">
+            <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+            Точка по GPS · точность 8 м
+          </span>
+          <span style="font-size: 13px; color: #5C6370;">рядом: ул. Сейфуллина, 40</span>
+        </span>
+        <button type="button" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 12px; border: 0; border-radius: 10px; background: #F1F2F5; font: 600 13px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">Уточнить</button>
+      </div>
+    </section>
+
+    <div style="flex: none; display: flex; flex-direction: column; gap: 4px;">
+      <label for="nm" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Название на вывеске *</label>
+      <input id="nm" type="text" autocomplete="off" placeholder="Например, «Береке-2»" value="{{ name }}" onChange="{{ onName }}" style="height: 50px; box-sizing: border-box; padding: 0 14px; border: {{ nameBorder }}; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318; outline: none;">
+    </div>
+    <div style="flex: none; display: flex; flex-direction: column; gap: 4px;">
+      <label for="ph" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Телефон владельца *</label>
+      <input id="ph" type="tel" autocomplete="off" placeholder="+7 7__ ___ __ __" value="{{ phone }}" onChange="{{ onPhone }}" style="height: 50px; box-sizing: border-box; padding: 0 14px; border: {{ phoneBorder }}; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318; font-variant-numeric: tabular-nums; outline: none;">
+    </div>
+    <div style="flex: none; display: flex; flex-direction: column; gap: 4px;">
+      <label for="who" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Кто принимает товар</label>
+      <input id="who" type="text" autocomplete="off" placeholder="Имя продавца или хозяина" value="Айдос Н." style="height: 50px; box-sizing: border-box; padding: 0 14px; border: 1px solid #E1E4EA; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318; outline: none;">
+    </div>
+    <div style="flex: none; display: flex; flex-direction: column; gap: 4px;">
+      <label for="ad" style="padding: 0 4px; font-size: 13px; font-weight: 600; color: #3D434D;">Адрес и ориентир</label>
+      <input id="ad" type="text" autocomplete="off" value="ул. Сейфуллина, 40 — напротив школы" style="height: 50px; box-sizing: border-box; padding: 0 14px; border: 1px solid #E1E4EA; border-radius: 12px; background: #FFFFFF; font: 500 16px/1 'Inter', -apple-system, sans-serif; color: #101318; outline: none;">
+    </div>
+
+    <div style="flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+      <div style="min-width: 0; display: flex; flex-direction: column;">
+      <sc-if value="{{ noPhoto }}" hint-placeholder-val="{{ true }}">
+        <button type="button" onClick="{{ shoot }}" style="height: 84px; box-sizing: border-box; border: 1.5px dashed #B4B9C2; border-radius: 14px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font: 600 14px/1.2 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4136F1" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+          Фото фасада *
+        </button>
+      </sc-if>
+      <sc-if value="{{ hasPhoto }}" hint-placeholder-val="{{ false }}">
+        <button type="button" onClick="{{ retake }}" aria-label="Переснять фасад" style="position: relative; height: 84px; padding: 0; border: 0; border-radius: 14px; overflow: hidden; background: linear-gradient(180deg, #9FB4CC 0%, #C8D4E0 55%, #8C8F94 55%, #6F7378 100%); cursor: pointer;">
+          <span aria-hidden="true" style="position: absolute; left: 14px; right: 14px; top: 18px; height: 50px; background: #E9E4DA; border-radius: 2px;"></span>
+          <span aria-hidden="true" style="position: absolute; left: 20px; right: 20px; top: 22px; height: 12px; background: #2F6B4F; border-radius: 2px; color: #FFFFFF; font-size: 8px; font-weight: 700; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: center;">БЕРЕКЕ-2</span>
+          <span aria-hidden="true" style="position: absolute; left: 26px; top: 40px; width: 30px; height: 28px; background: #7FA3BF; border-radius: 1px;"></span>
+          <span aria-hidden="true" style="position: absolute; right: 30px; top: 40px; width: 20px; height: 28px; background: #5B4A3C; border-radius: 1px;"></span>
+          <span style="position: absolute; left: 6px; bottom: 6px; height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 10px; background: rgba(16,19,24,0.72); color: #FFFFFF; font-size: 11px; font-weight: 600; display: flex; align-items: center;">Фото есть</span>
+        </button>
+      </sc-if>
+      </div>
+      <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;">
+        <legend style="padding: 0 4px 6px; font-size: 13px; font-weight: 600; color: #3D434D;">Цены</legend>
+        <div style="height: 44px; box-sizing: border-box; padding: 3px; border-radius: 12px; background: #E9EBEF; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;">
+          <button type="button" aria-pressed="{{ optOn }}" onClick="{{ toOpt }}" style="border: 0; border-radius: 9px; background: {{ optBg }}; box-shadow: {{ optShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ optColor }}; cursor: pointer;">Опт</button>
+          <button type="button" aria-pressed="{{ retOn }}" onClick="{{ toRet }}" style="border: 0; border-radius: 9px; background: {{ retBg }}; box-shadow: {{ retShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ retColor }}; cursor: pointer;">Розница</button>
+        </div>
+      </fieldset>
+    </div>
+
+    <div style="flex: none; box-sizing: border-box; padding: 12px 14px; border-radius: 14px; background: #EEEDFE; color: #2A21B8; display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 20px;">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+      <span>Заказ можно оформить сразу. Первый заказ нового магазина — без долга, оплата при доставке. Руководитель проверит магазин сегодня.</span>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 10px 16px 30px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 8px;">
+    <div style="height: 18px; text-align: center; font-size: 13px; font-weight: 600; color: {{ hintColor }};">{{ hint }}</div>
+    <sc-if value="{{ canCreate }}" hint-placeholder-val="{{ false }}">
+      <a href="AgentOrder.dc.html" style="height: 54px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">
+        Создать и оформить заказ
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      </a>
+    </sc-if>
+    <sc-if value="{{ cannotCreate }}" hint-placeholder-val="{{ true }}">
+      <button type="button" disabled style="height: 54px; border: 0; border-radius: 14px; background: #E9EBEF; color: #8C929C; font: 600 16px/1 'Inter', -apple-system, sans-serif;">Создать и оформить заказ</button>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { name: 'Береке-2', phone: '+7 705 000 14 27', photo: false, price: 'opt' };
+}
+renderVals() {
+const st = this.state;
+const nameOk = (st.name || '').trim().length >= 2;
+const digits = String(st.phone || '').replace(/\D/g, '');
+const phoneOk = digits.length >= 11;
+const ok = nameOk && phoneOk && !!st.photo;
+const missing = [];
+if (!nameOk) missing.push('название');
+if (!phoneOk) missing.push('телефон');
+if (!st.photo) missing.push('фото фасада');
+const seg = (on) => ({ bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 3px rgba(16,19,24,0.14)' : 'none', color: on ? '#101318' : '#5C6370', on: on ? 'true' : 'false' });
+const a = seg(st.price === 'opt'), b = seg(st.price !== 'opt');
+return {
+name: st.name || '',
+phone: st.phone || '',
+onName: (e) => this.setState({ name: String((e && e.target && e.target.value) || '').slice(0, 40) }),
+onPhone: (e) => this.setState({ phone: String((e && e.target && e.target.value) || '').replace(/[^\d+ ]/g, '').slice(0, 18) }),
+nameBorder: nameOk ? '1px solid #E1E4EA' : '1.5px solid #C4291C',
+phoneBorder: phoneOk ? '1px solid #E1E4EA' : '1.5px solid #C4291C',
+noPhoto: !st.photo,
+hasPhoto: !!st.photo,
+shoot: () => this.setState({ photo: true }),
+retake: () => this.setState({ photo: false }),
+optOn: a.on, optBg: a.bg, optShadow: a.shadow, optColor: a.color,
+retOn: b.on, retBg: b.bg, retShadow: b.shadow, retColor: b.color,
+toOpt: () => this.setState({ price: 'opt' }),
+toRet: () => this.setState({ price: 'retail' }),
+canCreate: ok,
+cannotCreate: !ok,
+hint: ok ? 'Магазин сразу появится у вас, руководитель проверит' : 'Не хватает: ' + missing.join(', '),
+hintColor: ok ? '#0E6B4C' : '#9A5B00'
+};
+}
+}
+</script>
+</body>
+</html>

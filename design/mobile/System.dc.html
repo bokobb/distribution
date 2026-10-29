@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Дизайн-система</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="width: 1340px; height: 900px; box-sizing: border-box; padding: 40px 44px; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; gap: 24px;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -0.02em;">Дистрибуция · дизайн-система</h1>
+      <p style="margin: 0; font-size: 15px; color: #5C6370;">Светлая и спокойная: один акцент, белые карточки, крупные цели касания, суммы моноширинными цифрами. Одна для Android и iPhone.</p>
+    </div>
+    <div style="display: flex; gap: 8px; font-size: 13px; font-weight: 600; color: #3D434D;">
+      <span style="height: 30px; box-sizing: border-box; padding: 0 12px; border-radius: 15px; background: #FFFFFF; display: flex; align-items: center;">Экран 390 × 844</span>
+      <span style="height: 30px; box-sizing: border-box; padding: 0 12px; border-radius: 15px; background: #FFFFFF; display: flex; align-items: center;">Поля 16</span>
+      <span style="height: 30px; box-sizing: border-box; padding: 0 12px; border-radius: 15px; background: #FFFFFF; display: flex; align-items: center;">Касание ≥ 44</span>
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 20px;">
+
+    <section style="box-sizing: border-box; padding: 22px; border-radius: 20px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6370;">Акцент</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 56px; border-radius: 12px; background: #4136F1;"></span><b style="font-size: 13px;">Индиго</b><span style="font-size: 12px; color: #5C6370;">#4136F1 · кнопки, маршрут</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 56px; border-radius: 12px; background: #3329D6;"></span><b style="font-size: 13px;">Нажатие</b><span style="font-size: 12px; color: #5C6370;">#3329D6 · текст-ссылки</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><span style="height: 56px; border-radius: 12px; background: #EEEDFE;"></span><b style="font-size: 13px;">Подложка</b><span style="font-size: 12px; color: #5C6370;">#EEEDFE</span></div>
+      </div>
+      <h2 style="margin: 6px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6370;">Нейтральные</h2>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: #101318;"></span><b style="font-size: 13px; width: 120px;">Текст</b><span style="font-size: 12px; color: #5C6370;">#101318</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: #5C6370;"></span><b style="font-size: 13px; width: 120px;">Второй текст</b><span style="font-size: 12px; color: #5C6370;">#5C6370 · подписи, адреса</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: #8C929C;"></span><b style="font-size: 13px; width: 120px;">Значки</b><span style="font-size: 12px; color: #5C6370;">#8C929C · только значки</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: #E8EAEE;"></span><b style="font-size: 13px; width: 120px;">Линия</b><span style="font-size: 12px; color: #5C6370;">#E8EAEE</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: #F1F2F5;"></span><b style="font-size: 13px; width: 120px;">Заливка</b><span style="font-size: 12px; color: #5C6370;">#F1F2F5 · вторые кнопки</span></div>
+        <div style="display: flex; align-items: center; gap: 10px;"><span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: #F4F5F7; box-shadow: inset 0 0 0 1px #E8EAEE;"></span><b style="font-size: 13px; width: 120px;">Фон</b><span style="font-size: 12px; color: #5C6370;">#F4F5F7 · карточки белые</span></div>
+      </div>
+      <h2 style="margin: 6px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6370;">Состояния</h2>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="height: 36px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; background: #E7F5EF; color: #0E6B4C; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600;"><span>Доставлено, сумма совпадает</span><span style="font-weight: 500;">#12805C</span></div>
+        <div style="height: 36px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; background: #FFF4DF; color: #7A4700; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600;"><span>Частично, не хватает, в долг</span><span style="font-weight: 500;">#9A5B00</span></div>
+        <div style="height: 36px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; background: #FDECEA; color: #A3241A; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600;"><span>Отказ, ошибка, больше суммы</span><span style="font-weight: 500;">#C4291C</span></div>
+      </div>
+    </section>
+
+    <section style="box-sizing: border-box; padding: 22px; border-radius: 20px; background: #FFFFFF; display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6370;">Шрифт Inter</h2>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDEFF2;"><span style="font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em;">Доставки</span><span style="font-size: 12px; color: #5C6370;">28 / 34 · 700</span></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDEFF2;"><span style="font-size: 22px; line-height: 28px; font-weight: 700; font-variant-numeric: tabular-nums;">51 120 ₸</span><span style="font-size: 12px; color: #5C6370;">22 / 28 · 700 · суммы</span></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDEFF2;"><span style="font-size: 18px; line-height: 24px; font-weight: 700;">Магазин «Достык»</span><span style="font-size: 12px; color: #5C6370;">18 / 24 · 700</span></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDEFF2;"><span style="font-size: 16px; line-height: 22px; font-weight: 600;">Доставлено</span><span style="font-size: 12px; color: #5C6370;">16 / 22 · 600 · кнопки</span></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDEFF2;"><span style="font-size: 15px; line-height: 21px;">ул. Желтоксан, 22</span><span style="font-size: 12px; color: #5C6370;">15 / 21 · 400</span></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid #EDEFF2;"><span style="font-size: 13px; line-height: 18px; font-weight: 600; color: #3D434D;">Получено наличными</span><span style="font-size: 12px; color: #5C6370;">13 / 18 · 600</span></div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;"><span style="font-size: 11px; line-height: 14px; font-weight: 600;">Доставки</span><span style="font-size: 12px; color: #5C6370;">11 / 14 · 600 · меню</span></div>
+
+      <h2 style="margin: 12px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6370;">Отступы и скругления</h2>
+      <div style="display: flex; align-items: flex-end; gap: 10px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 4px; height: 28px; border-radius: 2px; background: #4136F1;"></span><span style="font-size: 12px; color: #5C6370;">4</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 8px; height: 28px; border-radius: 2px; background: #4136F1;"></span><span style="font-size: 12px; color: #5C6370;">8</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 12px; height: 28px; border-radius: 2px; background: #4136F1;"></span><span style="font-size: 12px; color: #5C6370;">12</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 16px; height: 28px; border-radius: 2px; background: #4136F1;"></span><span style="font-size: 12px; color: #5C6370;">16</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 24px; height: 28px; border-radius: 2px; background: #4136F1;"></span><span style="font-size: 12px; color: #5C6370;">24</span></div>
+        <span style="width: 16px;"></span>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 44px; height: 44px; border-radius: 12px; background: #F1F2F5; box-shadow: inset 0 0 0 1.5px #C9CDD5;"></span><span style="font-size: 12px; color: #5C6370;">12</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 44px; height: 44px; border-radius: 14px; background: #F1F2F5; box-shadow: inset 0 0 0 1.5px #C9CDD5;"></span><span style="font-size: 12px; color: #5C6370;">14</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="width: 44px; height: 44px; border-radius: 20px; background: #F1F2F5; box-shadow: inset 0 0 0 1.5px #C9CDD5;"></span><span style="font-size: 12px; color: #5C6370;">20</span></div>
+      </div>
+    </section>
+
+    <section style="box-sizing: border-box; padding: 22px; border-radius: 20px; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px;">
+      <h2 style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5C6370;">Компоненты</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <button type="button" style="height: 52px; border: 0; border-radius: 14px; background: #4136F1; color: #FFFFFF; font: 600 15px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Доставлено</button>
+        <button type="button" style="height: 52px; border: 0; border-radius: 14px; background: #F1F2F5; color: #101318; font: 600 15px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Состав</button>
+        <button type="button" style="height: 52px; border: 0; border-radius: 14px; background: #101318; color: #FFFFFF; font: 600 15px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Сдать кассу</button>
+        <button type="button" style="height: 52px; border: 0; border-radius: 14px; background: #FDECEA; color: #B0261A; font: 600 15px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Закончить день</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <label for="ds-cash" style="font-size: 13px; font-weight: 600; color: #3D434D;">Получено наличными</label>
+        <div style="position: relative; display: flex; align-items: center;">
+          <input id="ds-cash" type="text" value="50 000" style="flex: 1 1 auto; min-width: 0; height: 56px; box-sizing: border-box; padding: 0 128px 0 16px; border: 2px solid #4136F1; border-radius: 14px; font: 600 22px/1 'Inter', -apple-system, sans-serif; color: #101318; font-variant-numeric: tabular-nums;">
+          <span aria-hidden="true" style="position: absolute; right: 118px; font-size: 20px; font-weight: 600; color: #8C929C;">₸</span>
+          <button type="button" style="position: absolute; right: 7px; height: 42px; box-sizing: border-box; padding: 0 12px; border: 0; border-radius: 10px; background: #EEEDFE; color: #3329D6; font: 600 13px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Вся сумма</button>
+        </div>
+        <div style="font-size: 13px; font-weight: 600; color: #9A5B00;">Не хватает 1 120 ₸ — останется долгом</div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #F1F2F5; color: #3D434D; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Наличные</span>
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #F1F2F5; color: #3D434D; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Kaspi</span>
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #FFF4DF; color: #8A5000; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">В долг</span>
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #FFF4DF; color: #8A5000; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Частично</span>
+        <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #E7F5EF; color: #0E6B4C; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Доставлено</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 18px;">
+        <span style="font-size: 12px; color: #5C6370; width: 92px;">Точки на карте</span>
+        <span aria-hidden="true" style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; background: #9AA1AB; border: 2px solid #FFFFFF; box-shadow: 0 1px 4px rgba(16,19,24,0.25); display: flex; align-items: center; justify-content: center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+        <span aria-hidden="true" style="width: 28px; height: 28px; box-sizing: border-box; border-radius: 50%; background: #FFFFFF; border: 2px solid #4136F1; color: #3329D6; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(16,19,24,0.22);">7</span>
+        <span aria-hidden="true" style="width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: #4136F1; border: 3px solid #FFFFFF; color: #FFFFFF; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(65,54,241,0.45);">6</span>
+        <span aria-hidden="true" style="width: 17px; height: 17px; box-sizing: border-box; border-radius: 50%; background: #4136F1; border: 3px solid #FFFFFF; box-shadow: 0 0 0 10px rgba(65,54,241,0.14);"></span>
+      </div>
+      <div style="box-sizing: border-box; padding: 14px 14px 14px 12px; border-radius: 16px; background: #F4F5F7; display: flex; align-items: flex-start; gap: 12px;">
+        <span style="flex: none; width: 28px; height: 28px; border-radius: 50%; background: #FFFFFF; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;">7</span>
+        <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 16px; line-height: 22px; font-weight: 600;">Магазин «Арман»</span>
+          <span style="font-size: 14px; color: #5C6370;">ул. Момышулы, 58</span>
+          <span style="margin-top: 4px; display: flex; align-items: center; gap: 8px;"><span style="font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;">22 800 ₸</span><span style="height: 22px; box-sizing: border-box; padding: 0 8px; border-radius: 6px; background: #FFFFFF; color: #3D434D; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Наличные</span></span>
+        </span>
+        <span style="flex: none; padding-top: 3px; font-size: 13px; font-weight: 500; color: #5C6370;">1 км</span>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1340,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

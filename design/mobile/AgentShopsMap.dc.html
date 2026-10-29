@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Магазины на карте</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+@keyframes dcPulse{0%{transform:scale(.6);opacity:.5}100%{transform:scale(1.6);opacity:0}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #EEF0F3; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <img src="/_blob/f317b05cc8ebebb5608fec5eabde0cb4" alt="Карта района: все магазины из базы, торговый в центре" style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; display: block;">
+
+  <span aria-hidden="true" style="position: absolute; left: 256.4px; top: 334.6px; width: 44px; height: 44px; border-radius: 50%; background: rgba(65,54,241,0.24); animation: dcPulse 2s ease-out infinite;"></span>
+
+  <div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; pointer-events: none;">
+    <sc-for list="{{ clusters }}" as="c" hint-placeholder-count="5">
+      <span role="img" aria-label="{{ c.label }}" style="position: absolute; left: {{ c.l }}px; top: {{ c.t }}px; width: {{ c.s }}px; height: {{ c.s }}px; box-sizing: border-box; border-radius: 50%; background: #4136F1; border: 3px solid #FFFFFF; box-shadow: 0 0 0 5px rgba(65,54,241,0.16), 0 3px 8px rgba(16,19,24,0.22); color: #FFFFFF; font-size: 13px; font-weight: 700; display: {{ c.disp }}; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;">{{ c.n }}</span>
+    </sc-for>
+    <sc-for list="{{ pins }}" as="p" hint-placeholder-count="43">
+      <button type="button" aria-label="{{ p.label }}" onClick="{{ p.pick }}" style="position: absolute; left: {{ p.l }}px; top: {{ p.t }}px; width: 30px; height: 30px; margin: 0; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; visibility: {{ p.vis }};">
+        <span style="width: {{ p.s }}px; height: {{ p.s }}px; box-sizing: border-box; border-radius: {{ p.r }}px; background: {{ p.bg }}; border: {{ p.border }}; box-shadow: {{ p.shadow }}; display: flex; align-items: center; justify-content: center;">
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ p.gc }}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="display: {{ p.gd }};"><path d="{{ p.g }}"></path></svg>
+        </span>
+      </button>
+    </sc-for>
+  </div>
+
+  <div aria-hidden="true" style="position: absolute; left: {{ tl }}px; top: {{ tt }}px; width: 34px; height: 44px; pointer-events: none; filter: drop-shadow(0 3px 4px rgba(16,19,24,0.3));">
+    <svg width="34" height="44" viewBox="0 0 34 44" style="display: block;"><path d="M17 2C8.7 2 2 8.6 2 16.8c0 10.6 12.4 23.1 14 24.7.6.6 1.4.6 2 0 1.6-1.6 14-14.1 14-24.7C32 8.6 25.3 2 17 2z" fill="{{ tFill }}" stroke="#FFFFFF" stroke-width="2.5"></path></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ tInk }}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 8px; top: 8px;"><path d="{{ tGlyph }}"></path></svg>
+  </div>
+
+  <span role="img" aria-label="Вы здесь" style="position: absolute; left: 269.9px; top: 348.1px; width: 17px; height: 17px; box-sizing: border-box; border-radius: 50%; background: #4136F1; border: 3px solid #FFFFFF; box-shadow: 0 1px 4px rgba(16,19,24,0.3);"></span>
+
+  <button type="button" aria-label="Показать меня" onClick="{{ recenter }}" style="position: absolute; right: 16px; top: 408px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #FFFFFF; box-shadow: 0 2px 10px rgba(16,19,24,0.16); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4136F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6.5"></circle><circle cx="12" cy="12" r="2" fill="#4136F1"></circle><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"></path></svg>
+  </button>
+
+  <div role="note" aria-label="Обозначения на карте" style="position: absolute; right: 16px; top: 460px; box-sizing: border-box; padding: 8px 11px 8px 9px; border-radius: 12px; background: rgba(255,255,255,0.95); box-shadow: 0 2px 10px rgba(16,19,24,0.14); display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: #3D434D; white-space: nowrap;">
+      <span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="flex: none; width: 14px; height: 14px; box-sizing: border-box; border-radius: 4px; background: #4136F1; border: 1.5px solid #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.25); display: flex; align-items: center; justify-content: center;"></span>Магазин</span>
+      <span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="flex: none; width: 14px; height: 14px; box-sizing: border-box; border-radius: 4px; background: #12805C; border: 1.5px solid #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.25); display: flex; align-items: center; justify-content: center;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12.5l4 4 8-9"></path></svg></span>Был сегодня</span>
+      <span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="flex: none; width: 14px; height: 14px; box-sizing: border-box; border-radius: 4px; background: #E39B2D; border: 1.5px solid #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.25); display: flex; align-items: center; justify-content: center;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#6E4100" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.5v8M12 18.5v.01"></path></svg></span>Просрочка</span>
+      <span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="flex: none; width: 14px; height: 14px; box-sizing: border-box; border-radius: 4px; background: #C4291C; border: 1.5px solid #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.25); display: flex; align-items: center; justify-content: center;"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 12h11"></path></svg></span>Заказ закрыт</span>
+      <span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="flex: none; width: 14px; height: 14px; box-sizing: border-box; border-radius: 4px; background: #FFFFFF; border: 2px solid #4136F1; box-shadow: 0 1px 2px rgba(16,19,24,0.25); display: flex; align-items: center; justify-content: center;"></span>Новый</span>
+  </div>
+
+  <div style="position: absolute; left: 16px; right: 16px; top: 52px; display: flex; align-items: center; gap: 8px;">
+    <div style="position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 15px;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+      <label for="map-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Найти магазин на карте</label>
+      <input id="map-q" type="search" autocomplete="off" placeholder="Найти магазин" value="{{ q }}" onChange="{{ onQ }}" style="flex: 1 1 auto; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 14px 0 45px; border: 0; border-radius: 24px; background: #FFFFFF; box-shadow: 0 2px 10px rgba(16,19,24,0.16); font: 400 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+    </div>
+    <a href="AgentRoute.dc.html" style="flex: none; height: 48px; box-sizing: border-box; padding: 0 16px 0 13px; border-radius: 24px; background: #FFFFFF; box-shadow: 0 2px 10px rgba(16,19,24,0.16); display: flex; align-items: center; gap: 7px; text-decoration: none; color: #101318; font-size: 15px; font-weight: 600;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"></path></svg>
+      Список
+    </a>
+  </div>
+
+  <div role="group" aria-label="Какие магазины показать" style="position: absolute; left: 0; right: 0; top: 106px; box-sizing: border-box; padding: 4px 16px 10px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;">
+      <button type="button" aria-pressed="{{ f1on }}" onClick="{{ f1pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 0; border-radius: 18px; background: {{ f1bg }}; color: {{ f1color }}; box-shadow: 0 2px 8px rgba(16,19,24,0.16); font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 6px; cursor: pointer;">Все<span style="font-weight: 500; color: {{ f1num }}; font-variant-numeric: tabular-nums;">312</span></button>
+      <button type="button" aria-pressed="{{ f2on }}" onClick="{{ f2pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 0; border-radius: 18px; background: {{ f2bg }}; color: {{ f2color }}; box-shadow: 0 2px 8px rgba(16,19,24,0.16); font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 6px; cursor: pointer;">Не был 7+ дней<span style="font-weight: 500; color: {{ f2num }}; font-variant-numeric: tabular-nums;">38</span></button>
+      <button type="button" aria-pressed="{{ f3on }}" onClick="{{ f3pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 0; border-radius: 18px; background: {{ f3bg }}; color: {{ f3color }}; box-shadow: 0 2px 8px rgba(16,19,24,0.16); font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 6px; cursor: pointer;">Просрочка<span style="font-weight: 500; color: {{ f3num }}; font-variant-numeric: tabular-nums;">9</span></button>
+      <button type="button" aria-pressed="{{ f4on }}" onClick="{{ f4pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 0; border-radius: 18px; background: {{ f4bg }}; color: {{ f4color }}; box-shadow: 0 2px 8px rgba(16,19,24,0.16); font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; display: flex; align-items: center; gap: 6px; cursor: pointer;">Новые<span style="font-weight: 500; color: {{ f4num }}; font-variant-numeric: tabular-nums;">3</span></button>
+  </div>
+
+  <sc-if value="{{ hintOn }}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="position: absolute; left: 16px; top: 160px; height: 32px; box-sizing: border-box; padding: 0 {{ hintPr }}px 0 12px; border-radius: 16px; background: #101318; color: #FFFFFF; box-shadow: 0 4px 12px rgba(16,19,24,0.25); display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; white-space: nowrap;">
+      <span>{{ hintText }}</span>
+      <a href="AgentNewOutlet.dc.html" style="display: {{ hintLink }}; height: 24px; box-sizing: border-box; padding: 0 10px; border-radius: 12px; background: #FFFFFF; color: #101318; align-items: center; text-decoration: none; font-size: 12px; font-weight: 700;">Создать новый</a>
+    </div>
+  </sc-if>
+
+  <section aria-label="Выбранный магазин" style="position: absolute; left: 12px; right: 12px; bottom: 96px; box-sizing: border-box; padding: 14px 14px 14px 16px; border-radius: 20px; background: #FFFFFF; box-shadow: 0 12px 32px -12px rgba(16,19,24,0.42), 0 1px 3px rgba(16,19,24,0.08); display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: flex-start; gap: 12px;">
+      <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+        <h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ selName }}</h2>
+        <span style="font-size: 13px; line-height: 18px; color: #5C6370; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ selAddr }}</span>
+      </div>
+      <span style="flex: none; font-size: 14px; line-height: 22px; font-weight: 600; color: {{ selDistColor }}; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ selDist }}</span>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+      <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: {{ c1bg }}; color: {{ c1color }}; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ c1 }}</span>
+      <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: {{ c2bg }}; color: {{ c2color }}; font-size: 12px; font-weight: 600; display: {{ c2show }}; align-items: center; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ c2 }}</span>
+    </div>
+    <div style="display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 8px;">
+      <a href="{{ orderHref }}" style="height: 48px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 15px; font-weight: 600;">
+        Создать заказ
+        <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+      </a>
+      <a href="AgentOutlet.dc.html" style="height: 48px; border-radius: 14px; background: #F1F2F5; color: #101318; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 15px; font-weight: 600;">Карточка</a>
+    </div>
+  </section>
+
+  <nav aria-label="Разделы" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; box-sizing: border-box; padding: 6px 8px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+    <a href="AgentToday.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"></path></svg>
+      Сегодня
+    </a>
+    <a href="AgentOrders.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>
+      Заказы
+    </a>
+    <a href="AgentShopsMap.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #4136F1; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"></path><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"></path><path d="M5 11.5V20h14v-8.5M10 20v-5h4v5"></path></svg>
+      Магазины
+    </a>
+    <a href="AgentProfile.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+      Профиль
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { f: 'all', q: '', sel: 'nur' };
+}
+renderVals() {
+const SHOPS = [
+{"id":"nur","n":"Магазин «Нур»","a":"ул. Абая, 41","x":280.0,"y":341.0,"k":"over","st":false,"nw":false,"d":"18 м","c1":["Просрочено 12 000 ₸","amber"],"c2":["Долг 48 200 ₸","neutral"],"h":"AgentOrder.dc.html","here":true},
+{"id":"merey","n":"Магазин «Мерей»","a":"ул. Абая, 52","x":302.7,"y":350.5,"k":"reg","st":false,"nw":false,"d":"140 м","c1":["Средний заказ 24 600 ₸","neutral"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"altyn","n":"Магазин «Алтын»","a":"ул. Абая, 77","x":325.9,"y":344.7,"k":"block","st":false,"nw":false,"d":"260 м","c1":["Заказ закрыт","red"],"c2":["Просрочка 32 000 ₸ · 18 дней","neutral"],"h":"AgentBlocked.dc.html"},
+{"id":"shanyrak","n":"Магазин «Шанырак»","a":"ул. Байтурсынова, 21","x":233.5,"y":332.8,"k":"reg","st":false,"nw":false,"d":"410 м","c1":["Долг 22 300 ₸","neutral"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"ulan","n":"Магазин «Улан»","a":"ул. Момышулы, 8","x":250.4,"y":400.7,"k":"reg","st":false,"nw":false,"d":"520 м","c1":["Средний заказ 19 800 ₸","neutral"],"c2":["Был 6 дней назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"aigul","n":"Магазин «Айгуль»","a":"ул. Толе би, 104","x":331.7,"y":379.4,"k":"today","st":false,"nw":false,"d":"690 м","c1":["Сегодня 10:48 · 21 300 ₸","green"],"c2":["Долга нет","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"bereke2","n":"Магазин «Береке-2»","a":"ул. Сейфуллина, 40","x":299.4,"y":423.5,"k":"today","st":false,"nw":true,"d":"1,1 км","c1":["Сегодня 10:40 · 15 600 ₸","green"],"c2":["Новый · на проверке","brand"],"h":"AgentOrder.dc.html"},
+{"id":"samal","n":"Магазин «Самал»","a":"ул. Аль-Фараби, 3","x":217.9,"y":443.8,"k":"today","st":false,"nw":false,"d":"1,1 км","c1":["Сегодня 10:26 · без заказа","neutral"],"c2":["Хозяина нет на месте","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"zhuldyz","n":"Магазин «Жулдыз»","a":"ул. Казыбек би, 31","x":185.6,"y":487.9,"k":"today","st":false,"nw":false,"d":"1,6 км","c1":["Сегодня 10:05 · 27 450 ₸","green"],"c2":["Ждёт руководителя","brand"],"h":"AgentOrder.dc.html"},
+{"id":"nurly","n":"Магазин «Нурлы»","a":"мкр. Самал, 4","x":153.3,"y":532.1,"k":"today","st":false,"nw":false,"d":"2,2 км","c1":["Сегодня 09:48 · 41 300 ₸","green"],"c2":["Возврат 2 280 ₸","amber"],"h":"AgentOrder.dc.html"},
+{"id":"dos","n":"Магазин «Дос-Маркет»","a":"ул. Кунаева, 7","x":121.0,"y":576.2,"k":"today","st":false,"nw":false,"d":"2,7 км","c1":["Сегодня 09:20 · без заказа","neutral"],"c2":["Товар ещё есть","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"bereke","n":"Магазин «Береке»","a":"ул. Абая, 12","x":89.0,"y":620.0,"k":"today","st":false,"nw":false,"d":"3,2 км","c1":["Сегодня 08:55 · 18 900 ₸","green"],"c2":["Возврат 1 520 ₸","amber"],"h":"AgentOrder.dc.html"},
+{"id":"asel","n":"Магазин «Асель»","a":"ул. Толе би, 58","x":57.0,"y":664.0,"k":"today","st":false,"nw":false,"d":"3,8 км","c1":["Сегодня 08:31 · 32 400 ₸","green"],"c2":["Долга нет","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"dostyk","n":"Магазин «Достык»","a":"ул. Желтоксан, 22","x":212.5,"y":504.9,"k":"reg","st":false,"nw":false,"d":"1,7 км","c1":["Долг 15 400 ₸","neutral"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"arman","n":"Магазин «Арман»","a":"пр. Республики, 63","x":122.5,"y":185.2,"k":"reg","st":false,"nw":false,"d":"2,0 км","c1":["Долг 9 800 ₸","neutral"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"saya","n":"Магазин «Сая»","a":"ул. Сейфуллина, 5","x":50.0,"y":473.3,"k":"over","st":false,"nw":false,"d":"2,6 км","c1":["Просрочено 4 200 ₸","amber"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"kamila","n":"Магазин «Камила»","a":"ул. Аль-Фараби, 19","x":34.8,"y":185.0,"k":"reg","st":true,"nw":false,"d":"3,0 км","c1":["Заказ в боте 09:15 · 24 960 ₸","brand"],"c2":["Не был 10 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g1","n":"Магазин «Ажар»","a":"ул. Бейбитшилик, 44","x":291.6,"y":173.0,"k":"block","st":true,"nw":false,"d":"1,8 км","c1":["Заказ закрыт","red"],"c2":["Просрочка 41 000 ₸ · 22 дня","neutral"],"h":"AgentBlocked.dc.html"},
+{"id":"g2","n":"Магазин «Айдана»","a":"ул. Ауэзова, 90","x":356.5,"y":177.0,"k":"reg","st":false,"nw":false,"d":"2,0 км","c1":["Средний заказ 13 900 ₸","neutral"],"c2":["Был 4 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g3","n":"Магазин «Акбота»","a":"ул. Сарыарка, 50","x":71.3,"y":203.1,"k":"reg","st":false,"nw":false,"d":"2,6 км","c1":["Долг 9 100 ₸","neutral"],"c2":["Был 6 дней назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g4","n":"Магазин «Алма»","a":"ул. Пушкина, 63","x":268.8,"y":203.4,"k":"reg","st":false,"nw":false,"d":"1,5 км","c1":["Средний заказ 16 300 ₸","neutral"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g5","n":"Магазин «Аманат»","a":"пр. Республики, 56","x":107.2,"y":218.9,"k":"reg","st":false,"nw":false,"d":"2,2 км","c1":["Средний заказ 19 700 ₸","neutral"],"c2":["Был 6 дней назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g6","n":"Магазин «Арай»","a":"ул. Кенесары, 21","x":21.0,"y":220.2,"k":"reg","st":true,"nw":false,"d":"2,9 км","c1":["Средний заказ 10 900 ₸","neutral"],"c2":["Не был 8 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g7","n":"Магазин «Асем»","a":"ул. Пушкина, 102","x":82.9,"y":249.7,"k":"reg","st":false,"nw":false,"d":"2,2 км","c1":["Долг 26 100 ₸","neutral"],"c2":["Был 2 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g8","n":"Магазин «Балауса»","a":"ул. Кенесары, 40","x":30.4,"y":258.3,"k":"reg","st":false,"nw":false,"d":"2,7 км","c1":["Средний заказ 12 400 ₸","neutral"],"c2":["Был 5 дней назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g9","n":"Магазин «Бахыт»","a":"ул. Бейбитшилик, 96","x":291.9,"y":265.2,"k":"reg","st":false,"nw":false,"d":"920 м","c1":["Средний заказ 31 600 ₸","neutral"],"c2":["Был 4 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g10","n":"Магазин «Дана»","a":"ул. Пушкина, 84","x":111.1,"y":265.4,"k":"reg","st":false,"nw":false,"d":"1,9 км","c1":["Долг 24 700 ₸","neutral"],"c2":["Был 4 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g11","n":"Магазин «Дария»","a":"ул. Валиханова, 9","x":326.9,"y":283.7,"k":"reg","st":true,"nw":false,"d":"880 м","c1":["Долг 16 700 ₸","neutral"],"c2":["Не был 8 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g12","n":"Магазин «Жанар»","a":"ул. Валиханова, 129","x":158.5,"y":303.0,"k":"reg","st":true,"nw":false,"d":"1,3 км","c1":["Долг 10 500 ₸","neutral"],"c2":["Не был 8 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g13","n":"Магазин «Жансая»","a":"ул. Валиханова, 136","x":186.7,"y":318.7,"k":"reg","st":false,"nw":false,"d":"990 м","c1":["Средний заказ 23 300 ₸","neutral"],"c2":["Был 2 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g14","n":"Магазин «Зарина»","a":"ул. Валиханова, 84","x":128.0,"y":333.3,"k":"over","st":true,"nw":false,"d":"1,5 км","c1":["Просрочено 8 400 ₸","amber"],"c2":["Не был 9 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g15","n":"Магазин «Зере»","a":"ул. Валиханова, 31","x":18.4,"y":337.9,"k":"reg","st":false,"nw":false,"d":"2,6 км","c1":["Средний заказ 22 800 ₸","neutral"],"c2":["Был 2 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g16","n":"Магазин «Инкар»","a":"пр. Республики, 92","x":162.4,"y":349.4,"k":"reg","st":false,"nw":false,"d":"1,2 км","c1":["Долг 19 800 ₸","neutral"],"c2":["Был 3 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g17","n":"Магазин «Карлыгаш»","a":"ул. Валиханова, 81","x":46.5,"y":353.6,"k":"reg","st":true,"nw":false,"d":"2,3 км","c1":["Долг 7 300 ₸","neutral"],"c2":["Не был 11 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g18","n":"Магазин «Куралай»","a":"ул. Абая, 29","x":198.3,"y":365.2,"k":"reg","st":false,"nw":false,"d":"810 м","c1":["Средний заказ 29 800 ₸","neutral"],"c2":["Был 2 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g19","n":"Магазин «Мадина»","a":"ул. Кенесары, 98","x":80.9,"y":369.8,"k":"reg","st":false,"nw":false,"d":"2,0 км","c1":["Средний заказ 11 800 ₸","neutral"],"c2":["Был 2 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g20","n":"Магазин «Мейрам»","a":"ул. Абая, 25","x":180.8,"y":392.3,"k":"reg","st":false,"nw":false,"d":"1,0 км","c1":["Средний заказ 17 600 ₸","neutral"],"c2":["Был 6 дней назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g21","n":"Магазин «Назира»","a":"ул. Абая, 4","x":35.3,"y":405.9,"k":"reg","st":false,"nw":false,"d":"2,5 км","c1":["Средний заказ 21 500 ₸","neutral"],"c2":["Был 2 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g22","n":"Магазин «Нурай»","a":"ул. Сейфуллина, 6","x":156.6,"y":447.8,"k":"new","st":false,"nw":true,"d":"1,5 км","c1":["Новый · на проверке","brand"],"c2":["Создан 24 октября","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g23","n":"Магазин «Сымбат»","a":"ул. Сейфуллина, 91","x":110.9,"y":459.2,"k":"reg","st":false,"nw":false,"d":"2,0 км","c1":["Средний заказ 20 400 ₸","neutral"],"c2":["Был 4 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g24","n":"Магазин «Томирис»","a":"ул. Кенесары, 66","x":93.4,"y":510.9,"k":"reg","st":true,"nw":false,"d":"2,4 км","c1":["Долг 23 400 ₸","neutral"],"c2":["Не был 11 дней","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g25","n":"Магазин «Шолпан»","a":"пр. Республики, 20","x":187.1,"y":539.5,"k":"reg","st":false,"nw":false,"d":"2,0 км","c1":["Средний заказ 25 600 ₸","neutral"],"c2":["Был 4 дня назад","neutral"],"h":"AgentOrder.dc.html"},
+{"id":"g26","n":"Магазин «Ырыс»","a":"ул. Иманова, 126","x":16.7,"y":550.3,"k":"reg","st":false,"nw":false,"d":"3,3 км","c1":["Средний заказ 26 900 ₸","neutral"],"c2":["Был вчера","neutral"],"h":"AgentOrder.dc.html"}
+];
+const CLUSTERS = [
+{"x":64.0,"y":301.8,"all":18,"stale":6,"over":1,"new":0},
+{"x":210.1,"y":193.3,"all":24,"stale":8,"over":1,"new":0},
+{"x":332.8,"y":210.1,"all":31,"stale":9,"over":2,"new":1},
+{"x":71.8,"y":424.0,"all":12,"stale":4,"over":0,"new":0},
+{"x":372.5,"y":272.3,"all":9,"stale":3,"over":0,"new":0}
+];
+const ME = { x: 278.4, y: 356.6 };
+const TONE = { green: ['#E7F5EF', '#0E6B4C'], amber: ['#FFF4DF', '#8A5000'], red: ['#FDECEA', '#A3241A'], brand: ['#EEEDFE', '#3329D6'], neutral: ['#F1F2F5', '#3D434D'] };
+const FILL = { reg: '#4136F1', today: '#12805C', over: '#E39B2D', block: '#C4291C', new: '#4136F1' };
+const G_CHECK = 'M6 12.5l4 4 8-9';
+const G_WARN = 'M12 5.5v8M12 18.5v.01';
+const G_BAR = 'M6.5 12h11';
+const G_STORE = 'M4 9.5 5.5 4h13L20 9.5M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0M5 11.5V20h14v-8.5M10 20v-5h4v5';
+const GLYPH = { reg: '', today: G_CHECK, over: G_WARN, block: G_BAR, new: '' };
+const INK = { reg: '#FFFFFF', today: '#FFFFFF', over: '#6E4100', block: '#FFFFFF', new: '#4136F1' };
+const KIND = { reg: 'магазин', today: 'был сегодня', over: 'просрочка', block: 'заказ закрыт', new: 'новый' };
+const plural = (n, one, few, many) => {
+const m10 = n % 10, m100 = n % 100;
+if (m10 === 1 && m100 !== 11) return one;
+if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+return many;
+};
+const st = this.state;
+const f = st.f || 'all';
+const q = String(st.q || '').trim().toLowerCase();
+const match = (s) => {
+if (q) return (s.n + ' ' + s.a).toLowerCase().indexOf(q) >= 0;
+if (f === 'stale') return !!s.st;
+if (f === 'over') return s.k === 'over' || s.k === 'block';
+if (f === 'new') return !!s.nw;
+return true;
+};
+const away = (s) => Math.hypot(s.x - ME.x, s.y - ME.y);
+const found = SHOPS.filter(match).sort((a, b) => away(a) - away(b));
+let sel = SHOPS.filter((s) => s.id === st.sel)[0] || SHOPS[0];
+if (q && found.length && !match(sel)) sel = found[0];
+const pins = SHOPS.map((s) => {
+const k = s.k;
+const base = {
+l: s.x - 15,
+t: s.y - 15,
+vis: s.id === sel.id ? 'hidden' : 'visible',
+label: s.n + ', ' + KIND[k] + ', ' + s.d,
+pick: () => this.setState({ sel: s.id })
+};
+if (!match(s)) return Object.assign(base, { s: 10, r: 5, bg: '#A9AFB8', border: '1.5px solid #FFFFFF', shadow: '0 1px 2px rgba(16,19,24,0.18)', g: 'M0 0', gc: '#FFFFFF', gd: 'none' });
+if (k === 'new') return Object.assign(base, { s: 18, r: 6, bg: '#FFFFFF', border: '2.5px solid #4136F1', shadow: '0 2px 5px rgba(16,19,24,0.28)', g: 'M0 0', gc: '#4136F1', gd: 'none' });
+return Object.assign(base, { s: 18, r: 6, bg: FILL[k], border: '2px solid #FFFFFF', shadow: '0 2px 5px rgba(16,19,24,0.28)', g: GLYPH[k] || 'M0 0', gc: INK[k], gd: GLYPH[k] ? 'block' : 'none' });
+});
+const clusters = CLUSTERS.map((c) => {
+const n = q ? 0 : (f === 'all' ? c.all : c[f]);
+const size = n >= 20 ? 40 : n >= 10 ? 36 : 32;
+return {
+l: c.x - size / 2,
+t: c.y - size / 2,
+s: size,
+n: String(n),
+disp: n > 0 ? 'flex' : 'none',
+label: n + ' ' + plural(n, 'магазин', 'магазина', 'магазинов') + ' в этом месте — приблизьте карту'
+};
+});
+const t1 = TONE[sel.c1[1]] || TONE.neutral;
+const t2 = TONE[sel.c2[1]] || TONE.neutral;
+const vals = {
+pins: pins,
+clusters: clusters,
+tl: sel.x - 17,
+tt: sel.y - 42,
+tFill: FILL[sel.k],
+tGlyph: sel.k === 'today' ? G_CHECK : sel.k === 'over' ? G_WARN : sel.k === 'block' ? G_BAR : G_STORE,
+tInk: sel.k === 'over' ? '#6E4100' : '#FFFFFF',
+selName: sel.n,
+selAddr: sel.here ? sel.a + ' · вы у магазина' : sel.a,
+selDist: sel.d,
+selDistColor: sel.here ? '#3329D6' : '#5C6370',
+c1: sel.c1[0],
+c1bg: t1[0],
+c1color: t1[1],
+c2: sel.c2[0],
+c2bg: t2[0],
+c2color: t2[1],
+c2show: sel.c2[0] ? 'inline-flex' : 'none',
+orderHref: sel.h,
+q: st.q || '',
+onQ: (e) => this.setState({ q: String((e && e.target && e.target.value) || '').slice(0, 40) }),
+hintOn: !!q,
+hintText: found.length ? found.length + ' ' + plural(found.length, 'магазин', 'магазина', 'магазинов') + ' на карте' : 'В базе такого нет',
+hintLink: found.length ? 'none' : 'flex',
+hintPr: found.length ? 12 : 4,
+recenter: () => this.setState({ sel: 'nur', q: '' })
+};
+['all', 'stale', 'over', 'new'].forEach((k, i) => {
+const on = k === f && !q;
+const p = 'f' + (i + 1);
+vals[p + 'on'] = on ? 'true' : 'false';
+vals[p + 'bg'] = on ? '#101318' : '#FFFFFF';
+vals[p + 'color'] = on ? '#FFFFFF' : '#101318';
+vals[p + 'num'] = on ? '#B9BDC6' : '#5C6370';
+vals[p + 'pick'] = () => this.setState({ f: k, q: '' });
+});
+return vals;
+}
+}
+</script>
+</body>
+</html>
