@@ -1,35 +1,81 @@
 <!DOCTYPE html>
+<!--/* «Компании» (design/admin/AdmCompanies, только владелец): своя доставка и склады-дилеры, директор каждой — клиент
+     CRM (выбран из списка CRM, по нему приходят отгрузки), новая компания и журнал входов. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
 <p th:replace="~{admin/parts :: issued}"></p>
+<p class="note" th:unless="${crmOn}">Связь с CRM не настроена: на сервере нужны CRM_URL и CRM_KEY (тот же ключ, что DIST_KEY в CRM). Клиента CRM пока можно вписать вручную.</p>
+<p class="note note--bad" th:if="${crmOn and crmError != null}" th:text="${'CRM не отвечает: ' + crmError + '. Обмен повторится через минуту.'}"></p>
 <section class="card">
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Компания</th><th>Директор</th><th>Клиент в CRM</th><th class="r">Агенты</th><th class="r">Экспед.</th><th class="r">Магазины</th><th class="r">Выдано сегодня</th><th></th></tr></thead>
-        <tbody><tr th:each="r : ${rows}">
-            <td><b th:text="${r.company().name}"></b><span class="sub" th:text="${r.company().own ? 'своя доставка производства' : 'склад-дилер'}"></span></td>
-            <td class="hide-m"><th:block th:text="${r.company().director}"></th:block><span class="sub num" th:text="${@fmt.phone(r.company().phone)}"></span></td>
-            <td class="hide-m"><span class="tag" th:classappend="${r.company().crmClient != null} ? 'tag--crm'" th:text="${r.company().crmClient ?: '—'}"></span></td>
+        <thead><tr><th>Компания</th><th>Клиент в CRM</th><th class="hide-m">Ключ</th><th class="r">Торговые</th><th class="r">Экспед.</th><th class="r">Магазины</th><th class="r">Выдано сегодня</th><th class="hide-m">Связь</th><th></th></tr></thead>
+        <tbody><tr th:each="r : ${rows}" th:with="c=${r.company()}">
+            <td><b th:text="${c.name}"></b><span class="sub" th:text="${'директор ' + c.director}"></span></td>
+            <td><span class="tag" th:classappend="${c.crmClientId != null} ? 'tag--crm'" th:text="${c.crmClient ?: 'не выбран'}"></span>
+                <span class="sub" th:text="${c.crmClientId != null ? 'клиент CRM, выбран из списка' : (c.crmClient != null ? 'вписан вручную — выберите из списка' : 'отгрузки из CRM не придут')}"></span>
+                <details class="crm-pick" th:if="${crmOn and !crmClients.isEmpty()}"><summary class="link" th:text="${c.crmClientId != null ? 'Изменить' : 'Выбрать'}"></summary>
+                    <form th:action="@{'/admin/companies/' + ${c.id} + '/crm'}" method="post" class="inline">
+                        <select class="inp inp--sm" name="clientId" aria-label="Клиент CRM">
+                            <option value="">— без связи с CRM</option>
+                            <option th:each="k : ${crmClients}" th:value="${k.id()}" th:selected="${k.id() == c.crmClientId}"
+                                    th:text="${k.name() + (k.phone() == null ? '' : ' · ' + @fmt.phone(k.phone()))}"></option>
+                        </select>
+                        <button class="btn btn-soft btn-sm" type="submit">Сохранить</button>
+                    </form></details></td>
+            <td class="hide-m num muted" th:text="${crmKey ?: '—'}"></td>
             <td class="r num hide-m" th:text="${r.agents()}"></td>
             <td class="r num hide-m" th:text="${r.expeditors()}"></td>
             <td class="r num hide-m" th:text="${r.outlets()}"></td>
             <td class="r num"><b th:text="${@fmt.money(r.summary().deliveredToday())}"></b></td>
-            <td class="c-acts"><a class="btn btn-soft btn-sm" th:href="@{/admin/scope(company=${r.company().id},back='/admin/dashboard')}">Открыть</a></td>
+            <td class="hide-m"><span class="st" th:classappend="${!crmOn or c.crmClientId == null ? 'st--draft' : (crmOk ? 'st--done' : 'st--bad')}"
+                    th:text="${!crmOn ? 'не настроена' : (c.crmClientId == null ? 'нет клиента' : (crmOk ? 'работает' : 'нет связи'))}"></span></td>
+            <td class="c-acts"><a class="btn btn-soft btn-sm" th:href="@{/admin/scope(company=${c.id},back='/admin/dashboard')}">Открыть</a></td>
+        </tr>
+        <tr class="tot" th:if="${rows.size() > 1}">
+            <td colspan="3"><b>Итого</b></td>
+            <td class="r num hide-m" th:text="${#aggregates.sum(rows.![agents()])}"></td>
+            <td class="r num hide-m" th:text="${#aggregates.sum(rows.![expeditors()])}"></td>
+            <td class="r num hide-m" th:text="${#aggregates.sum(rows.![outlets()])}"></td>
+            <td class="r num"><b th:text="${@fmt.money(#aggregates.sum(rows.![summary().deliveredToday()]))}"></b></td>
+            <td colspan="2" class="hide-m"></td>
         </tr></tbody>
     </table></div>
 </section>
 
+<div class="grid-wide">
+<div class="stack">
 <p class="note note--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
 <form class="card" th:action="@{/admin/companies}" method="post">
-    <div class="card-h"><h2>Новая компания</h2><p>склад-дилер получит свою отдельную админку и приложение для команды</p></div>
+    <div class="card-h"><div><h2>Новая компания</h2><p>склад-дилер получит свою админку и приложение для команды</p></div></div>
     <div class="card-b form">
         <label class="field">Название<input class="inp" name="name" required placeholder="Склад-дилер …" th:value="${f.name}"></label>
         <label class="field">Директор (ФИО)<input class="inp" name="director" required th:value="${f.director}"></label>
-        <label class="field">Телефон директора — вход<input class="inp" name="phone" type="tel" required placeholder="+7 7__ ___ __ __" th:value="${f.phone}"><span class="hint">пароль выдаст система — покажем после создания</span></label>
-        <label class="field">Клиент в CRM<input class="inp" name="crmClient" placeholder="для автоприхода отгрузок" th:value="${f.crmClient}"><span class="hint">выбор из клиентов CRM — на этапе 7</span></label>
+        <label class="field">Телефон директора — вход<input class="inp" name="phone" type="tel" required placeholder="+7 7__ ___ __ __" th:value="${f.phone}"><span class="hint">пароль выдаст система — покажем один раз после создания</span></label>
+        <label class="field" th:if="${crmOn and !crmClients.isEmpty()}">Клиент в CRM
+            <select class="inp" name="crmClientId">
+                <option value="">Выберите клиента CRM</option>
+                <option th:each="k : ${crmFree}" th:value="${k.id()}" th:selected="${k.id() == f.crmClientId}"
+                        th:text="${k.name() + (k.phone() == null ? '' : ' · ' + @fmt.phone(k.phone()))}"></option>
+            </select><span class="hint">из клиентов CRM без компании · по нему пойдут приходы и возвраты</span></label>
+        <label class="field" th:unless="${crmOn and !crmClients.isEmpty()}">Клиент в CRM<input class="inp" name="crmClient" placeholder="название клиента в CRM" th:value="${f.crmClient}">
+            <span class="hint" th:text="${crmOn ? 'CRM не прислала список клиентов — впишите название, выбрать из списка можно позже' : 'связь с CRM не настроена — выбрать из списка можно будет позже'}"></span></label>
     </div>
     <div class="card-b"><button class="btn btn-primary" type="submit">Создать компанию</button></div>
 </form>
+</div>
+
+<section class="card">
+    <div class="card-h"><div><h2>Журнал входов</h2><p>вход из CRM пишется и в журнал CRM</p></div></div>
+    <ul class="rows card-b" style="padding-top:0">
+        <li th:each="e : ${journal}"><span>
+            <b th:text="${e.crm() ? 'Владелец — из CRM' : e.who() + ' — пароль'}"></b>
+            <span class="sub" th:text="${@fmt.dot(e.crm() ? 'пропуск на 1 минуту · ' + e.who() : null, e.crm() or e.company() == null ? 'все компании' : e.company(), e.ip())}"></span></span>
+            <span class="r small muted" th:text="${@fmt.when(e.at())}"></span></li>
+    </ul>
+    <p class="empty" th:if="${journal.isEmpty()}">Входов ещё не было.</p>
+</section>
+</div>
 </th:block>
 </body>
 </html>

@@ -1,6 +1,5 @@
 package com.confectionery.distribution.service;
 
-import com.confectionery.distribution.domain.Company;
 import com.confectionery.distribution.domain.CompanySettings;
 import com.confectionery.distribution.repository.CompanyRepository;
 import com.confectionery.distribution.repository.CompanySettingsRepository;
@@ -23,12 +22,9 @@ public class SettingsService {
         return settings.findByCompanyId(companyId).orElseGet(CompanySettings::new);
     }
 
-    /**
-     * Сохранить настройки компании. «Клиент в CRM» меняет только владелец: по нему на этапе 7 к
-     * компании пойдут отгрузки производства. Ключ API пока не хранится.
-     */
+    /** Сохранить настройки компании. «Клиент в CRM» здесь не меняется — его выбирает владелец в «Компаниях». */
     @Transactional
-    public CompanySettings save(Long companyId, SettingsForm f, boolean owner) {
+    public CompanySettings save(Long companyId, SettingsForm f) {
         if (companyId == null) throw new FormException("Выберите компанию в шапке, чтобы изменить её настройки");
         int radius = Forms.number(f.getVisitRadius(), "Радиус, метров", 10, 5000);
         int gps = Forms.number(f.getGpsInterval(), "Интервал GPS, минут", 1, 60);
@@ -40,7 +36,6 @@ public class SettingsService {
         long tolerance = Forms.money(f.getCashTolerance(), "Допустимая разница при приёме");
         int overdueDays = Forms.number(f.getOverdueDays(), "Запрет при просрочке: дней", 1, 365);
         long overdueAmount = Forms.money(f.getOverdueAmount(), "Запрет при просрочке: сумма");
-        String crmClient = Forms.text(f.getCrmClient(), "Клиент в CRM", 200);
 
         CompanySettings st = settings.findByCompanyId(companyId).orElseGet(() -> {
             CompanySettings s = new CompanySettings();
@@ -55,10 +50,6 @@ public class SettingsService {
                 .setOverdueDays(overdueDays).setOverdueAmount(overdueAmount).setUnblockDirector(f.isUnblockDirector())
                 .setUnblockOperator(f.isUnblockOperator()).setUnderpayApproval(f.isUnderpay());
         settings.save(st);
-        if (owner) {
-            Company c = companies.findById(companyId).orElseThrow(NotFoundException::new);
-            c.setCrmClient(crmClient);
-        }
         return st;
     }
 }

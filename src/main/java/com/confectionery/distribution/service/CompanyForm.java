@@ -3,7 +3,7 @@ package com.confectionery.distribution.service;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Новая компания (владелец): название, директор с телефоном для входа, клиент в CRM. */
+/** Новая компания (владелец): название, директор с телефоном для входа, клиент в CRM (номер — выбран из списка CRM). */
 @Getter
 @Setter
 public class CompanyForm {
@@ -11,4 +11,5 @@ public class CompanyForm {
     private String director;
     private String phone;
     private String crmClient;
+    private Long crmClientId;
 }

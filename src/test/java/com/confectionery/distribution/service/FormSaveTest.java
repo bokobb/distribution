@@ -284,29 +284,29 @@ class FormSaveTest {
         World w = data.world("Н");
         SettingsForm f = in(w.id(), () -> SettingsForm.of(settings.of(w.id()), null));
         f.setVisitRadius("5");
-        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f, false)))
+        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f)))
                 .isInstanceOf(FormException.class).hasMessage("«Радиус, метров» — число от 10 до 5000");
         Optional<CompanySettings> none = in(w.id(), () -> settingsRepo.findByCompanyId(w.id()));
         assertThat(none).isEmpty();
 
         f.setVisitRadius("300");
         f.setGpsInterval("0");
-        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f, false)))
+        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f)))
                 .isInstanceOf(FormException.class).hasMessage("«Интервал GPS, минут» — число от 1 до 60");
         f.setGpsInterval("10");
         f.setWorkStart("19:00");
         f.setWorkEnd("9");
-        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f, false)))
+        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f)))
                 .isInstanceOf(FormException.class).hasMessage("Рабочее время: «до» должно быть позже «с»");
         f.setWorkStart("утром");
-        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f, false)))
+        assertThatThrownBy(() -> in(w.id(), () -> settings.save(w.id(), f)))
                 .isInstanceOf(FormException.class).hasMessage("«Рабочее время с» — время, например 08:00");
         f.setWorkStart("7.30");
         f.setWorkEnd("19:00");
         f.setKaspi(false);
         f.setCashTolerance("1 000");
         f.setCrmClient("ТОО «Чужой»");
-        in(w.id(), () -> settings.save(w.id(), f, false));
+        in(w.id(), () -> settings.save(w.id(), f));
         CompanySettings st = in(w.id(), () -> settingsRepo.findByCompanyId(w.id()).orElseThrow());
         assertThat(st.getVisitRadius()).isEqualTo(300);
         assertThat(st.getGpsInterval()).isEqualTo(10);
@@ -316,8 +316,9 @@ class FormSaveTest {
         assertThat(st.getCashTolerance()).isEqualTo(1_000);
         assertThat(in(w.id(), () -> companyRepo.findById(w.id()).orElseThrow().getCrmClient())).isNull();
 
-        in(TenantContext.ROOT, () -> settings.save(w.id(), f, true));
-        assertThat(in(w.id(), () -> companyRepo.findById(w.id()).orElseThrow().getCrmClient())).isEqualTo("ТОО «Чужой»");
+        // и владелец здесь его не меняет — клиент CRM выбирается в «Компаниях»
+        in(TenantContext.ROOT, () -> settings.save(w.id(), f));
+        assertThat(in(w.id(), () -> companyRepo.findById(w.id()).orElseThrow().getCrmClient())).isNull();
         List<CompanySettings> rows = in(TenantContext.ROOT, () -> settingsRepo.findAll().stream()
                 .filter(s -> s.getCompanyId().equals(w.id())).toList());
         assertThat(rows).hasSize(1);

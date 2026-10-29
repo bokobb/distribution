@@ -31,7 +31,7 @@ class SchemaMigrationTest {
                 "stock_balances", "stock_movements", "receipts", "receipt_items", "visits", "orders",
                 "order_items", "order_events", "trips", "trip_orders", "deliveries", "delivery_items",
                 "payments", "returns", "return_items", "cash_handovers", "gps_points", "app_events", "device_sessions",
-                "order_return_items", "approvals");
+                "order_return_items", "approvals", "login_log");
     }
 
     @Test

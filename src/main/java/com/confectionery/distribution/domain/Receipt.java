@@ -44,6 +44,9 @@ public class Receipt extends CompanyEntity {
     private Employee confirmedByUser;
     private LocalDateTime confirmedAt;
     private LocalDateTime createdAt;
+    /** Заказ CRM, по которому пришёл товар; подтверждение уходит в CRM — crmSentAt. */
+    private Long crmOrderId;
+    private LocalDateTime crmSentAt;
     @OneToMany(mappedBy = "receipt", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<ReceiptLine> lines = new ArrayList<>();

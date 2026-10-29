@@ -83,8 +83,11 @@
     <section class="card">
         <div class="card-h"><div><h2>Связь с CRM</h2></div></div>
         <div class="card-b set">
-            <label class="set-row"><span><b>Клиент в CRM</b><span class="hint" th:unless="${v.isSuper()}">меняет владелец</span></span>
-                <input class="inp inp--sm" name="crmClient" th:value="${f.crmClient}" placeholder="—" th:readonly="${!v.isSuper()}" style="width:180px"></label>
+            <div class="set-row"><span><b>Клиент в CRM</b><span class="hint" th:text="${v.isSuper() ? 'выбирается в «Компаниях»' : 'выбирает владелец'}"></span></span>
+                <span class="tag" th:classappend="${v.company() != null and v.company().crmClientId != null} ? 'tag--crm'" th:text="${f.crmClient ?: 'не выбран'}"></span></div>
+            <div class="set-row" th:if="${v.isSuper()}"><span><b>Обмен с CRM</b><span class="hint"
+                    th:text="${!crmOn ? 'не настроен: на сервере нужны CRM_URL и CRM_KEY' : (crmError != null ? 'ошибка: ' + crmError : (crmLast == null ? 'ещё не было · раз в минуту' : 'последний ' + @fmt.ago(crmLast) + ' · раз в минуту'))}"></span></span>
+                <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/settings/crm-sync" formnovalidate th:disabled="${!crmOn}">Обменяться сейчас</button></div>
             <label class="set-row"><span><b>Приход после выдачи в CRM</b><span class="hint">приход «ждёт подтверждения» на складе</span></span>
                 <span class="switch"><input type="checkbox" name="autoReceipt" value="true" th:checked="${f.autoReceipt}"><i></i></span></label>
         </div>

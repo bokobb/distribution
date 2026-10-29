@@ -77,7 +77,7 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain web(HttpSecurity http, StalePageHandler stalePage) throws Exception {
         http.authorizeHttpRequests(a -> a
-                        .requestMatchers("/login", "/admin/assets/**", "/error", "/favicon.ico").permitAll()
+                        .requestMatchers("/login", "/crm-pass", "/admin/assets/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/**").denyAll()
                         .anyRequest().authenticated())
                 .formLogin(f -> f.loginPage("/login").defaultSuccessUrl("/admin", false).failureUrl("/login?error"))

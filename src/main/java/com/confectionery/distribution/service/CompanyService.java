@@ -50,9 +50,10 @@ public class CompanyService {
         String director = Forms.required(f.getDirector(), "Директор (ФИО)", 200);
         Forms.required(f.getPhone(), "Телефон директора", 32);
         String crmClient = Forms.text(f.getCrmClient(), "Клиент в CRM", 200);
+        freeCrmClient(f.getCrmClientId(), null);
 
         Company c = companies.save(new Company().setName(name).setDirector(director).setCrmClient(crmClient)
-                .setCreatedAt(LocalDateTime.now(clock)));
+                .setCrmClientId(f.getCrmClientId()).setCreatedAt(LocalDateTime.now(clock)));
         IssuedPassword issued = staff.create(c, director, Role.DIRECTOR, f.getPhone(), null);
         c.setPhone(issued.phone());
 
@@ -67,6 +68,24 @@ public class CompanyService {
         warehouse(c, WarehouseType.MAIN, "Основной склад");
         warehouse(c, WarehouseType.DEFECT, "Негодный товар");
         return issued;
+    }
+
+    /** Директор компании — клиент CRM (выбран из списка CRM); null — связь снята, приходов из CRM не будет. */
+    @Transactional
+    public Company linkCrm(Long companyId, Long clientId, String clientName) {
+        Company c = get(companyId);
+        freeCrmClient(clientId, companyId);
+        c.setCrmClientId(clientId).setCrmClient(clientId == null ? null : Forms.required(clientName, "Клиент в CRM", 200));
+        return c;
+    }
+
+    /** Один клиент CRM — одна компания: иначе отгрузку директора не разложить по складам. */
+    private void freeCrmClient(Long clientId, Long except) {
+        if (clientId == null) return;
+        all().stream().filter(x -> clientId.equals(x.getCrmClientId()) && !x.getId().equals(except)).findFirst()
+                .ifPresent(x -> {
+                    throw new FormException("Этот клиент CRM уже директор компании «" + x.getName() + "»");
+                });
     }
 
     private void warehouse(Company c, WarehouseType type, String name) {

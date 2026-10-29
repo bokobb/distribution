@@ -24,6 +24,8 @@ public class Company extends BaseEntity {
     private String phone;
     /** Клиент этой компании в CRM производства — для автоприхода отгрузок. null — своя доставка. */
     private String crmClient;
+    /** Директор компании — клиент CRM с этим номером: его выданные заказы приходят на склад компании. */
+    private Long crmClientId;
     /** Своя доставка производства. */
     private boolean own;
     private boolean active = true;

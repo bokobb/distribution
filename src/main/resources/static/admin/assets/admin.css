@@ -431,3 +431,9 @@ a.al:hover{background:var(--head);color:var(--ink)}
 .big-sum{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
 .big-sum b{font:600 22px/28px var(--body);font-variant-numeric:tabular-nums}
 .tbl tr.tot td{border-top:1px solid var(--line-strong);background:var(--head)}
+/* «Компании»: выбор клиента CRM в строке */
+.crm-pick{margin-top:4px}
+.crm-pick summary{cursor:pointer;font-size:13px;list-style:none;width:max-content}
+.crm-pick summary::-webkit-details-marker{display:none}
+.crm-pick form{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.crm-pick select{max-width:240px}
