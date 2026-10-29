@@ -38,15 +38,21 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # Шрифт для накладной PDF: в нём есть «₸» (invoice.dart).
+  assets:
+    - assets/fonts/IBMPlexSans-Regular.ttf
+    - assets/fonts/IBMPlexSans-SemiBold.ttf
+
   fonts:
-    # Шрифт как в приложении CRM: кириллица, вшит для работы без сети.
-    - family: IBMPlexSans
+    # Шрифт приложения по макетам design/mobile: кириллица и «₸», вшит для работы без сети (лицензия OFL —
+    # assets/fonts/Inter-LICENSE.txt).
+    - family: Inter
       fonts:
-        - asset: assets/fonts/IBMPlexSans-Regular.ttf
+        - asset: assets/fonts/Inter-Regular.ttf
           weight: 400
-        - asset: assets/fonts/IBMPlexSans-Medium.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
           weight: 500
-        - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
+        - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
-        - asset: assets/fonts/IBMPlexSans-Bold.ttf
+        - asset: assets/fonts/Inter-Bold.ttf
           weight: 700

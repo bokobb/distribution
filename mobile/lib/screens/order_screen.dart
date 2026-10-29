@@ -101,7 +101,7 @@ class _OrderScreenState extends State<OrderScreen> {
           children: [
             const Text('Заказ', style: TextStyle(fontWeight: FontWeight.w700)),
             Text('${widget.outlet.name} · ${widget.outlet.priceLabel.toLowerCase()}',
-                style: TextStyle(fontSize: 13, color: AppColors.cream.withValues(alpha: 0.7))),
+                style: TextStyle(fontSize: 13, color: AppColors.text2)),
           ],
         ),
       ),
@@ -133,12 +133,12 @@ class _OrderScreenState extends State<OrderScreen> {
                 if (categories.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(32),
-                    child: Text('Ничего не найдено', textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkSoft)),
+                    child: Text('Ничего не найдено', textAlign: TextAlign.center, style: TextStyle(color: AppColors.text2)),
                   ),
                 for (final c in categories) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: Text(c, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkSoft)),
+                    child: Text(c, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text2)),
                   ),
                   for (final p in byCategory[c]!)
                     _ProductRow(
@@ -156,7 +156,7 @@ class _OrderScreenState extends State<OrderScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          decoration: const BoxDecoration(color: AppColors.paper, border: Border(top: BorderSide(color: AppColors.line))),
+          decoration: const BoxDecoration(color: AppColors.bg, border: Border(top: BorderSide(color: AppColors.line))),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Row(
             children: [
@@ -166,7 +166,7 @@ class _OrderScreenState extends State<OrderScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(_qty.isEmpty ? 'Товары не выбраны' : plural(_qty.length, 'товар', 'товара', 'товаров'),
-                        style: const TextStyle(color: AppColors.inkSoft)),
+                        style: const TextStyle(color: AppColors.text2)),
                     Text(money(_total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                   ],
                 ),
@@ -206,7 +206,7 @@ class _ProductRow extends StatelessWidget {
               children: [
                 Text(p.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 Text(price == 0 ? 'нет цены' : '${money(price)} · в коробке ${p.perBox} ${p.unit}',
-                    style: TextStyle(color: price == 0 ? AppColors.crimson : AppColors.inkSoft)),
+                    style: TextStyle(color: price == 0 ? AppColors.err : AppColors.text2)),
                 if (qty > 0) Text('= ${money(price * qty)}', style: const TextStyle(fontWeight: FontWeight.w600)),
               ],
             ),
@@ -361,7 +361,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               Text('${plural(widget.lines, 'товар', 'товара', 'товаров')} на ${money(widget.total)}',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               const SizedBox(height: 12),
-              const Text('Оплата', style: TextStyle(color: AppColors.inkSoft)),
+              const Text('Оплата', style: TextStyle(color: AppColors.text2)),
               Wrap(
                 spacing: 8,
                 children: [
@@ -376,7 +376,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               if (note != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(note, style: const TextStyle(color: AppColors.crimson)),
+                  child: Text(note, style: const TextStyle(color: AppColors.err)),
                 ),
               const SizedBox(height: 8),
               ListTile(

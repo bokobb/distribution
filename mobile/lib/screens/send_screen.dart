@@ -79,12 +79,12 @@ class _SendScreenState extends State<SendScreen> {
                           Text(p.total == 0 ? 'Всё отправлено' : 'Ждут отправки: ${p.total}',
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                           if (o.lastOk != null)
-                            Text('Последняя отправка ${when(o.lastOk!)}', style: const TextStyle(color: AppColors.inkSoft)),
+                            Text('Последняя отправка ${when(o.lastOk!)}', style: const TextStyle(color: AppColors.text2)),
                           if (o.lastError != null && p.total > 0)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text('${o.lastError} — приложение повторит само',
-                                  style: const TextStyle(color: AppColors.crimson)),
+                                  style: const TextStyle(color: AppColors.err)),
                             ),
                           const SizedBox(height: 8),
                           for (final (label, n) in [
@@ -119,7 +119,7 @@ class _SendScreenState extends State<SendScreen> {
                       p.rejectedReturns.isNotEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
-                      child: Text('Сервер не принял', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.crimson)),
+                      child: Text('Сервер не принял', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.err)),
                     ),
                     for (final n in p.rejectedOutlets)
                       _Rejected(
@@ -190,7 +190,7 @@ class _Rejected extends StatelessWidget {
   Widget build(BuildContext context) => Card(
         child: ListTile(
           title: Text(title),
-          subtitle: Text(error, style: const TextStyle(color: AppColors.crimson)),
+          subtitle: Text(error, style: const TextStyle(color: AppColors.err)),
           trailing: TextButton(onPressed: onDrop, child: const Text('Убрать')),
         ),
       );

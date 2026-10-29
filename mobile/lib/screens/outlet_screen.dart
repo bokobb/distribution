@@ -33,7 +33,7 @@ class OutletScreen extends StatelessWidget {
           if (o.pending)
             const Padding(
               padding: EdgeInsets.only(bottom: 12),
-              child: Text('Магазин на проверке у оператора', style: TextStyle(color: AppColors.inkSoft)),
+              child: Text('Магазин на проверке у оператора', style: TextStyle(color: AppColors.text2)),
             ),
           _Section(rows: [
             ('Долг', o.debt == 0 ? 'нет' : money(o.debt), o.overLimit),
@@ -44,7 +44,7 @@ class OutletScreen extends StatelessWidget {
             ('Прайс', o.priceLabel, false),
           ]),
           const SizedBox(height: 4),
-          Text('На ${date(data.date)}', style: const TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+          Text('На ${date(data.date)}', style: const TextStyle(fontSize: 13, color: AppColors.text2)),
           const SizedBox(height: 16),
           _Section(rows: [
             if (o.legal != null) ('Юр. лицо', o.legal!, false),
@@ -79,10 +79,10 @@ class _Section extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(width: 140, child: Text(label, style: const TextStyle(color: AppColors.inkSoft))),
+                      SizedBox(width: 140, child: Text(label, style: const TextStyle(color: AppColors.text2))),
                       Expanded(
                         child: SelectableText(value,
-                            style: TextStyle(fontWeight: FontWeight.w500, color: alarm ? AppColors.crimson : AppColors.ink)),
+                            style: TextStyle(fontWeight: FontWeight.w500, color: alarm ? AppColors.err : AppColors.text)),
                       ),
                     ],
                   ),

@@ -227,7 +227,7 @@ class _StopScreenState extends State<StopScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: _busy ? null : _refuse,
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.crimson),
+                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.err),
                     child: const Text('Отказ'),
                   ),
                 ),
@@ -239,7 +239,7 @@ class _StopScreenState extends State<StopScreen> {
             const Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Text('Рейс на следующий день — выдать можно будет в день доставки.',
-                  style: TextStyle(color: AppColors.inkSoft)),
+                  style: TextStyle(color: AppColors.text2)),
             ),
           Card(
             child: Padding(
@@ -254,9 +254,9 @@ class _StopScreenState extends State<StopScreen> {
                         'доставка ${date(order.deliveryDate)}',
                         if (order.agent != null) 'принял ${order.agent}',
                       ].join(' · '),
-                      style: const TextStyle(color: AppColors.inkSoft)),
+                      style: const TextStyle(color: AppColors.text2)),
                   if (order.done)
-                    Text(order.statusLabel, style: TextStyle(color: order.refused ? AppColors.crimson : AppColors.ok)),
+                    Text(order.statusLabel, style: TextStyle(color: order.refused ? AppColors.err : AppColors.ok)),
                   if (order.comment != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -280,7 +280,7 @@ class _StopScreenState extends State<StopScreen> {
                                       if (l.perBox > 1 && l.qty >= l.perBox) _boxes(l),
                                       if (l.delivered != null && l.delivered != l.qty) 'выдано ${l.delivered}',
                                     ].join(' · '),
-                                    style: const TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+                                    style: const TextStyle(fontSize: 13, color: AppColors.text2)),
                               ],
                             ),
                           ),
@@ -312,9 +312,9 @@ class _StopScreenState extends State<StopScreen> {
                           : o.debt < 0
                               ? 'Аванс ${money(-o.debt)}'
                               : 'Долг ${money(o.debt)}',
-                      style: TextStyle(fontSize: 16, color: o.overdue > 0 ? AppColors.crimson : AppColors.ink)),
-                  if (o.overdue > 0) Text('просрочено ${money(o.overdue)}', style: const TextStyle(color: AppColors.crimson)),
-                  Text('на ${date(data.date)}', style: const TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+                      style: TextStyle(fontSize: 16, color: o.overdue > 0 ? AppColors.err : AppColors.text)),
+                  if (o.overdue > 0) Text('просрочено ${money(o.overdue)}', style: const TextStyle(color: AppColors.err)),
+                  Text('на ${date(data.date)}', style: const TextStyle(fontSize: 13, color: AppColors.text2)),
                   for (final p in widget.deliveries.paymentsAt(o.id))
                     Row(
                       children: [
@@ -322,7 +322,7 @@ class _StopScreenState extends State<StopScreen> {
                           child: Text(
                               'Принято в счёт долга ${money(p.amount)} ${p.methodLabel} · ${time(p.paidAt)} · '
                               '${_state(p.sent, p.error, p.debtAfter)}',
-                              style: TextStyle(color: p.error != null ? AppColors.crimson : AppColors.ok)),
+                              style: TextStyle(color: p.error != null ? AppColors.err : AppColors.ok)),
                         ),
                         if (!p.sent && p.error == null)
                           IconButton(
@@ -338,7 +338,7 @@ class _StopScreenState extends State<StopScreen> {
                           child: Text(
                               'Возврат (${r.reasonLabel.toLowerCase()}) ${r.qty} шт на ${money(r.total)} · '
                               '${time(r.returnedAt)} · ${_state(r.sent, r.error, r.debtAfter)}',
-                              style: TextStyle(color: r.error != null ? AppColors.crimson : AppColors.ok)),
+                              style: TextStyle(color: r.error != null ? AppColors.err : AppColors.ok)),
                         ),
                         if (!r.sent && r.error == null)
                           IconButton(
@@ -409,7 +409,7 @@ class _DeliveryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = delivery;
-    final color = d.error != null || d.refused ? AppColors.crimson : AppColors.ok;
+    final color = d.error != null || d.refused ? AppColors.err : AppColors.ok;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -435,10 +435,10 @@ class _DeliveryCard extends StatelessWidget {
                     : d.sent
                         ? 'Отправлено ${time(d.deliveredAt)}'
                         : 'Ждёт отправки · ${time(d.deliveredAt)}',
-                style: TextStyle(fontSize: 13, color: d.error != null ? AppColors.crimson : AppColors.inkSoft)),
+                style: TextStyle(fontSize: 13, color: d.error != null ? AppColors.err : AppColors.text2)),
             if (d.error != null)
               const Text('Выдайте заново или уберите запись на экране «Отправка».',
-                  style: TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+                  style: TextStyle(fontSize: 13, color: AppColors.text2)),
             if (onCancel != null)
               Align(
                 alignment: Alignment.centerRight,
@@ -499,7 +499,7 @@ class _DebtDialogState extends State<_DebtDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(debt > 0 ? 'Долг ${money(debt)}' : 'Долга нет', style: const TextStyle(color: AppColors.inkSoft)),
+            Text(debt > 0 ? 'Долг ${money(debt)}' : 'Долга нет', style: const TextStyle(color: AppColors.text2)),
             const SizedBox(height: 8),
             _field(_cash, 'Наличными'),
             if (widget.acceptKaspi) ...[
@@ -509,7 +509,7 @@ class _DebtDialogState extends State<_DebtDialog> {
             if (note != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(note, style: TextStyle(color: sum > debt ? AppColors.crimson : AppColors.inkSoft)),
+                child: Text(note, style: TextStyle(color: sum > debt ? AppColors.err : AppColors.text2)),
               ),
           ],
         ),

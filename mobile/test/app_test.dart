@@ -2,6 +2,7 @@ import 'package:distribution_mobile/api/api_client.dart';
 import 'package:distribution_mobile/format.dart';
 import 'package:distribution_mobile/main.dart';
 import 'package:distribution_mobile/session.dart';
+import 'package:distribution_mobile/widgets/layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -14,14 +15,45 @@ import 'fake_server.dart';
 import 'memory_store.dart';
 
 Future<void> logIn(WidgetTester t, {String password = 'пароль'}) async {
-  await t.enterText(find.widgetWithText(TextFormField, 'Телефон или логин'), '87010000101');
-  await t.enterText(find.widgetWithText(TextFormField, 'Пароль'), password);
-  await t.tap(find.text('Войти'));
+  await t.enterText(find.byType(TextFormField).at(0), '87010000101');
+  await t.enterText(find.byType(TextFormField).at(1), password);
+  await tapVisible(t, find.text('Войти'));
+  await t.pumpAndSettle();
+}
+
+/// Раздел внизу экрана: «Профиль», «Магазины», «Касса».
+Future<void> openTab(WidgetTester t, String label) async {
+  await t.tap(find.descendant(of: find.byType(AppTabBar), matching: find.text(label)));
+  await t.pumpAndSettle();
+}
+
+/// Шапка раздела с этим заголовком на экране.
+Finder header(String title) => find.widgetWithText(PageHeader, title);
+
+/// «Профиль» → «Выйти из аккаунта» → «Выйти» в вопросе.
+Future<void> logOut(WidgetTester t, {String? warning}) async {
+  await openTab(t, 'Профиль');
+  await tapVisible(t, find.text('Выйти из аккаунта'));
+  await t.pumpAndSettle();
+  if (warning != null) expect(find.textContaining(warning), findsOneWidget);
+  await t.tap(find.widgetWithText(TextButton, 'Выйти'));
+  await t.pumpAndSettle();
+}
+
+/// «Профиль» → плашка отправки → «Отправка».
+Future<void> openSend(WidgetTester t) async {
+  await openTab(t, 'Профиль');
+  await t.tap(find.textContaining(RegExp('жд(ёт|ут) отправки')));
   await t.pumpAndSettle();
 }
 
 /// Прокрутить к виджету и нажать. Сначала дать полю ввода прокрутить к курсору — иначе оно уведёт прокрутку обратно.
+/// Подсказка внизу (SnackBar) в тесте сама не уходит — время не идёт; на телефоне она уходит через 4 с, а здесь
+/// закрывается, чтобы не загораживать кнопку.
 Future<void> tapVisible(WidgetTester t, Finder f) async {
+  await t.pumpAndSettle();
+  final messenger = find.byType(ScaffoldMessenger);
+  if (messenger.evaluate().isNotEmpty) t.state<ScaffoldMessengerState>(messenger.first).clearSnackBars();
   await t.pumpAndSettle();
   await t.ensureVisible(f);
   await t.pump();
@@ -47,10 +79,10 @@ void main() {
     final server = FakeServer();
     await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
 
-    await t.tap(find.text('Войти'));
+    await tapVisible(t, find.text('Войти'));
     await t.pump();
 
-    expect(find.text('Введите телефон или логин'), findsOneWidget);
+    expect(find.text('Введите телефон'), findsOneWidget);
     expect(find.text('Введите пароль'), findsOneWidget);
     expect(server.requests, isEmpty);
   });
@@ -61,8 +93,11 @@ void main() {
 
     await logIn(t);
 
-    expect(find.text('Мой день'), findsOneWidget);
-    expect(find.text('Иван · Своя доставка'), findsOneWidget);
+    expect(header('Сегодня'), findsOneWidget);
+    expect(find.text('${dayTitle(DateTime.now())} · Иван'), findsOneWidget);
+    await openTab(t, 'Профиль');
+    expect(find.text('Торговый представитель · Своя доставка'), findsOneWidget);
+    expect(find.text('+7 701 000 01 01'), findsOneWidget);
     expect((await store.load())?.name, 'Иван');
     expect(await store.deviceToken(), 'ключ');
   });
@@ -73,7 +108,7 @@ void main() {
 
     await logIn(t);
 
-    expect(find.text('Рейс'), findsOneWidget);
+    expect(header('Доставки'), findsOneWidget);
   });
 
   testWidgets('отказ сервера показывается, вход не запоминается', (t) async {
@@ -107,7 +142,7 @@ void main() {
     await t.tap(find.text('Сохранить'));
     await t.pumpAndSettle();
 
-    expect(find.text('Мой день'), findsOneWidget);
+    expect(header('Сегодня'), findsOneWidget);
     expect((await store.load())?.mustChangePassword, isFalse);
   });
 
@@ -136,7 +171,7 @@ void main() {
     await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: SessionStore(), session: s));
     await t.pumpAndSettle();
 
-    expect(find.text('Мой день'), findsOneWidget);
+    expect(header('Сегодня'), findsOneWidget);
   });
 
   testWidgets('выход закрывает ключ на сервере и возвращает на вход', (t) async {
@@ -149,12 +184,7 @@ void main() {
     await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: api, store: store, session: s));
     await t.pumpAndSettle();
 
-    await t.tap(find.byTooltip('Меню'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Выйти'));
-    await t.pumpAndSettle();
-    await t.tap(find.widgetWithText(TextButton, 'Выйти'));
-    await t.pumpAndSettle();
+    await logOut(t);
 
     expect(find.text('Войти'), findsOneWidget);
     expect(server.count('/api/mobile/auth/logout'), 1);
@@ -218,12 +248,7 @@ void main() {
     await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: local, api: ApiClient(baseUrl: 'http://s', client: FakeServer().client, deviceToken: 'ключ'), store: SessionStore(), session: s));
     await t.pumpAndSettle();
 
-    await t.tap(find.byTooltip('Меню'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Выйти'));
-    await t.pumpAndSettle();
-    await t.tap(find.widgetWithText(TextButton, 'Выйти'));
-    await t.pumpAndSettle();
+    await logOut(t);
 
     expect(local.data, isEmpty);
   });
@@ -236,18 +261,12 @@ void main() {
     await logIn(t);
     expect(find.text('Рабочий день не начат'), findsOneWidget);
 
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
-    expect(find.textContaining('Рабочий день с '), findsOneWidget);
-    expect(find.text('GPS ещё не отметился'), findsOneWidget);
+    expect(find.text('Рабочий день не начат'), findsNothing);
+    expect(find.text('Путь пишется'), findsOneWidget);
 
-    await t.tap(find.byTooltip('Меню'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Выйти'));
-    await t.pumpAndSettle();
-    expect(find.textContaining('Рабочий день будет закончен.'), findsOneWidget);
-    await t.tap(find.widgetWithText(TextButton, 'Выйти'));
-    await t.pumpAndSettle();
+    await logOut(t, warning: 'Рабочий день будет закончен.');
     // закрытие дня ждёт отписки от потоков GPS — даём отработать настоящему циклу событий
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
@@ -262,7 +281,7 @@ void main() {
         location: gps, camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: FakeServer().client), store: SessionStore()));
     await logIn(t);
 
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pump();
 
     expect(find.text('Разрешите приложению доступ к местоположению в настройках телефона'), findsOneWidget);
@@ -282,7 +301,7 @@ void main() {
     expect(find.text('Сначала начните рабочий день на главном экране'), findsOneWidget);
     await t.pageBack();
     await t.pumpAndSettle();
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
 
     await t.tap(find.text('Магазин «Арай»'));
@@ -314,7 +333,7 @@ void main() {
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     await t.tap(find.text('Магазин «Арай»'));
     await t.pumpAndSettle();
@@ -367,15 +386,12 @@ void main() {
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
     server.offline = true;
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
 
-    await t.tap(find.byTooltip('Меню'));
-    await t.pumpAndSettle();
-    await t.tap(find.textContaining('Отправка · ждут'));
-    await t.pumpAndSettle();
+    await openSend(t);
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
     expect(find.text('Ждут отправки: 1'), findsOneWidget); // «начал день» — без сети
@@ -433,15 +449,12 @@ void main() {
     await tapVisible(t, save);
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
-    expect(find.text('Мой день'), findsOneWidget);
+    expect(header('Сегодня'), findsOneWidget);
     expect(find.text('Магазин сохранён. После отправки он появится в маршруте «на проверке»'), findsOneWidget);
     expect(find.text('Новые магазины'), findsOneWidget);
     expect(find.text('Ждёт отправки · у мечети'), findsOneWidget);
 
-    await t.tap(find.byTooltip('Меню'));
-    await t.pumpAndSettle();
-    await t.tap(find.textContaining('Отправка · ждут'));
-    await t.pumpAndSettle();
+    await openSend(t);
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
     expect(find.text('Новые магазины'), findsOneWidget);
@@ -458,6 +471,7 @@ void main() {
 
     await t.pageBack();
     await settleIo(t);
+    await openTab(t, 'Сегодня');
     expect(find.text('Новые магазины'), findsNothing);
     await t.scrollUntilVisible(find.text('Магазин «Нур»'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('на проверке'), findsOneWidget);
@@ -470,8 +484,7 @@ void main() {
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
 
-    await t.tap(find.byTooltip('Карта'));
-    await t.pumpAndSettle();
+    await openTab(t, 'Магазины');
     expect(find.text('5 точек'), findsOneWidget);
     expect(find.text('Все филиалы'), findsOneWidget);
 
@@ -505,7 +518,7 @@ void main() {
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
 
-    expect(find.text('Рейс'), findsOneWidget);
+    expect(header('Доставки'), findsOneWidget);
     expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02 · пройдено 1 из 2'), findsOneWidget);
     expect(find.text('З-271026-1 · ${money(13500)} · Наличные'), findsOneWidget);
     expect(find.text('Доставлен'), findsOneWidget);
@@ -552,7 +565,7 @@ void main() {
     await t.pageBack();
     await t.pumpAndSettle();
 
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     await t.tap(find.text('Магазин «Арай»'));
     await t.pumpAndSettle();
@@ -600,7 +613,7 @@ void main() {
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     server.offline = true;
 
@@ -629,6 +642,7 @@ void main() {
     await t.tap(find.widgetWithText(TextButton, 'Отменить'));
     await t.pumpAndSettle();
     expect(find.text('Отказ: Магазин закрыт'), findsNothing);
+    await t.scrollUntilVisible(find.text('Выдать'), -200, scrollable: find.byType(Scrollable).first); // кнопки выше
     expect(find.text('Выдать'), findsOneWidget);
     expect(server.deliveries, isEmpty);
   });
@@ -638,7 +652,7 @@ void main() {
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
 
     await t.tap(find.text('Магазин «Арай»'));
@@ -674,7 +688,7 @@ void main() {
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
 
     await t.tap(find.text('Магазин «Береке»'));
@@ -710,7 +724,7 @@ void main() {
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать день'));
+    await t.tap(find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     server.offline = true;
     await t.tap(find.text('Магазин «Береке»'));
@@ -724,8 +738,7 @@ void main() {
     await t.pageBack();
     await t.pumpAndSettle();
 
-    await t.tap(find.byTooltip('Итог дня'));
-    await t.pumpAndSettle();
+    await openTab(t, 'Касса');
     expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02'), findsOneWidget);
     expect(find.text('Пройдено 1 из 2'), findsOneWidget);
     expect(find.text('выдано 1 · не пройдено 1'), findsOneWidget);
@@ -735,7 +748,7 @@ void main() {
     expect(find.textContaining('Не отправлено на сервер: 1 запись'), findsOneWidget);
 
     server.offline = false;
-    await t.tap(find.text('Отправить сейчас'));
+    await tapVisible(t, find.text('Отправить сейчас'));
     await t.pumpAndSettle();
     expect(find.textContaining('Не отправлено'), findsNothing);
     expect(server.debtPayments, hasLength(1));

@@ -49,9 +49,9 @@ public class MobileAuthController {
     public record PasswordRequest(String current, String password, String confirm, String deviceToken) {
     }
 
-    public record UserDto(Long id, String name, String role, String company, boolean mustChangePassword) {
+    public record UserDto(Long id, String name, String role, String company, String phone, boolean mustChangePassword) {
         static UserDto of(MobileUser u) {
-            return new UserDto(u.id(), u.name(), u.role().name(), u.company(), u.mustChangePassword());
+            return new UserDto(u.id(), u.name(), u.role().name(), u.company(), u.phone(), u.mustChangePassword());
         }
     }
 

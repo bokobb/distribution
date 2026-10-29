@@ -10,11 +10,13 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
+import '../widgets/layout.dart';
 import 'day_summary_screen.dart';
 import 'home_parts.dart';
+import 'profile_screen.dart';
 import 'stop_screen.dart';
 
-/// Главный экран экспедитора — «Рейс»: рейс на сегодня (и незакрытые прошлых дней) с точками по порядку, у каждой —
+/// Главный экран экспедитора: разделы «Доставки», «Касса» и «Профиль». «Доставки» — рейс на сегодня (и незакрытые прошлых дней) с точками по порядку, у каждой —
 /// магазин, заказ, оплата и отметка выдачи (своя выдача видна сразу, до ответа сервера); отгруженное на завтра —
 /// ниже, посмотреть заранее. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с
 /// тем, что есть; выдачи и оплаты ушли на сервер — данные обновляются (долги магазинов).
@@ -42,7 +44,7 @@ class ExpeditorHomeScreen extends StatefulWidget {
 class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   ExpeditorData? _data;
 
-  /// Те же данные для «Итога дня»: он открыт поверх и обновляется вместе с «Рейсом».
+  /// Те же данные для «Кассы»: она обновляется вместе с «Доставками».
   final _shared = ValueNotifier<ExpeditorData?>(null);
   bool _loading = true;
   String? _syncError;
@@ -104,54 +106,62 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final data = _data;
-    return Scaffold(
-      appBar: homeAppBar(context,
-          title: 'Рейс',
+    final vehicle = data?.current.firstOrNull?.vehicle ?? data?.upcoming.firstOrNull?.vehicle;
+    return HomeShell(
+      tabs: const [
+        TabItem('Доставки', Icons.local_shipping_outlined, Icons.local_shipping),
+        TabItem('Касса', Icons.account_balance_wallet_outlined, Icons.account_balance_wallet),
+        TabItem('Профиль', Icons.person_outline, Icons.person),
+      ],
+      pages: [
+        RefreshIndicator(
+          onRefresh: _pull,
+          child: ListenableBuilder(
+            listenable: widget.deliveries,
+            builder: (context, _) => ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                PageHeader(
+                    title: 'Доставки', subtitle: [dayTitle(DateTime.now()), ?vehicle].join(' · ')),
+                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 0), child: WorkdayCard(workday: widget.workday)),
+                _status(data),
+                if (data == null && !_loading)
+                  const EmptyState(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Нет данных',
+                    text: 'Подключитесь к интернету и потяните экран вниз, чтобы получить рейс.',
+                  ),
+                if (data != null && data.current.isEmpty)
+                  const EmptyState(
+                    icon: Icons.local_shipping_outlined,
+                    title: 'Рейса на сегодня нет',
+                    text: 'Когда вам отгрузят заказы, они появятся здесь. Потяните экран вниз, чтобы обновить.',
+                  ),
+                if (data != null) ...[
+                  for (final t in data.current) ..._trip(data, t),
+                  for (final t in data.upcoming) ..._trip(data, t, ahead: true),
+                ],
+              ],
+            ),
+          ),
+        ),
+        DaySummaryView(data: _shared, deliveries: widget.deliveries),
+        ProfileTab(
+          api: widget.repo.api,
           session: widget.session,
           workday: widget.workday,
+          vehicle: vehicle,
+          dataLabel: 'Синхронизация',
+          syncedAt: data?.syncedAt,
+          onRefresh: _pull,
           outletNames: {
             for (final t in data?.trips ?? const <TripInfo>[])
               for (final st in t.stops) st.outlet.id: st.outlet.name
           },
-          onRefresh: _pull,
-          actions: [
-            IconButton(
-              tooltip: 'Итог дня',
-              icon: const Icon(Icons.summarize_outlined),
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => DaySummaryScreen(data: _shared, deliveries: widget.deliveries))),
-            ),
-          ],
-          onLogout: widget.onLogout),
-      body: RefreshIndicator(
-        onRefresh: _pull,
-        child: ListenableBuilder(
-          listenable: widget.deliveries,
-          builder: (context, _) => ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), child: WorkdayCard(workday: widget.workday)),
-            _status(data),
-            if (data == null && !_loading)
-              const EmptyState(
-                icon: Icons.cloud_off_outlined,
-                title: 'Нет данных',
-                text: 'Подключитесь к интернету и потяните экран вниз, чтобы получить рейс.',
-              ),
-            if (data != null && data.current.isEmpty)
-              const EmptyState(
-                icon: Icons.local_shipping_outlined,
-                title: 'Рейса на сегодня нет',
-                text: 'Когда вам отгрузят заказы, они появятся здесь. Потяните экран вниз, чтобы обновить.',
-              ),
-            if (data != null) ...[
-              for (final t in data.current) ..._trip(data, t),
-              for (final t in data.upcoming) ..._trip(data, t, ahead: true),
-            ],
-          ],
-          ),
+          onSession: widget.onSession,
+          onLogout: widget.onLogout,
         ),
-      ),
+      ],
     );
   }
 
@@ -171,11 +181,11 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
       child: Row(
         children: [
           Icon(_syncError != null ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
-              size: 16, color: _syncError != null ? AppColors.crimson : AppColors.inkSoft),
+              size: 16, color: _syncError != null ? AppColors.err : AppColors.text2),
           const SizedBox(width: 6),
           Expanded(
             child: Text(text,
-                style: TextStyle(fontSize: 13, color: _syncError != null ? AppColors.crimson : AppColors.inkSoft)),
+                style: TextStyle(fontSize: 13, color: _syncError != null ? AppColors.err : AppColors.text2)),
           ),
         ],
       ),
@@ -194,7 +204,7 @@ class _ExpeditorHomeScreenState extends State<ExpeditorHomeScreen> {
                   ? plural(t.stops.length, 'точка', 'точки', 'точек')
                   : 'пройдено ${widget.deliveries.doneIn(t)} из ${t.stops.length}',
             ].join(' · '),
-            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkSoft),
+            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text2),
           ),
         ),
         for (final s in t.stops)
@@ -254,11 +264,11 @@ class _StopTile extends StatelessWidget {
               CircleAvatar(
                 radius: 15,
                 backgroundColor: !done
-                    ? AppColors.paperDeep
+                    ? AppColors.fill
                     : refused
-                        ? AppColors.crimson
+                        ? AppColors.err
                         : AppColors.ok,
-                foregroundColor: done ? AppColors.cream : AppColors.ink,
+                foregroundColor: done ? AppColors.card : AppColors.text,
                 child: done
                     ? Icon(refused ? Icons.close : Icons.check, size: 18)
                     : Text('${stop.position + 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -269,18 +279,18 @@ class _StopTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(o.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    if (place != null) Text(place, style: const TextStyle(color: AppColors.inkSoft)),
+                    if (place != null) Text(place, style: const TextStyle(color: AppColors.text2)),
                     const SizedBox(height: 4),
                     Text('${order.number} · ${money(order.total)} · ${order.paymentLabel}'),
                     if (label != null)
-                      Text(label, style: TextStyle(color: refused || !done ? AppColors.crimson : AppColors.ok)),
+                      Text(label, style: TextStyle(color: refused || !done ? AppColors.err : AppColors.ok)),
                     if (o.debt > 0)
                       Text('долг ${money(o.debt)}${o.overdue > 0 ? ', просрочено ${money(o.overdue)}' : ''}',
-                          style: TextStyle(color: o.overdue > 0 ? AppColors.crimson : AppColors.ink)),
+                          style: TextStyle(color: o.overdue > 0 ? AppColors.err : AppColors.text)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.inkSoft),
+              const Icon(Icons.chevron_right, color: AppColors.text2),
             ],
           ),
         ),

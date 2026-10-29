@@ -106,7 +106,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
           children: [
             const Text('Возврат', style: TextStyle(fontWeight: FontWeight.w700)),
             Text('${o.name} · ${o.priceLabel.toLowerCase()}',
-                style: TextStyle(fontSize: 13, color: AppColors.cream.withValues(alpha: 0.7))),
+                style: TextStyle(fontSize: 13, color: AppColors.text2)),
           ],
         ),
       ),
@@ -140,7 +140,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
                 if (products.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(32),
-                    child: Text('Ничего не найдено', textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkSoft)),
+                    child: Text('Ничего не найдено', textAlign: TextAlign.center, style: TextStyle(color: AppColors.text2)),
                   ),
                 for (final p in products)
                   _ReturnRow(
@@ -156,7 +156,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
-          decoration: const BoxDecoration(color: AppColors.paper, border: Border(top: BorderSide(color: AppColors.line))),
+          decoration: const BoxDecoration(color: AppColors.bg, border: Border(top: BorderSide(color: AppColors.line))),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Row(
             children: [
@@ -166,7 +166,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(qty == 0 ? 'Товары не выбраны' : '$qty шт · долг меньше на',
-                        style: const TextStyle(color: AppColors.inkSoft)),
+                        style: const TextStyle(color: AppColors.text2)),
                     Text(money(_total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                   ],
                 ),
@@ -206,7 +206,7 @@ class _ReturnRow extends StatelessWidget {
               children: [
                 Text(p.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 Text(price == 0 ? 'нет цены' : money(price),
-                    style: TextStyle(color: price == 0 ? AppColors.crimson : AppColors.inkSoft)),
+                    style: TextStyle(color: price == 0 ? AppColors.err : AppColors.text2)),
                 if (qty > 0) Text('= ${money(price * qty)}', style: const TextStyle(fontWeight: FontWeight.w600)),
               ],
             ),

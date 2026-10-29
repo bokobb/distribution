@@ -243,7 +243,7 @@ class FakeServer {
   int count(String path) => requests.where((r) => r.url.path == path).length;
 
   Map<String, dynamic> _user() =>
-      {'id': 1, 'name': 'Иван', 'role': role, 'company': 'Своя доставка', 'mustChangePassword': mustChange};
+      {'id': 1, 'name': 'Иван', 'role': role, 'company': 'Своя доставка', 'phone': '+77010000101', 'mustChangePassword': mustChange};
 
   Map<String, dynamic> _tokens() {
     _jwt = 'jwt-${++_seq}';

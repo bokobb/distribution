@@ -48,7 +48,7 @@ public class MobileAccounts {
 
     private static final RowMapper<Account> ACCOUNT = (rs, n) -> new Account(
             new MobileUser(rs.getLong(1), rs.getObject(2, Long.class), Role.valueOf(rs.getString(3)), rs.getString(4),
-                    rs.getString(5), rs.getBoolean(6)),
+                    rs.getString(5), rs.getString(8), rs.getBoolean(6)),
             rs.getString(7), rs.getString(8), rs.getBoolean(9));
 
     /** По телефону в любом виде или по логину. */

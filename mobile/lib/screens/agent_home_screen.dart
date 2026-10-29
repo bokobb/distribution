@@ -9,6 +9,7 @@ import '../format.dart';
 import '../session.dart';
 import '../theme.dart';
 import '../visits.dart';
+import '../widgets/layout.dart';
 import '../widgets/visit_panel.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
@@ -16,8 +17,9 @@ import 'agent_map_screen.dart';
 import 'home_parts.dart';
 import 'new_outlet_screen.dart';
 import 'outlet_screen.dart';
+import 'profile_screen.dart';
 
-/// «Мой день» торгового агента: маршруты выбранного дня (по умолчанию сегодня) и магазины по порядку обхода
+/// Главный экран торгового: разделы «Сегодня», «Магазины» (карта) и «Профиль». «Сегодня» — маршруты выбранного дня (по умолчанию сегодня) и магазины по порядку обхода
 /// с долгами и отметкой визита. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи —
 /// работает с тем, что есть. «Карта» — точки всех магазинов компании. «Магазин» — новый магазин; пока он не ушёл на сервер, он в списке «Новые магазины»,
 /// а когда сервер принял — данные обновляются, и он в маршруте «на проверке».
@@ -134,55 +136,70 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final data = _data;
-    return Scaffold(
-      appBar: homeAppBar(context,
-          title: 'Мой день',
+    return HomeShell(
+      tabs: const [
+        TabItem('Сегодня', Icons.today_outlined, Icons.today),
+        TabItem('Магазины', Icons.storefront_outlined, Icons.storefront),
+        TabItem('Профиль', Icons.person_outline, Icons.person),
+      ],
+      pages: [
+        Scaffold(
+          floatingActionButton: data == null
+              ? null
+              : FloatingActionButton.extended(
+                  heroTag: null, // рядом в другой вкладке — кнопка карты
+                  onPressed: () => _addOutlet(data),
+                  icon: const Icon(Icons.add_business_outlined),
+                  label: const Text('Магазин'),
+                ),
+          body: RefreshIndicator(
+            onRefresh: _pull,
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 88), // под кнопкой «Магазин»
+              children: [
+                PageHeader(
+                  title: 'Сегодня',
+                  subtitle: '${dayTitle(DateTime.now())} · ${widget.session.name}',
+                  trailing: [_TrackChip(workday: widget.workday)],
+                ),
+                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 0), child: WorkdayCard(workday: widget.workday)),
+                _days(),
+                _status(data),
+                if (_newOutlets.isNotEmpty) ..._pendingOutlets(),
+                if (data == null && !_loading)
+                  const EmptyState(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Нет данных',
+                    text: 'Подключитесь к интернету и потяните экран вниз, чтобы получить маршруты и товары.',
+                  ),
+                if (data != null)
+                  ListenableBuilder(
+                    listenable: widget.visits,
+                    builder: (context, _) => Column(children: _routes(data)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        data == null
+            ? const Center(
+                child: EmptyState(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Нет данных',
+                    text: 'Подключитесь к интернету и обновите «Сегодня», чтобы получить магазины.'))
+            : AgentMapScreen(data: data, visits: widget.visits, workday: widget.workday),
+        ProfileTab(
+          api: widget.repo.api,
           session: widget.session,
           workday: widget.workday,
-          outletNames: {for (final o in data?.outlets.values ?? const <Outlet>[]) o.id: o.name},
+          dataLabel: 'Каталог и цены',
+          syncedAt: data?.syncedAt,
           onRefresh: _pull,
-          actions: [
-            if (data != null)
-              IconButton(
-                tooltip: 'Карта',
-                icon: const Icon(Icons.map_outlined),
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => AgentMapScreen(data: data, visits: widget.visits, workday: widget.workday))),
-              ),
-          ],
-          onLogout: widget.onLogout),
-      floatingActionButton: data == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: () => _addOutlet(data),
-              icon: const Icon(Icons.add_business_outlined),
-              label: const Text('Магазин'),
-            ),
-      body: RefreshIndicator(
-        onRefresh: _pull,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 88), // под кнопкой «Магазин»
-          children: [
-            Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), child: WorkdayCard(workday: widget.workday)),
-            _days(),
-            _status(data),
-            if (_newOutlets.isNotEmpty) ..._pendingOutlets(),
-            if (data == null && !_loading)
-              const EmptyState(
-                icon: Icons.cloud_off_outlined,
-                title: 'Нет данных',
-                text: 'Подключитесь к интернету и потяните экран вниз, чтобы получить маршруты и товары.',
-              ),
-            if (data != null)
-              ListenableBuilder(
-                listenable: widget.visits,
-                builder: (context, _) => Column(children: _routes(data)),
-              ),
-          ],
+          outletNames: {for (final o in data?.outlets.values ?? const <Outlet>[]) o.id: o.name},
+          onSession: widget.onSession,
+          onLogout: widget.onLogout,
         ),
-      ),
+      ],
     );
   }
 
@@ -224,11 +241,11 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
       child: Row(
         children: [
           Icon(_syncError != null ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
-              size: 16, color: _syncError != null ? AppColors.crimson : AppColors.inkSoft),
+              size: 16, color: _syncError != null ? AppColors.err : AppColors.text2),
           const SizedBox(width: 6),
           Expanded(
             child: Text(text,
-                style: TextStyle(fontSize: 13, color: _syncError != null ? AppColors.crimson : AppColors.inkSoft)),
+                style: TextStyle(fontSize: 13, color: _syncError != null ? AppColors.err : AppColors.text2)),
           ),
         ],
       ),
@@ -238,7 +255,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   List<Widget> _pendingOutlets() => [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Text('Новые магазины', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkSoft)),
+          child: Text('Новые магазины', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text2)),
         ),
         for (final o in _newOutlets)
           Padding(
@@ -246,10 +263,10 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
             child: Card(
               child: ListTile(
                 leading: Icon(o.error != null ? Icons.error_outline : Icons.cloud_upload_outlined,
-                    color: o.error != null ? AppColors.crimson : AppColors.inkSoft),
+                    color: o.error != null ? AppColors.err : AppColors.text2),
                 title: Text(o.name),
                 subtitle: Text(o.error != null ? 'Сервер не принял: ${o.error}' : 'Ждёт отправки · ${o.address ?? o.landmark ?? o.phone}',
-                    style: TextStyle(color: o.error != null ? AppColors.crimson : AppColors.inkSoft)),
+                    style: TextStyle(color: o.error != null ? AppColors.err : AppColors.text2)),
               ),
             ),
           ),
@@ -269,7 +286,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
           child: Text(
             [r.name, if (r.region != null) r.region!, plural(data.outletsOf(r).length, 'магазин', 'магазина', 'магазинов')]
                 .join(' · '),
-            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.inkSoft),
+            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text2),
           ),
         ),
         for (final (i, o) in data.outletsOf(r).indexed)
@@ -317,11 +334,11 @@ class _OutletTile extends StatelessWidget {
               CircleAvatar(
                 radius: 15,
                 backgroundColor: visit == null
-                    ? AppColors.paperDeep
+                    ? AppColors.fill
                     : visit!.open
-                        ? AppColors.yolk
+                        ? AppColors.warnBg
                         : AppColors.ok,
-                foregroundColor: visit == null || visit!.open ? AppColors.ink : AppColors.cream,
+                foregroundColor: visit == null || visit!.open ? AppColors.text : AppColors.card,
                 child: visit != null && !visit!.open
                     ? const Icon(Icons.check, size: 18)
                     : Text('$number', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -332,30 +349,62 @@ class _OutletTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(o.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    if (place != null) Text(place, style: const TextStyle(color: AppColors.inkSoft)),
+                    if (place != null) Text(place, style: const TextStyle(color: AppColors.text2)),
                     if (visit != null)
                       Text(visit!.open ? 'Визит идёт с ${time(visit!.startedAt)}' : '${time(visit!.startedAt)} — ${visitResult(visit!)}',
-                          style: TextStyle(color: visit!.error != null ? AppColors.crimson : AppColors.ink)),
+                          style: TextStyle(color: visit!.error != null ? AppColors.err : AppColors.text)),
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: 10,
                       children: [
-                        if (o.pending) const Text('на проверке', style: TextStyle(color: AppColors.inkSoft)),
+                        if (o.pending) const Text('на проверке', style: TextStyle(color: AppColors.text2)),
                         if (o.debt > 0)
                           Text('долг ${money(o.debt)}',
-                              style: TextStyle(color: o.overdue > 0 || o.overLimit ? AppColors.crimson : AppColors.ink)),
+                              style: TextStyle(color: o.overdue > 0 || o.overLimit ? AppColors.err : AppColors.text)),
                         if (o.overdue > 0)
-                          Text('просрочено ${money(o.overdue)}', style: const TextStyle(color: AppColors.crimson)),
+                          Text('просрочено ${money(o.overdue)}', style: const TextStyle(color: AppColors.err)),
                       ],
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.inkSoft),
+              const Icon(Icons.chevron_right, color: AppColors.text2),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// «Путь пишется» в шапке «Сегодня», пока идёт рабочий день.
+class _TrackChip extends StatelessWidget {
+  const _TrackChip({required this.workday});
+
+  final Workday workday;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: workday,
+        builder: (context, _) => !workday.open
+            ? const SizedBox.shrink()
+            : Container(
+                height: 30,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: const BoxDecoration(color: AppColors.okBg, borderRadius: BorderRadius.all(Radius.circular(15))),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                            color: workday.gpsOff ? AppColors.err : AppColors.ok, shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text(workday.gpsOff ? 'GPS выключен' : 'Путь пишется',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0B5A40))),
+                  ],
+                ),
+              ),
+      );
 }

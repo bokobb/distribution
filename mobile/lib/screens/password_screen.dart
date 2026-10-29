@@ -6,14 +6,21 @@ import '../theme.dart';
 import '../widgets/message_box.dart';
 
 /// Временный пароль выдал директор — сначала свой. Правила проверяет сервер (как в админке): не короче
-/// 8 знаков, не номер телефона, не как прежний.
+/// 8 знаков, не номер телефона, не как прежний. change — «Сменить пароль» из профиля: со стрелкой назад, без «Выйти».
 class PasswordScreen extends StatefulWidget {
-  const PasswordScreen({super.key, required this.api, required this.session, required this.onDone, required this.onLogout});
+  const PasswordScreen(
+      {super.key,
+      required this.api,
+      required this.session,
+      required this.onDone,
+      required this.onLogout,
+      this.change = false});
 
   final ApiClient api;
   final Session session;
   final ValueChanged<Session> onDone;
   final VoidCallback onLogout;
+  final bool change;
 
   @override
   State<PasswordScreen> createState() => _PasswordScreenState();
@@ -58,13 +65,14 @@ class _PasswordScreenState extends State<PasswordScreen> {
     final text = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Свой пароль'),
+        title: Text(widget.change ? 'Сменить пароль' : 'Свой пароль'),
         actions: [
-          TextButton(
-            onPressed: _busy ? null : widget.onLogout,
-            style: TextButton.styleFrom(foregroundColor: AppColors.cream),
-            child: const Text('Выйти'),
-          ),
+          if (!widget.change)
+            TextButton(
+              onPressed: _busy ? null : widget.onLogout,
+              style: TextButton.styleFrom(foregroundColor: AppColors.text2),
+              child: const Text('Выйти'),
+            ),
         ],
       ),
       body: SafeArea(
@@ -75,12 +83,20 @@ class _PasswordScreenState extends State<PasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('${widget.session.name}, придумайте свой пароль', style: text.titleLarge),
-                const SizedBox(height: 8),
-                const Text('Пароль, который выдал директор, — временный. Свой будете вводить на новом телефоне '
-                    'или после выхода из приложения.', style: TextStyle(color: AppColors.inkSoft)),
+                if (widget.change)
+                  const Text('Новый пароль понадобится на новом телефоне или после выхода из приложения. На других '
+                      'телефонах вход закроется.', style: TextStyle(color: AppColors.text2))
+                else ...[
+                  Text('${widget.session.name}, придумайте свой пароль', style: text.titleLarge),
+                  const SizedBox(height: 8),
+                  const Text('Пароль, который выдал директор, — временный. Свой будете вводить на новом телефоне '
+                      'или после выхода из приложения.', style: TextStyle(color: AppColors.text2)),
+                ],
                 const SizedBox(height: 24),
-                _field(_current, 'Временный пароль', (v) => v == null || v.isEmpty ? 'Введите временный пароль' : null),
+                widget.change
+                    ? _field(_current, 'Текущий пароль', (v) => v == null || v.isEmpty ? 'Введите текущий пароль' : null)
+                    : _field(_current, 'Временный пароль',
+                        (v) => v == null || v.isEmpty ? 'Введите временный пароль' : null),
                 const SizedBox(height: 14),
                 _field(_password, 'Новый пароль',
                     (v) => v == null || v.length < 8 ? 'Не короче 8 знаков' : null, helper: 'Не короче 8 знаков, не номер телефона'),

@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +10,7 @@ class Session {
     required this.name,
     required this.role,
     this.company,
+    this.phone,
     this.mustChangePassword = false,
   });
 
@@ -20,16 +21,29 @@ class Session {
   final String role;
   final String? company;
 
+  /// Телефон для входа: +77010000104; вошёл по логину — может не быть.
+  final String? phone;
+
   /// Пароль временный (выдал директор) — сначала придумать свой.
   final bool mustChangePassword;
 
   bool get isAgent => role == 'AGENT';
+
+  /// «Торговый представитель», «Экспедитор».
+  String get roleTitle => isAgent ? 'Торговый представитель' : 'Экспедитор';
+
+  /// Буквы для кружка: «Азамат К.» → «АК».
+  String get initials {
+    final words = name.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).take(2);
+    return words.map((w) => w.characters.first.toUpperCase()).join();
+  }
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         userId: (json['id'] as num).toInt(),
         name: json['name'] as String,
         role: json['role'] as String,
         company: json['company'] as String?,
+        phone: json['phone'] as String?,
         mustChangePassword: json['mustChangePassword'] as bool? ?? false,
       );
 }
@@ -60,6 +74,7 @@ class SessionStore {
       name: name,
       role: role,
       company: p.getString('$_user.company'),
+      phone: p.getString('$_user.phone'),
       mustChangePassword: p.getBool('$_user.mustChange') ?? false,
     );
   }
@@ -70,10 +85,12 @@ class SessionStore {
     await p.setString('$_user.name', s.name);
     await p.setString('$_user.role', s.role);
     await p.setBool('$_user.mustChange', s.mustChangePassword);
-    if (s.company == null) {
-      await p.remove('$_user.company');
-    } else {
-      await p.setString('$_user.company', s.company!);
+    for (final (k, v) in [('company', s.company), ('phone', s.phone)]) {
+      if (v == null) {
+        await p.remove('$_user.$k');
+      } else {
+        await p.setString('$_user.$k', v);
+      }
     }
   }
 
@@ -85,7 +102,7 @@ class SessionStore {
   /// Забыть, кто вошёл, и ключ устройства. Адрес сервера остаётся.
   Future<void> clear() async {
     final p = await SharedPreferences.getInstance();
-    for (final k in ['id', 'name', 'role', 'company', 'mustChange']) {
+    for (final k in ['id', 'name', 'role', 'company', 'phone', 'mustChange']) {
       await p.remove('$_user.$k');
     }
     await _secure.delete(key: _deviceToken);

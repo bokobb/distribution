@@ -152,7 +152,7 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
                   keyboard: TextInputType.phone,
                   validator: (v) => v == null || v.trim().isEmpty || NewOutlet.phoneOk(v) ? null : '+7 и 10 цифр'),
               const SizedBox(height: 4),
-              const Text('Прайс', style: TextStyle(color: AppColors.inkSoft)),
+              const Text('Прайс', style: TextStyle(color: AppColors.text2)),
               Wrap(spacing: 8, children: [
                 for (final (code, label) in [('WHOLESALE', 'Опт'), ('RETAIL', 'Розница')])
                   ChoiceChip(label: Text(label), selected: _price == code, onSelected: (_) => setState(() => _price = code)),
@@ -170,7 +170,7 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
               Card(
                 child: ListTile(
                   leading: Icon(_fix == null ? Icons.location_off_outlined : Icons.location_on_outlined,
-                      color: _fix == null ? AppColors.crimson : AppColors.ok),
+                      color: _fix == null ? AppColors.err : AppColors.ok),
                   title: Text(_locating
                       ? 'Определяю, где вы…'
                       : _fix == null
@@ -196,7 +196,7 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
               FilledButton(onPressed: _locating ? null : _save, child: const Text('Сохранить магазин')),
               const SizedBox(height: 8),
               const Text('Оператор проверит магазин; до проверки в нём уже можно работать.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkSoft)),
+                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.text2)),
               ],
             ),
           ),

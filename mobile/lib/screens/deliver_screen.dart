@@ -101,7 +101,7 @@ class _DeliverScreenState extends State<DeliverScreen> {
             child: Text(
                 '${widget.stop.outlet.name} · ${order.paymentLabel}'
                 '${all ? '' : ' · выдаётся не всё'}',
-                style: const TextStyle(color: AppColors.inkSoft)),
+                style: const TextStyle(color: AppColors.text2)),
           ),
           for (final l in order.lines)
             _LineRow(
@@ -121,14 +121,14 @@ class _DeliverScreenState extends State<DeliverScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
               child: Text('по заказу ${money(order.total)}',
-                  textAlign: TextAlign.end, style: const TextStyle(color: AppColors.inkSoft)),
+                  textAlign: TextAlign.end, style: const TextStyle(color: AppColors.text2)),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Получено', style: TextStyle(color: AppColors.inkSoft)),
+                const Text('Получено', style: TextStyle(color: AppColors.text2)),
                 const SizedBox(height: 8),
                 _MoneyField(controller: _cash, label: 'Наличными', onChanged: () => setState(() => _payTouched = true)),
                 if (_kaspiField) ...[
@@ -138,10 +138,10 @@ class _DeliverScreenState extends State<DeliverScreen> {
                 const SizedBox(height: 8),
                 if (paid > total)
                   Text('Получено больше, чем выдаётся, на ${money(paid - total)}',
-                      style: const TextStyle(color: AppColors.crimson))
+                      style: const TextStyle(color: AppColors.err))
                 else if (unpaid > 0)
                   Text('Остаток ${money(unpaid)} — в долг магазина',
-                      style: TextStyle(color: order.payment == 'CREDIT' ? AppColors.ink : AppColors.crimson)),
+                      style: TextStyle(color: order.payment == 'CREDIT' ? AppColors.text : AppColors.err)),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _busy || total == 0 || paid > total ? null : _deliver,
@@ -151,7 +151,7 @@ class _DeliverScreenState extends State<DeliverScreen> {
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: Text('Ничего не выдаётся — вернитесь и отметьте отказ',
-                        textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkSoft)),
+                        textAlign: TextAlign.center, style: TextStyle(color: AppColors.text2)),
                   ),
               ],
             ),
@@ -183,7 +183,7 @@ class _LineRow extends StatelessWidget {
               children: [
                 Text(l.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 Text('заказано ${l.qty} ${l.unit} × ${money(l.price)}',
-                    style: TextStyle(color: qty == l.qty ? AppColors.inkSoft : AppColors.crimson)),
+                    style: TextStyle(color: qty == l.qty ? AppColors.text2 : AppColors.err)),
                 Text('= ${money(qty * l.price)}', style: const TextStyle(fontWeight: FontWeight.w600)),
               ],
             ),

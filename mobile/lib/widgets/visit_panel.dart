@@ -122,7 +122,7 @@ class _VisitPanelState extends State<VisitPanel> {
                     Text('Сегодня был в ${time(last.startedAt)} — ${visitResult(last)}',
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     if (visitNote(last) case final note?)
-                      Text(note.$1, style: TextStyle(color: note.$2 ? AppColors.crimson : AppColors.inkSoft)),
+                      Text(note.$1, style: TextStyle(color: note.$2 ? AppColors.err : AppColors.text2)),
                   ],
                   for (final o in widget.visits.ordersAt(widget.outlet.id)) _OrderLine(order: o),
                   if (last != null) const SizedBox(height: 12),
@@ -130,7 +130,7 @@ class _VisitPanelState extends State<VisitPanel> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text('Идёт визит в «$elsewhere» — сначала закончите его',
-                          style: const TextStyle(color: AppColors.crimson)),
+                          style: const TextStyle(color: AppColors.err)),
                     ),
                   FilledButton.icon(
                     onPressed: _busy || elsewhere != null ? null : _start,
@@ -165,7 +165,7 @@ class _VisitPanelState extends State<VisitPanel> {
                   v.distance == null
                       ? 'У магазина нет точки на карте — визит отмечен там, где вы'
                       : '${distanceLabel(v.distance!)} от магазина',
-                  style: const TextStyle(color: AppColors.inkSoft)),
+                  style: const TextStyle(color: AppColors.text2)),
             ),
             const SizedBox(height: 12),
             if (v.photo != null)
@@ -222,7 +222,7 @@ class _OrderLine extends StatelessWidget {
           Text('Заказ ${o.number == null ? '' : '${o.number} '}на ${money(o.total)} · '
               '${Order.paymentLabels[o.payment] ?? o.payment} · доставка ${date(o.deliveryDate)}'),
           Text(o.note == null ? state : '$state — ${o.note}',
-              style: TextStyle(color: alarm ? AppColors.crimson : AppColors.inkSoft)),
+              style: TextStyle(color: alarm ? AppColors.err : AppColors.text2)),
         ],
       ),
     );
@@ -250,7 +250,7 @@ class _Spinner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cream));
+      const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.card));
 }
 
 /// Почему без заказа: частая причина одним касанием или своя. Отмена — null; «без причины» — пустая строка.

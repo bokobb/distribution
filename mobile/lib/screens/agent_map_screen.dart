@@ -69,10 +69,10 @@ class _AgentMapScreenState extends State<AgentMapScreen> {
 
   Color _color(MapPoint p, Set<int> today) {
     final o = p.mine;
-    if (o == null) return AppColors.inkSoft;
+    if (o == null) return AppColors.text2;
     final v = widget.visits.lastAt(o.id);
     if (v != null && !v.open) return AppColors.ok;
-    return today.contains(o.id) ? AppColors.crimson : AppColors.chocolate;
+    return today.contains(o.id) ? AppColors.err : AppColors.text;
   }
 
   void _open(MapPoint p) {
@@ -87,12 +87,12 @@ class _AgentMapScreenState extends State<AgentMapScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(p.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-              if (p.place != null) Text(p.place!, style: const TextStyle(color: AppColors.inkSoft)),
+              if (p.place != null) Text(p.place!, style: const TextStyle(color: AppColors.text2)),
               Text([if (p.region != null) p.region!, o == null ? 'магазин другого торгового' : 'ваш магазин'].join(' · '),
-                  style: const TextStyle(color: AppColors.inkSoft)),
+                  style: const TextStyle(color: AppColors.text2)),
               if (o != null && o.debt > 0)
                 Text('долг ${money(o.debt)}${o.overdue > 0 ? ', просрочено ${money(o.overdue)}' : ''}',
-                    style: TextStyle(color: o.overdue > 0 ? AppColors.crimson : AppColors.ink)),
+                    style: TextStyle(color: o.overdue > 0 ? AppColors.err : AppColors.text)),
               if (o != null) ...[
                 const SizedBox(height: 12),
                 FilledButton(
@@ -125,7 +125,7 @@ class _AgentMapScreenState extends State<AgentMapScreen> {
     final noPoint = widget.data.outlets.values.where((o) => o.lat == null || o.lng == null).length;
     final regions = widget.data.regions;
     return Scaffold(
-      appBar: AppBar(title: const Text('Карта')),
+      appBar: AppBar(title: const Text('Магазины')),
       body: Column(
         children: [
           if (regions.length > 1)
@@ -167,7 +167,7 @@ class _AgentMapScreenState extends State<AgentMapScreen> {
                       plural(points.length, 'точка', 'точки', 'точек'),
                       if (noPoint > 0) '${plural(noPoint, 'свой магазин', 'своих магазина', 'своих магазинов')} без точки',
                     ].join(' · '),
-                    style: const TextStyle(color: AppColors.inkSoft, fontSize: 13),
+                    style: const TextStyle(color: AppColors.text2, fontSize: 13),
                   ),
                 ),
               ],
@@ -223,6 +223,7 @@ class _AgentMapScreenState extends State<AgentMapScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null, // во вкладке рядом с кнопкой «Магазин» на «Сегодня»
         tooltip: 'Где я',
         onPressed: _locating ? null : _whereAmI,
         child: _locating
@@ -243,15 +244,15 @@ class _Legend extends StatelessWidget {
           spacing: 12,
           children: [
             for (final (color, label) in [
-              (AppColors.crimson, 'сегодня'),
+              (AppColors.err, 'сегодня'),
               (AppColors.ok, 'был'),
-              (AppColors.chocolate, 'мои'),
-              (AppColors.inkSoft, 'другие'),
+              (AppColors.text, 'мои'),
+              (AppColors.text2, 'другие'),
             ])
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.circle, size: 10, color: color),
                 const SizedBox(width: 4),
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.inkSoft)),
+                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.text2)),
               ]),
           ],
         ),

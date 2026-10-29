@@ -82,6 +82,7 @@ class MobileAuthTest {
                 .andExpect(jsonPath("$.user.id").value(w.agent().getId()))
                 .andExpect(jsonPath("$.user.role").value("AGENT"))
                 .andExpect(jsonPath("$.user.company").value(w.company().getName()))
+                .andExpect(jsonPath("$.user.phone").value(w.agent().getPhone()))
                 .andExpect(jsonPath("$.user.mustChangePassword").value(false))
                 .andReturn().getResponse().getContentAsString();
 
