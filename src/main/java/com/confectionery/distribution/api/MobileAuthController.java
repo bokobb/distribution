@@ -76,7 +76,7 @@ public class MobileAuthController {
         }
         if (!ok) {
             attempts.failed(key);
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "Неверный телефон или пароль");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Неверный телефон, логин или пароль");
         }
         attempts.succeeded(key);
         Account a = found.get();

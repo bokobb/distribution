@@ -113,7 +113,7 @@ void main() {
     await tapVisible(t, find.text('Войти'));
     await t.pump();
 
-    expect(find.text('Введите телефон'), findsOneWidget);
+    expect(find.text('Введите телефон или логин'), findsOneWidget);
     expect(find.text('Введите пароль'), findsOneWidget);
     expect(server.requests, isEmpty);
   });

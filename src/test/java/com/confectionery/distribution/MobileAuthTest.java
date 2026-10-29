@@ -96,13 +96,26 @@ class MobileAuthTest {
     }
 
     @Test
+    void экспедиторВходитПоЛогину_большиеБуквыНеВажны() throws Exception {
+        World w = data.world("Вход по логину");
+        data.password(w.expeditor(), PASSWORD, false);
+        jdbc.update("update users set login = 'azamat.k' where id = ?", w.expeditor().getId());
+
+        login("  Azamat.K ", PASSWORD).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.id").value(w.expeditor().getId()))
+                .andExpect(jsonPath("$.user.role").value("EXPEDITOR"));
+        login("azamat", PASSWORD).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Неверный телефон, логин или пароль"));
+    }
+
+    @Test
     void неверныйПароль_веб_роли_иОтключённыйНеВходят() throws Exception {
         World w = data.world("Не входят");
         data.password(w.agent(), PASSWORD, false);
         data.password(w.operator(), PASSWORD, false);
 
         login(w.agent().getPhone(), "не тот").andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("Неверный телефон или пароль"));
+                .andExpect(jsonPath("$.message").value("Неверный телефон, логин или пароль"));
         login("+7 799 999 99 99", PASSWORD).andExpect(status().isUnauthorized());
         login(w.operator().getPhone(), PASSWORD).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message", containsString("веб-админке")));

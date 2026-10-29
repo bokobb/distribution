@@ -90,7 +90,7 @@ void main() {
     final api = ApiClient(baseUrl: 'http://server', client: MockClient((_) async => http.Response('', 401)));
 
     expect(() => api.login('x', 'y'),
-        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Неверный телефон или пароль')));
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Неверный телефон, логин или пароль')));
   });
 
   test('нет связи с сервером', () async {

@@ -113,7 +113,7 @@ class FakeServer {
     final body = r.body.isEmpty ? <String, dynamic>{} : jsonDecode(r.body) as Map<String, dynamic>;
     switch (r.url.path) {
       case '/api/mobile/auth/login':
-        if (body['password'] != 'пароль') return _json({'message': 'Неверный телефон или пароль'}, 401);
+        if (body['password'] != 'пароль') return _json({'message': 'Неверный телефон, логин или пароль'}, 401);
         if (role == 'OPERATOR') return _json({'message': 'Оператор работает в веб-админке.'}, 403);
         return _json(_tokens(), 200);
       case '/api/mobile/auth/refresh':
