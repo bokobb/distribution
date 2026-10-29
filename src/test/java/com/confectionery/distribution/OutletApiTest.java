@@ -60,7 +60,7 @@ class OutletApiTest {
         send(jwt, outlet(uuid, w, "87011234567", null, "у мечети, зелёные ворота")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.phone").value("+7 701 123 45 67"))
-                .andExpect(jsonPath("$.priceKind").value("RETAIL"))
+                .andExpect(jsonPath("$.priceKind").value("WHOLESALE")) // тип цен ставит оператор, не приложение
                 .andExpect(jsonPath("$.creditLimit").value(50000))
                 .andExpect(jsonPath("$.landmark").value("у мечети, зелёные ворота"));
         send(jwt, outlet(uuid, w, "87011234567", null, "у мечети")).andExpect(status().isOk());

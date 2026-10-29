@@ -32,10 +32,12 @@ public class OutletService {
     private final FileStore files;
     private final Clock clock;
 
-    /** Новый магазин с телефона агента; priceKind — WHOLESALE или RETAIL; lat/lng — где агент его отметил. */
+    /**
+     * Новый магазин с телефона агента; lat/lng — где агент его отметил (по GPS или вручную на карте). Тип цен агент
+     * не выбирает — его ставит оператор; priceKind от старых версий приложения не читается.
+     */
     public record AgentOutletIn(UUID uuid, Long routeId, String name, String legal, String bin, String owner,
-                                String phone, String phone2, String address, String landmark, Double lat, Double lng,
-                                String priceKind) {
+                                String phone, String phone2, String address, String landmark, Double lat, Double lng) {
     }
 
     /** Все магазины (с долгами); companyId = null — все видимые. */
@@ -74,8 +76,8 @@ public class OutletService {
 
     /**
      * Магазин от агента с телефона: «на проверке» у оператора (до проверки агент уже может в нём работать),
-     * в конце обхода его маршрута; лимит долга — как у нового магазина в настройках компании. Повтор с тем же
-     * uuid возвращает уже добавленный.
+     * в конце обхода его маршрута; лимит долга — как у нового магазина в настройках компании; цены — оптовые, пока
+     * оператор не поставит другой тип цен. Повтор с тем же uuid возвращает уже добавленный.
      */
     @Transactional
     public Outlet addByAgent(Long agentId, AgentOutletIn in) {
@@ -93,9 +95,8 @@ public class OutletService {
         if (address == null && landmark == null) throw new FormException("Укажите адрес или ориентир");
         Double lat = in.lat(), lng = in.lng();
         if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) lat = lng = null;
-        PriceKind kind = "RETAIL".equals(in.priceKind()) ? PriceKind.RETAIL : PriceKind.WHOLESALE;
-        PriceType priceType = priceTypes.findByCompanyIdAndCode(agent.getCompanyId(), kind)
-                .orElseThrow(() -> new FormException("В компании нет типа цен «" + kind.name() + "» — обратитесь к оператору"));
+        PriceType priceType = priceTypes.findByCompanyIdAndCode(agent.getCompanyId(), PriceKind.WHOLESALE)
+                .orElseThrow(() -> new FormException("В компании нет оптовых цен — обратитесь к оператору"));
         List<Route> mine = routes.findAllByOrderByNameAsc().stream()
                 .filter(r -> r.isActive() && r.getAgent() != null && r.getAgent().getId().equals(agent.getId())).toList();
         Route route = mine.stream().filter(r -> r.getId().equals(in.routeId())).findFirst()
