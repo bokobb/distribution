@@ -113,7 +113,11 @@ class Outbox extends ChangeNotifier {
   /// Визит, потом его фото. Сервер визит не принял (неверные данные) — помечаем и идём дальше, чтобы один
   /// визит не держал остальные; нет связи — останавливаемся до следующего раза.
   Future<void> _visits() async {
+    final news = await store.newOutlets();
     for (final v in await store.visitsToSend()) {
+      if (!await _linked(v.outletId, news, (id) => v.outletId = id, (why) => v.error = why, () => store.saveVisit(v))) {
+        continue;
+      }
       try {
         if (!v.sent) {
           await api.visit(v.toJson());
@@ -144,8 +148,10 @@ class Outbox extends ChangeNotifier {
       if (o.error != null || o.sent && (o.photo == null || o.photoSent)) continue;
       try {
         if (!o.sent) {
-          await api.newOutlet(o.toJson());
-          o.sent = true;
+          final r = await api.newOutlet(o.toJson());
+          o
+            ..sent = true
+            ..serverId = r['id'] as int?;
           outletsAdded++;
           await store.saveNewOutlet(o);
         }
@@ -167,9 +173,33 @@ class Outbox extends ChangeNotifier {
     }
   }
 
+  /// Визит или заказ в новом магазине записан с номером магазина с телефона (минус). Сервер магазин принял —
+  /// номер меняется на серверный и запись уходит; ещё не принял — запись ждёт; отклонил — запись помечается и не
+  /// уходит. true — можно отправлять.
+  static Future<bool> _linked(int outletId, List<NewOutlet> news, void Function(int id) relink,
+      void Function(String why) reject, Future<void> Function() save) async {
+    if (outletId >= 0) return true;
+    final o = news.where((o) => o.localId == outletId).firstOrNull;
+    final id = o?.serverId;
+    if (id != null) {
+      relink(id);
+      await save();
+      return true;
+    }
+    if (o == null || o.error != null) {
+      reject('Магазин не принят${o?.error == null ? '' : ': ${o!.error}'}');
+      await save();
+    }
+    return false;
+  }
+
   /// Заказ; сервер вернул номер, статус и свой итог. Не принял — помечаем и идём дальше.
   Future<void> _orders() async {
+    final news = await store.newOutlets();
     for (final o in await store.ordersToSend()) {
+      if (!await _linked(o.outletId, news, (id) => o.outletId = id, (why) => o.error = why, () => store.saveOrder(o))) {
+        continue;
+      }
       try {
         o.takeServer(await api.order(o.toJson()));
       } on ApiException catch (e) {

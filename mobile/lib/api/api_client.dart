@@ -93,6 +93,9 @@ class ApiClient {
   Future<Map<String, dynamic>> order(Map<String, dynamic> order) =>
       _authed('POST', '/api/mobile/agent/orders', body: order);
 
+  /// Карточка магазина: что берёт и история визитов (OutletCard).
+  Future<Map<String, dynamic>> outletCard(int id) => _authed('GET', '/api/mobile/agent/outlets/$id/card');
+
   /// Новый магазин агента; в ответе — магазин, как в данных агента (id, «на проверке»).
   Future<Map<String, dynamic>> newOutlet(Map<String, dynamic> outlet) =>
       _authed('POST', '/api/mobile/agent/outlets', body: outlet);

@@ -275,6 +275,16 @@ class Tag extends StatelessWidget {
       : color = const Color(0xFFA3241A),
         background = AppColors.errBg;
 
+  /// Зелёная — был сегодня, заказ.
+  const Tag.ok(this.text, {super.key})
+      : color = const Color(0xFF0E6B4C),
+        background = AppColors.okBg;
+
+  /// Фирменная — новый, на проверке, ждёт руководителя.
+  const Tag.brand(this.text, {super.key})
+      : color = AppColors.accentPressed,
+        background = AppColors.accentSoft;
+
   final String text;
   final Color color;
   final Color background;

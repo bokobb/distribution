@@ -8,16 +8,14 @@ import '../theme.dart';
 import '../visits.dart';
 import '../widgets/layout.dart';
 import '../workday.dart';
-import 'agent_map_screen.dart';
-import 'agent_order_screen.dart';
-import 'new_outlet_screen.dart';
-import 'no_order_screen.dart';
+import 'shops_map.dart';
+import 'visit_start.dart';
 
 /// «Создать заказ» по макету AgentPickShop: магазин — по GPS из всей базы компании. Вверху — у какого магазина вы
 /// сейчас (в радиусе визита): «Заказ здесь» или «Без заказа». Ниже — магазины рядом (до 600 м); поиск по названию
 /// и адресу — по всей базе. У своих магазинов видны долг и просрочка, у чужих — только адрес. «Новый магазин» —
-/// если его нет в базе. Выбрали магазин — начинается визит (далеко — с вопросом) и открывается заказ; заказ
-/// отправлен или визит закончен без заказа — экран закрывается.
+/// если его нет в базе, — и сразу заказ в нём. Выбрали магазин — начинается визит (далеко — с вопросом) и
+/// открывается заказ; заказ отправлен или визит закончен без заказа — экран закрывается.
 class PickShopScreen extends StatefulWidget {
   const PickShopScreen({super.key, required this.data, required this.visits, required this.workday});
 
@@ -54,10 +52,6 @@ class _PickShopScreenState extends State<PickShopScreen> {
     });
   }
 
-  void _say(String text) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(text)));
-
   int? _meters(Outlet o) {
     final f = _fix;
     if (f == null || o.lat == null || o.lng == null) return null;
@@ -72,63 +66,35 @@ class _PickShopScreenState extends State<PickShopScreen> {
     return m - allowance <= widget.data.settings.visitRadius ? (o, m) : null;
   }
 
-  /// Начать визит (или продолжить идущий здесь) и открыть заказ или «Без заказа».
+  /// Начать визит и открыть заказ или «Без заказа»; заказ отправлен или визит закончен — экран закрывается.
   Future<void> _open(Outlet o, {bool noOrder = false}) async {
-    if (!widget.workday.open) return _say('Сначала начните рабочий день на главном экране');
-    final current = widget.visits.current;
-    if (current != null && current.outletId != o.id) {
-      final name = widget.data.outlet(current.outletId)?.name ?? 'другой магазин';
-      return _say('Идёт визит: $name — сначала закончите его');
-    }
-    if (current == null) {
-      setState(() => _busy = true);
-      try {
-        final radius = widget.data.settings.visitRadius;
-        final problem = await widget.visits.start(o,
-            routeId: widget.data.routeOf(o.id)?.id, radius: radius, confirmFar: (d) => _confirmFar(d, radius));
-        if (!mounted) return;
-        if (problem != null) return _say(problem);
-        if (widget.visits.current == null) return; // передумал начинать издалека
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
-    }
-    if (!mounted) return;
+    final done = await openVisit(context,
+        data: widget.data,
+        visits: widget.visits,
+        workday: widget.workday,
+        outlet: o,
+        noOrder: noOrder,
+        busy: (b) {
+          if (mounted) setState(() => _busy = b);
+        });
+    if (done && mounted) Navigator.pop(context, true);
+  }
+
+  /// Карта всей базы поверх; заказ с неё отправлен — экран закрывается.
+  Future<void> _onMap() async {
     final done = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => noOrder
-            ? NoOrderScreen(outlet: o, data: widget.data, visits: widget.visits)
-            : AgentOrderScreen(outlet: o, data: widget.data, visits: widget.visits),
-      ),
-    );
+        context,
+        MaterialPageRoute(
+            builder: (_) => Scaffold(
+                body: SafeArea(
+                    child: ShopsMap(data: widget.data, visits: widget.visits, workday: widget.workday, pushed: true)))));
     if (done == true && mounted) Navigator.pop(context, true);
   }
 
-  Future<bool> _confirmFar(int distance, int radius) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: Text('Вы в ${distanceLabel(distance)} от магазина'),
-          content: Text('Визит отмечается рядом с магазином — не дальше $radius м. Если начать отсюда, директор '
-              'увидит визит с пометкой «далеко».'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Отмена')),
-            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Всё равно начать')),
-          ],
-        ),
-      ) ==
-      true;
-
+  /// Новый магазин и сразу заказ в нём.
   Future<void> _newOutlet() async {
-    final saved = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-            builder: (_) => NewOutletScreen(
-                data: widget.data, visits: widget.visits, routeId: widget.data.routes.firstOrNull?.id)));
-    if (saved == true && mounted) {
-      _say('Магазин сохранён. После отправки он появится в базе «на проверке»');
-    }
+    final done = await newOutletWithOrder(context, data: widget.data, visits: widget.visits, workday: widget.workday);
+    if (done && mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -187,10 +153,7 @@ class _PickShopScreenState extends State<PickShopScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: TextButton.icon(
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => AgentMapScreen(data: widget.data, visits: widget.visits, workday: widget.workday))),
+              onPressed: _onMap,
               style: TextButton.styleFrom(
                 backgroundColor: AppColors.card,
                 foregroundColor: AppColors.text,
@@ -303,7 +266,7 @@ class _PickShopScreenState extends State<PickShopScreen> {
             if (o.mine && o.debt > 0) Tag('Долг ${money(o.debt)}'),
             if (o.mine && o.overdue > 0) Tag.warn('Просрочено ${money(o.overdue)}'),
             if (o.pending) const Tag('На проверке'),
-            if (last != null) Tag('Прошлый заказ ${last.date.day} ${monthsOf[last.date.month - 1].substring(0, 3)}'),
+            if (last != null) Tag('Прошлый заказ ${dayMon(last.date)}'),
           ]),
           const SizedBox(height: 14),
           Row(children: [

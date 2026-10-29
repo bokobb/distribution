@@ -9,6 +9,9 @@ const monthsOf = ['января', 'февраля', 'марта', 'апреля'
 /// «28 октября».
 String dayMonth(DateTime d) => '${d.day} ${monthsOf[d.month - 1]}';
 
+/// «28 окт» — в строках истории и плашках.
+String dayMon(DateTime d) => '${d.day} ${monthsOf[d.month - 1].substring(0, 3)}';
+
 /// «Вторник, 28 октября» — подзаголовок главного экрана.
 String dayTitle(DateTime d) => '${weekdays[d.weekday - 1]}, ${dayMonth(d)}';
 

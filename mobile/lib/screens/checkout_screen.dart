@@ -61,10 +61,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   int get _toPay => widget.total - widget.returnTotal;
 
+  /// В долг — если разрешено и магазин не новый (первый заказ нового — без долга).
   List<String> get _payments => [
         'CASH',
         if (widget.data.settings.acceptKaspi) 'KASPI',
-        if (widget.data.settings.allowCredit) 'CREDIT',
+        if (widget.data.settings.allowCredit && !widget.outlet.pending) 'CREDIT',
       ];
 
   Future<void> _pickDate() async {

@@ -163,6 +163,17 @@ class OrderApiTest {
     }
 
     @Test
+    void магазинНаПроверке_безДолга() throws Exception {
+        World w = data.world("Новый магазин без долга");
+        data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
+        jdbc.update("update outlets set status = 'PENDING' where id = ?", w.outlet().getId());
+        String jwt = data.jwt(w.agent());
+        send(jwt, order(UUID.randomUUID(), w, "CREDIT", 1, null)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Магазин ещё на проверке — первый заказ без долга: наличные или Kaspi"));
+        send(jwt, order(UUID.randomUUID(), w, "CASH", 1, null)).andExpect(status().isOk());
+    }
+
+    @Test
     void оплатаИДатаПоНастройкам_нетЦены() throws Exception {
         World w = data.world("Настройки заказа");
         String jwt = data.jwt(w.agent());

@@ -137,6 +137,36 @@ void main() {
     expect((await store.pending()).rejectedOutlets, isEmpty);
   });
 
+  test('визит и заказ в новом магазине ждут его и уходят с номером сервера; магазин не принят — не уходят', () async {
+    final o = outbox();
+    final fresh = outlet('n4');
+    await store.saveNewOutlet(fresh);
+    await store.saveVisit(Visit(
+        uuid: 'в4', outletId: fresh.localId, startedAt: now, finishedAt: now, result: 'ORDER'));
+    await store.saveOrder(Order(
+        uuid: 'з4', visitUuid: 'в4', outletId: fresh.localId, createdAt: now, deliveryDate: now, payment: 'CASH',
+        items: {1: 2}, total: 1000));
+
+    await o.flush();
+
+    expect(server.visits['в4']!['outletId'], 100);
+    expect(server.orders['з4']!['outletId'], 100);
+    expect((await store.newOutlets()).single.serverId, 100);
+    expect((await store.ordersSince(now)).single.outletId, 100);
+    expect(o.unsent, 0);
+
+    server.rejectOutlets = 'Такой магазин уже есть';
+    final dup = NewOutlet(uuid: 'n5', createdAt: now.add(const Duration(minutes: 1)), name: 'Дубль', phone: '+77015554434');
+    await store.saveNewOutlet(dup);
+    await store.saveVisit(Visit(
+        uuid: 'в5', outletId: dup.localId, startedAt: now, finishedAt: now, result: 'NO_ORDER', reason: 'Нет денег'));
+
+    await o.flush();
+
+    expect(server.visits.containsKey('в5'), isFalse);
+    expect((await store.pending()).rejectedVisits.single.error, 'Магазин не принят: Такой магазин уже есть');
+  });
+
   test('отправленный магазин с фото стирается с телефона через 3 дня', () async {
     final photo = File('${Directory.systemTemp.createTempSync('facade').path}/n3.jpg')..writeAsBytesSync([0xFF, 0xD8]);
     await store.saveNewOutlet(outlet('n3', photo: photo.path));

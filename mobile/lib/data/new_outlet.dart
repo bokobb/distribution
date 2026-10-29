@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'agent_data.dart';
+
 /// Новый магазин, который агент добавил с телефона. Пишется на телефон и уходит на сервер
 /// (POST /api/mobile/agent/outlets), фото фасада — следом; на сервере он «на проверке» у оператора и сразу в
 /// маршруте агента. uuid создаёт телефон — повтор не задвоит.
@@ -24,6 +26,7 @@ class NewOutlet {
     this.sent = false,
     this.photoSent = false,
     this.error,
+    this.serverId,
   });
 
   final String uuid;
@@ -54,6 +57,35 @@ class NewOutlet {
   /// Сервер не принял — почему.
   String? error;
 
+  /// Номер магазина на сервере — когда сервер его принял.
+  int? serverId;
+
+  /// Номер на телефоне, пока сервера нет: отрицательный, свой у каждого магазина (по времени добавления). Визит и
+  /// заказ в новом магазине записываются с ним и ждут, пока сервер примет магазин и даст свой номер.
+  int get localId => -createdAt.millisecondsSinceEpoch;
+
+  /// Как магазин из данных агента: свой, «на проверке», без долга.
+  Outlet asOutlet() => Outlet(
+        id: serverId ?? localId,
+        uuid: uuid,
+        name: name,
+        legal: legal,
+        owner: owner,
+        phone: phone,
+        phone2: phone2,
+        address: address,
+        landmark: landmark,
+        lat: lat,
+        lng: lng,
+        priceKind: priceKind,
+        creditLimit: 0,
+        paymentDays: 0,
+        status: 'PENDING',
+        debt: 0,
+        overdue: 0,
+        lastPaymentSum: 0,
+      );
+
   /// Для сервера.
   Map<String, dynamic> toJson() => {
         'uuid': uuid,
@@ -80,6 +112,7 @@ class NewOutlet {
         'sent': sent,
         'photoSent': photoSent,
         'error': error,
+        'serverId': serverId,
       });
 
   factory NewOutlet.decode(String s) {
@@ -104,6 +137,7 @@ class NewOutlet {
       sent: j['sent'] as bool? ?? false,
       photoSent: j['photoSent'] as bool? ?? false,
       error: j['error'] as String?,
+      serverId: j['serverId'] as int?,
     );
   }
 

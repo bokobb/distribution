@@ -20,7 +20,8 @@ import java.util.*;
  * Всё, что нужно торговому агенту на телефоне для работы без сети: настройки компании, товары с ценами на
  * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня, остальные
  * магазины компании (заказ можно принять в любом — магазин ищут по GPS и поиском; у чужих только название, адрес,
- * владелец, прайс и точка, без долгов и телефонов) и последний заказ каждого магазина — «повторить». Телефон
+ * владелец, прайс и точка, без долгов и телефонов), последний заказ каждого магазина — «повторить», и сводка по
+ * магазинам для карты (последний визит, средний заказ). Телефон
  * забирает это целиком при синхронизации и заменяет прежнее. Компания — из входа (TenantContext), чужое сюда не попадает.
  */
 @Service
@@ -35,6 +36,7 @@ public class AgentDataService {
     private final SettingsService settings;
     private final VisitService visits;
     private final MobileOrderService orders;
+    private final OutletCardService cards;
     private final JdbcTemplate jdbc;
     private final Clock clock;
 
@@ -70,10 +72,11 @@ public class AgentDataService {
     public record LastOrderDto(Long outletId, LocalDate date, List<ItemDto> items) {
     }
 
-    /** others — магазины компании не из маршрутов агента. */
+    /** others — магазины компании не из маршрутов агента; stats — последний визит и средний заказ всех магазинов. */
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
                             List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits,
-                            List<MobileOrderService.OrderOut> orders, List<PlaceDto> others, List<LastOrderDto> lastOrders) {
+                            List<MobileOrderService.OrderOut> orders, List<PlaceDto> others, List<LastOrderDto> lastOrders,
+                            List<OutletCardService.StatDto> stats) {
     }
 
     /** Магазин для телефона; долг и последняя оплата — если заполнены (DebtService). */
@@ -116,7 +119,8 @@ public class AgentDataService {
                         p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
                 routeDtos,
                 outlets.values().stream().map(AgentDataService::outlet).toList(),
-                visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()), lastOrders(companyId));
+                visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()), lastOrders(companyId),
+                cards.stats(companyId));
     }
 
     private List<PlaceDto> others(Set<Long> mine) {

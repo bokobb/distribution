@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:distribution_mobile/api/api_client.dart';
 import 'package:distribution_mobile/format.dart';
 import 'package:distribution_mobile/location.dart';
@@ -98,6 +100,10 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
+    // подложка карты кладёт плитки в папку кеша — в тесте временная
+    final cache = Directory.systemTemp.createTempSync('tiles').path;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'), (call) async => cache);
   });
 
   testWidgets('пустые поля: подсказки, на сервер не идём', (t) async {
@@ -282,26 +288,42 @@ void main() {
     expect(find.text('Нет связи с сервером. Данные сегодня в 09:15'), findsOneWidget);
   });
 
-  testWidgets('карточка магазина с карты: долг, лимит, прайс, адрес', (t) async {
+  testWidgets('«Магазины»: у кого стоите — карточка снизу; «Карточка» — долг, что берёт, история', (t) async {
     final server = FakeServer();
-    // «Арай» — в стороне от остальных, чтобы точку можно было нажать
-    final arai = (server.agentData['outlets'] as List).first as Map<String, dynamic>;
-    arai['lat'] = 42.35;
     await t.pumpWidget(DistributionApp(location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
 
     await openTab(t, 'Магазины');
-    await t.tap(find.byTooltip('Магазин «Арай»'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Открыть магазин'));
-    await t.pumpAndSettle();
+    expect(find.text('Магазин «Арай»'), findsOneWidget);
+    expect(find.text('ул. Байтурсынова, 1 · вы у магазина'), findsOneWidget);
+    expect(find.text('Просрочено ${money(12000)}'), findsOneWidget);
+    expect(find.text('Долг ${money(45000)}'), findsOneWidget);
 
-    expect(find.text('45 000 ₸'), findsOneWidget);
-    expect(find.text('Просрочено'), findsOneWidget);
-    expect(find.text('100 000 ₸'), findsOneWidget);
-    expect(find.text('7 дней'), findsOneWidget);
+    await t.tap(find.text('Карточка'));
+    await t.pumpAndSettle();
+    expect(find.text('ИП Магазин «Арай» · ул. Байтурсынова, 1'), findsOneWidget);
+    expect(find.text('Вы у магазина'), findsOneWidget);
     expect(find.text('Опт'), findsOneWidget);
-    expect(find.text('ул. Байтурсынова, 1'), findsOneWidget);
+    expect(find.text('В базе с марта 2025'), findsOneWidget);
+    expect(find.byTooltip('Позвонить в магазин'), findsOneWidget);
+    expect(find.text('Долг магазина'), findsOneWidget);
+    expect(find.text('лимит ${money(100000)} · отсрочка 7 дней'), findsOneWidget);
+    expect(find.text(money(45000)), findsOneWidget);
+    expect(find.text('Просрочено ${money(12000)}'), findsOneWidget);
+    expect(find.text('${money(30400)} · раз в неделю'), findsOneWidget);
+    expect(find.text('3% от заказов · в основном срок годности'), findsOneWidget);
+    expect(find.textContaining('Вафли сливочные · '), findsOneWidget);
+    await t.scrollUntilVisible(find.text('30 сен · без заказа'), 200);
+    expect(find.text('21 окт · заказ ${money(31680)}'), findsOneWidget);
+    expect(find.text('возврат ${money(1240)} · упаковка'), findsOneWidget);
+    expect(find.text('без возврата'), findsOneWidget);
+    expect(find.text('Доставлен'), findsNWidgets(2));
+    expect(find.text('товар ещё есть'), findsOneWidget);
+
+    await t.scrollUntilVisible(find.text('Без заказа'), -200);
+    await tapVisible(t, find.text('Без заказа'));
+    await t.pump();
+    expect(find.text('Сначала начните рабочий день на главном экране'), findsOneWidget);
   });
 
   testWidgets('выход стирает данные с телефона', (t) async {
@@ -546,7 +568,7 @@ void main() {
     expect(server.trackEvents.map((e) => e['kind']), containsAll(['APP_OPEN', 'DAY_START']));
   });
 
-  testWidgets('новый магазин: форма, без сети — «ждёт отправки», после отправки — в базе «на проверке»', (t) async {
+  testWidgets('новый магазин: форма, сразу заказ без долга; без сети ждёт, после отправки — с номером сервера', (t) async {
     final server = FakeServer();
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
@@ -558,105 +580,128 @@ void main() {
 
     await tapVisible(t, find.text('Новый магазин'));
     await t.pumpAndSettle();
-    expect(find.text('Новый магазин'), findsOneWidget);
-    expect(find.text('Точка отмечена, точность 12 м'), findsOneWidget);
+    expect(find.text('Магазина нет в базе — заполните на месте'), findsOneWidget);
+    expect(find.text('Точка по GPS · точность 12 м'), findsOneWidget);
+    expect(find.text('рядом: ул. Байтурсынова, 1'), findsOneWidget);
+    expect(find.text('Не хватает: название, телефон, адрес, фото фасада'), findsOneWidget);
+    final create = find.widgetWithText(FilledButton, 'Создать и оформить заказ');
+    expect(t.widget<FilledButton>(create).onPressed, isNull);
 
-    final save = find.text('Сохранить магазин');
-    await tapVisible(t, save);
-    await t.pumpAndSettle();
-    expect(find.text('Введите название'), findsOneWidget);
-    expect(find.text('Введите телефон'), findsOneWidget);
+    // поле по подсказке в нём; список строит только видимое — сначала прокрутить
+    Future<void> type(String hint, String text) async {
+      final f = find.widgetWithText(TextField, hint).first;
+      await t.scrollUntilVisible(f, 100, scrollable: find.byType(Scrollable).first);
+      await t.enterText(f, text);
+      await t.pump();
+    }
 
-    await t.enterText(find.widgetWithText(TextFormField, 'Название *'), 'Магазин «Нур»');
-    await t.enterText(find.widgetWithText(TextFormField, 'Телефон *'), '8 701 555 44');
-    await t.enterText(find.widgetWithText(TextFormField, 'БИН / ИИН'), '1234');
-    await tapVisible(t, save);
-    await t.pumpAndSettle();
+    await type('Например, «Береке-2»', 'Магазин «Нур»');
+    await type('+7 7__ ___ __ __', '8 701 555 44');
     expect(find.text('+7 и 10 цифр, например +7 701 123 45 67'), findsOneWidget);
-    expect(find.text('12 цифр'), findsOneWidget);
-
-    await t.enterText(find.widgetWithText(TextFormField, 'Телефон *'), '8 701 555 44 33');
-    await t.enterText(find.widgetWithText(TextFormField, 'БИН / ИИН'), '123456789012');
-    await tapVisible(t, save);
-    await t.pump();
-    expect(find.text('Укажите адрес или ориентир'), findsOneWidget);
-
-    await t.enterText(find.widgetWithText(TextFormField, 'Ориентир (в селе вместо адреса)'), 'у мечети');
+    await type('+7 7__ ___ __ __', '8 701 555 44 33');
+    await type('Имя продавца или хозяина', 'Айдос Н.');
+    await type('Улица, дом — напротив чего', 'у мечети');
     await tapVisible(t, find.text('Розница'));
-    await tapVisible(t, find.text('Фото фасада'));
+    await tapVisible(t, find.text('Фото фасада *'));
     await settleIo(t);
-    expect(find.text('Переснять фасад'), findsOneWidget);
+    expect(find.text('Фото есть'), findsOneWidget);
+    expect(find.text('Магазин сразу появится у вас, руководитель проверит'), findsOneWidget);
 
     server.offline = true;
-    await tapVisible(t, save);
+    await tapVisible(t, create);
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await t.pumpAndSettle();
-    expect(find.text('Магазин сохранён. После отправки он появится в базе «на проверке»'), findsOneWidget);
-    await t.pageBack();
+    expect(find.text('Магазин «Нур»'), findsOneWidget); // заказ — сразу в нём
+    await tapVisible(t, find.text('Добавить позицию'));
     await t.pumpAndSettle();
+    expect(inSheet(find.text('${money(600)} / шт · 12 шт в кор')), findsOneWidget); // розница
+    await t.tap(inSheet(find.text('Печенье овсяное')));
+    await t.pump();
+    await t.tap(find.text('В заказ · 1 кор'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Далее'));
+    await t.pumpAndSettle();
+    expect(find.text('В долг'), findsNothing); // первый заказ нового магазина — без долга
+    await tapVisible(t, find.text('Отправить заказ'));
+    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await t.pumpAndSettle();
+
     expect(header('Сегодня'), findsOneWidget);
     expect(find.text('Новые магазины'), findsOneWidget);
     expect(find.text('Ждёт отправки · у мечети'), findsOneWidget);
-
-    await openSend(t);
-    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
-    await t.pumpAndSettle();
-    expect(find.text('Новые магазины'), findsOneWidget);
-    expect(find.text('Фото'), findsOneWidget);
+    expect(find.text('Магазин «Нур»'), findsNWidgets(2)); // и в «Визитах сегодня»
 
     server.offline = false;
+    await openSend(t);
     await t.tap(find.text('Отправить сейчас'));
-    await settleIo(t);
+    await settleIo(t, rounds: 2);
     expect(find.text('Всё отправлено'), findsOneWidget);
     final sent = server.outlets.values.single;
-    expect([sent['name'], sent['phone'], sent['bin'], sent['landmark'], sent['priceKind'], sent['routeId'], sent['lat']],
-        ['Магазин «Нур»', '8 701 555 44 33', '123456789012', 'у мечети', 'RETAIL', 1, 42.3]);
+    expect([sent['name'], sent['phone'], sent['owner'], sent['address'], sent['priceKind'], sent['routeId'], sent['lat']],
+        ['Магазин «Нур»', '8 701 555 44 33', 'Айдос Н.', 'у мечети', 'RETAIL', 1, 42.3]);
     expect(server.facades.values.single, FakeCamera.jpeg);
+    expect(server.visits.values.single['outletId'], 100);
+    expect([server.orders.values.single['outletId'], server.orders.values.single['payment']], [100, 'CASH']);
 
     await t.pageBack();
     await settleIo(t);
     await openTab(t, 'Сегодня');
     expect(find.text('Новые магазины'), findsNothing);
-    await tapVisible(t, find.text('Создать заказ'));
-    await t.pumpAndSettle();
-    await t.enterText(find.byType(TextField), 'нур');
-    await t.pump();
     expect(find.text('Магазин «Нур»'), findsOneWidget);
-    expect(find.text('На проверке'), findsOneWidget);
   });
 
-  testWidgets('карта: все магазины компании, филиал и «Мои», свой открывается', (t) async {
+  testWidgets('«Магазины»: фильтры с числом, поиск по карте, список с фильтрами, чужой — без долга', (t) async {
     final server = FakeServer();
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
 
     await openTab(t, 'Магазины');
-    expect(find.text('5 точек'), findsOneWidget);
-    expect(find.text('Все филиалы'), findsOneWidget);
+    Finder chip(String text) => find.text(text, findRichText: true);
+    expect(chip('Все  6'), findsOneWidget);
+    expect(chip('Не был 7+ дней  3'), findsOneWidget); // «Береке» 10 дней, «Сайрам» ни разу, «Ак жол» 8 дней
+    expect(chip('Просрочка  1'), findsOneWidget);
+    expect(chip('Новые  1'), findsOneWidget);
 
-    await t.tap(find.text('Мои'));
+    await t.enterText(find.byType(TextField), 'ак жол');
     await t.pumpAndSettle();
-    expect(find.text('3 точки'), findsOneWidget);
-    await t.tap(find.text('Все'));
+    expect(find.text('1 магазин на карте'), findsOneWidget);
+    expect(find.text('Магазин «Ак жол»'), findsOneWidget);
+    expect(find.text('Средний заказ ${money(13900)}'), findsOneWidget);
+    expect(find.text('Не был 8 дней'), findsOneWidget);
+    await t.enterText(find.byType(TextField), 'нет такого');
     await t.pumpAndSettle();
-    await t.tap(find.text('Сайрам'));
-    await t.pumpAndSettle();
-    expect(find.text('2 точки'), findsOneWidget);
+    expect(find.text('В базе такого нет'), findsOneWidget);
+    expect(find.text('Создать новый'), findsOneWidget);
 
-    await t.tap(find.byTooltip('Магазин «Ак жол»'));
+    await t.tap(find.text('Список'));
     await t.pumpAndSettle();
-    expect(find.text('Сайрам · магазин другого торгового'), findsOneWidget);
-    expect(find.text('Открыть магазин'), findsNothing);
-    await t.tapAt(const Offset(400, 50));
+    expect(find.text('6 в базе · ближние сверху'), findsOneWidget);
+    expect(find.text('Магазин «Сосед»'), findsOneWidget);
+    await t.tap(find.text('С долгом'));
     await t.pumpAndSettle();
-
-    await t.tap(find.byTooltip('Магазин «Сайрам»'));
+    expect(find.text('Магазин «Арай»'), findsOneWidget);
+    expect(find.text('Просрочено ${money(12000)}'), findsOneWidget);
+    expect(find.text('Магазин «Береке»'), findsNothing);
+    await t.tap(find.text('Новые'));
     await t.pumpAndSettle();
-    expect(find.text('Сайрам · ваш магазин'), findsOneWidget);
-    await t.tap(find.text('Открыть магазин'));
+    expect(find.text('Магазин «Без точки»'), findsOneWidget);
+    expect(find.text('На проверке'), findsOneWidget);
+    await t.tap(find.text('Рядом'));
     await t.pumpAndSettle();
-    expect(find.text('Начать визит'), findsOneWidget);
+    await t.enterText(find.byType(TextField), 'сосед');
+    await t.pumpAndSettle();
+    await t.tap(find.text('Магазин «Сосед»'));
+    await t.pumpAndSettle();
+    expect(find.text('Гульнара М. · ул. Абая, 1'), findsOneWidget);
+    expect(find.text('Розница'), findsOneWidget);
+    expect(find.text('Долг магазина'), findsNothing); // чужой
+    expect(find.byTooltip('Позвонить в магазин'), findsNothing);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await t.tap(find.text('Карта'));
+    await t.pumpAndSettle();
+    expect(chip('Все  6'), findsOneWidget);
   });
 
   testWidgets('экспедитор: «Доставки» — следующая точка раскрыта, звонок и «Поехали», доставленные и завтрашний рейс',

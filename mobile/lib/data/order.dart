@@ -28,7 +28,9 @@ class Order {
 
   final String uuid;
   final String? visitUuid;
-  final int outletId;
+
+  /// Как у визита: у нового магазина до отправки — номер с телефона.
+  int outletId;
   final DateTime createdAt;
 
   /// День доставки (без времени).

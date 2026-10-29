@@ -8,15 +8,15 @@ import '../session.dart';
 import '../visits.dart';
 import '../widgets/layout.dart';
 import '../workday.dart';
-import 'agent_map_screen.dart';
 import 'agent_today_tab.dart';
 import 'home_parts.dart';
 import 'profile_screen.dart';
+import 'shops_tab.dart';
 
-/// Главный экран торгового: разделы «Сегодня» (создать заказ, итоги и визиты дня), «Магазины» (карта) и
-/// «Профиль». Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем, что есть.
-/// Новый магазин, пока не ушёл на сервер, — в списке «Новые магазины»; сервер принял — данные обновляются, и он в
-/// базе «на проверке».
+/// Главный экран торгового: разделы «Сегодня» (создать заказ, итоги и визиты дня), «Магазины» (карта и список
+/// всей базы) и «Профиль». Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем,
+/// что есть. Новый магазин с телефона сразу в базе (в нём можно оформить заказ) и в «Новых магазинах», пока не ушёл
+/// на сервер; сервер принял — данные обновляются, и он в базе «на проверке» уже с сервера.
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen(
       {super.key,
@@ -43,8 +43,12 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   bool _loading = true;
   String? _syncError;
 
-  /// Новые магазины на телефоне, которые ещё не на сервере (или сервер не принял).
+  /// Новые магазины на телефоне: все — к данным с сервера; ещё не на сервере (или сервер не принял) — на «Сегодня».
+  List<NewOutlet> _local = const [];
   List<NewOutlet> _newOutlets = const [];
+
+  /// Данные с сервера вместе с новыми магазинами с телефона.
+  AgentData? _view;
   /// Сколько новых магазинов сервер уже принял, когда экран последний раз брал данные.
   late int _outletsAdded;
 
@@ -73,8 +77,13 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   }
 
   Future<void> _loadNewOutlets() async {
-    final list = [for (final o in await widget.visits.outbox.store.newOutlets()) if (!o.sent || o.error != null) o];
-    if (mounted) setState(() => _newOutlets = list);
+    final all = await widget.visits.outbox.store.newOutlets();
+    if (!mounted) return;
+    setState(() {
+      _local = all;
+      _newOutlets = [for (final o in all) if (!o.sent || o.error != null) o];
+      _view = _data?.withLocal(all);
+    });
   }
 
   Future<void> _start() async {
@@ -104,7 +113,10 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
 
   /// Данные на экран; интервал GPS — из настроек компании, визиты с сервера — к телефонным.
   void _show(AgentData? data) {
-    setState(() => _data = data);
+    setState(() {
+      _data = data;
+      _view = data?.withLocal(_local);
+    });
     if (data == null) return;
     widget.workday.setInterval(Duration(minutes: data.settings.gpsInterval));
     widget.visits.serverVisits(data);
@@ -112,7 +124,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final data = _data;
+    final data = _view;
     return HomeShell(
       tabs: const [
         TabItem('Сегодня', Icons.today_outlined, Icons.today),
@@ -136,7 +148,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
                     icon: Icons.cloud_off_outlined,
                     title: 'Нет данных',
                     text: 'Подключитесь к интернету и обновите «Сегодня», чтобы получить магазины.'))
-            : AgentMapScreen(data: data, visits: widget.visits, workday: widget.workday),
+            : ShopsTab(data: data, visits: widget.visits, workday: widget.workday),
         ProfileTab(
           api: widget.repo.api,
           session: widget.session,

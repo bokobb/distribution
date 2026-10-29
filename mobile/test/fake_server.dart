@@ -66,6 +66,9 @@ class FakeServer {
   /// Возвраты негодного по uuid — что пришло; принятый уменьшает долг магазина по оптовой цене товара.
   final returns = <String, Map<String, dynamic>>{};
 
+  /// Карточки магазинов (/outlets/{id}/card): id → что отдаёт сервер; нет — пустая карточка.
+  final cards = <int, Map<String, dynamic>>{1: sampleCard()};
+
   final requests = <http.Request>[];
   String? _jwt;
   int _seq = 0;
@@ -91,6 +94,14 @@ class FakeServer {
       if (!deliveries.containsKey(proof[1])) return _json({'message': 'Не найдено'}, 404);
       proofs[proof[1]!] = (r.headers['content-type'], r.bodyBytes);
       return http.Response('', 204);
+    }
+    final card = RegExp(r'^/api/mobile/agent/outlets/(-?\d+)/card$').firstMatch(r.url.path);
+    if (card != null) {
+      if (!authed) return _json({'message': 'Войдите заново'}, 401);
+      return _json(cards[int.parse(card[1]!)] ?? {
+        'outletId': int.parse(card[1]!), 'createdOn': '2026-10-28', 'avgOrder': 0, 'orders8w': 0, 'ordered': 0,
+        'returned': 0, 'returnReason': null, 'stopped': null, 'stoppedSince': null, 'history': [],
+      }, 200);
     }
     final facade = RegExp(r'^/api/mobile/agent/outlets/([^/]+)/photo$').firstMatch(r.url.path);
     if (facade != null) {
@@ -386,5 +397,27 @@ Map<String, dynamic> sampleAgentData({DateTime? now}) {
     'lastOrders': [
       {'outletId': 1, 'date': '2026-10-21', 'items': [{'productId': 1, 'qty': 24}, {'productId': 2, 'qty': 40}]},
     ],
+    'stats': [
+      {'outletId': 1, 'lastVisit': d(t.subtract(const Duration(days: 1))), 'avgOrder': 30400, 'createdOn': '2025-03-12'},
+      {'outletId': 2, 'lastVisit': d(t.subtract(const Duration(days: 10))), 'avgOrder': 0, 'createdOn': '2025-05-02'},
+      {'outletId': 3, 'lastVisit': null, 'avgOrder': 0, 'createdOn': '2025-06-20'},
+      {'outletId': 10, 'lastVisit': d(t.subtract(const Duration(days: 2))), 'avgOrder': 24600, 'createdOn': '2025-01-15'},
+      {'outletId': 11, 'lastVisit': d(t.subtract(const Duration(days: 8))), 'avgOrder': 13900, 'createdOn': '2025-02-01'},
+      {'outletId': 12, 'lastVisit': null, 'avgOrder': 0, 'createdOn': '2026-10-24'},
+    ],
   };
 }
+
+/// Карточка «Арай»: средний заказ, раз в неделю, возвраты 3 %, перестал брать вафли; заказ с возвратом и визит без заказа.
+Map<String, dynamic> sampleCard() => {
+      'outletId': 1, 'createdOn': '2025-03-12', 'avgOrder': 30400, 'orders8w': 8, 'ordered': 400000,
+      'returned': 12000, 'returnReason': 'EXPIRED', 'stopped': 'Вафли сливочные', 'stoppedSince': '2026-10-07',
+      'history': [
+        {'at': '2026-10-21T10:15:00', 'kind': 'ORDER', 'orderTotal': 31680, 'returnTotal': 1240,
+          'returnReason': 'PACKAGING', 'status': 'DELIVERED', 'statusLabel': 'Доставлен', 'reason': null},
+        {'at': '2026-10-14T11:00:00', 'kind': 'ORDER', 'orderTotal': 29400, 'returnTotal': 0, 'returnReason': null,
+          'status': 'DELIVERED', 'statusLabel': 'Доставлен', 'reason': null},
+        {'at': '2026-09-30T12:40:00', 'kind': 'NO_ORDER', 'orderTotal': 0, 'returnTotal': 0, 'returnReason': null,
+          'status': null, 'statusLabel': null, 'reason': 'Товар ещё есть'},
+      ],
+    };

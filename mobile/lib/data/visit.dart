@@ -22,7 +22,9 @@ class Visit {
   });
 
   final String uuid;
-  final int outletId;
+
+  /// Новый магазин, который ещё не на сервере, — номер с телефона (минус); при отправке меняется на серверный.
+  int outletId;
   final int? routeId;
   final DateTime startedAt;
   DateTime? finishedAt;

@@ -95,6 +95,8 @@ public class MobileOrderService {
                 .orElseThrow(() -> new FormException("Магазин не найден — обновите данные на телефоне"));
         if (outlet.getStatus() == OutletStatus.CLOSED) throw new FormException("Магазин закрыт — заказ не принят");
         PaymentMethod payment = payment(in.payment(), st);
+        if (payment == PaymentMethod.CREDIT && outlet.getStatus() == OutletStatus.PENDING)
+            throw new FormException("Магазин ещё на проверке — первый заказ без долга: наличные или Kaspi");
         LocalDate delivery = in.deliveryDate() == null ? at.toLocalDate().plusDays(st.getDeliveryDays()) : in.deliveryDate();
         if (delivery.isBefore(at.toLocalDate()) || delivery.isAfter(at.toLocalDate().plusDays(MAX_DELIVERY_DAYS)))
             throw new FormException("Дата доставки — с дня заказа и не дальше " + MAX_DELIVERY_DAYS + " дней");

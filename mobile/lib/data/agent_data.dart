@@ -1,13 +1,15 @@
+import 'new_outlet.dart';
 import 'order.dart';
 import 'visit.dart';
 
 /// Данные торгового агента с сервера (/api/mobile/agent/data): настройки компании, товары с ценами на день
 /// синхронизации, маршруты агента, его магазины с долгами, его визиты и заказы за этот день, остальные магазины
-/// компании (заказ принимают в любом — без долгов) и последний заказ каждого магазина. Хранятся на телефоне
-/// целиком, обновляются целиком.
+/// компании (заказ принимают в любом — без долгов), последний заказ каждого магазина и сводка по магазинам для карты.
+/// Хранятся на телефоне целиком, обновляются целиком. К ним добавляются новые магазины с телефона ([withLocal]).
 class AgentData {
   AgentData._(this.json, this.date, this.syncedAt, this.settings, this.products, this.routes, this.outlets,
-      this.visits, this.orders, this.others, this.lastOrders);
+      this.visits, this.orders, this.others, this.lastOrders, this.stats,
+      [this.local = const []]);
 
   /// Как пришло с сервера — так и хранится на телефоне.
   final Map<String, dynamic> json;
@@ -30,13 +32,38 @@ class AgentData {
   /// Последний заказ магазина: id магазина → заказ.
   final Map<int, LastOrder> lastOrders;
 
+  /// Последний визит, средний заказ, день в базе: id магазина → сводка.
+  final Map<int, OutletStat> stats;
+
+  /// Новые магазины с телефона (не отклонённые сервером).
+  final List<NewOutlet> local;
+
   Product? product(int id) => products.where((p) => p.id == id).firstOrNull;
 
-  /// Вся база: свои магазины, потом чужие (без долгов).
-  late final List<Outlet> base = [...outlets.values, for (final p in others) p.asOutlet()];
+  /// Вся база: свои магазины, чужие (без долгов) и новые с телефона, которых в данных с сервера ещё нет.
+  late final List<Outlet> base = [
+    ...outlets.values,
+    for (final p in others) p.asOutlet(),
+    for (final n in local)
+      if (n.serverId == null || !outlets.containsKey(n.serverId) && !others.any((p) => p.id == n.serverId)) n.asOutlet(),
+  ];
+
+  /// id → магазин; новый магазин находится и по номеру с телефона — визит начат до того, как его принял сервер.
+  late final Map<int, Outlet> _byId = () {
+    final byId = {for (final o in base) o.id: o};
+    for (final n in local) {
+      final o = byId[n.serverId ?? n.localId];
+      if (o != null) byId[n.localId] = o;
+    }
+    return byId;
+  }();
 
   /// Магазин из всей базы.
-  Outlet? outlet(int id) => outlets[id] ?? base.where((o) => o.id == id).firstOrNull;
+  Outlet? outlet(int id) => _byId[id];
+
+  /// Те же данные с новыми магазинами с телефона.
+  AgentData withLocal(List<NewOutlet> list) => AgentData._(json, date, syncedAt, settings, products, routes, outlets,
+      visits, orders, others, lastOrders, stats, [for (final n in list) if (n.error == null) n]);
 
   factory AgentData.fromJson(Map<String, dynamic> json) {
     final outlets = <int, Outlet>{};
@@ -59,43 +86,15 @@ class AgentData {
         for (final l in json['lastOrders'] as List? ?? const [])
           (l as Map<String, dynamic>)['outletId'] as int: LastOrder.fromJson(l),
       },
+      {
+        for (final st in json['stats'] as List? ?? const [])
+          (st as Map<String, dynamic>)['outletId'] as int: OutletStat.fromJson(st),
+      },
     );
   }
 
-  /// Маршруты, которые обходят в этот день недели (1 — понедельник … 7 — воскресенье).
-  List<RouteInfo> routesOn(int weekday) => routes.where((r) => r.days.contains(weekday)).toList();
-
-  /// Магазины маршрута по порядку обхода.
-  List<Outlet> outletsOf(RouteInfo route) => [for (final id in route.outletIds) ?outlets[id]];
-
   /// Первый маршрут агента, в котором есть магазин.
   RouteInfo? routeOf(int outletId) => routes.where((r) => r.outletIds.contains(outletId)).firstOrNull;
-
-  /// Филиалы, где есть магазины, — для фильтра карты.
-  List<String> get regions => {
-        for (final r in routes) ?r.region,
-        for (final p in others) ?p.region,
-      }.toList()
-        ..sort();
-
-  /// Точки для карты: свои магазины и (если не [mineOnly]) остальные; [region] — только этого филиала.
-  /// Магазины без точки на карту не попадают.
-  List<MapPoint> mapPoints({String? region, bool mineOnly = false}) => [
-        for (final o in outlets.values)
-          if (o.lat != null && o.lng != null && (region == null || routeOf(o.id)?.region == region))
-            MapPoint(
-                id: o.id,
-                name: o.name,
-                place: o.address ?? o.landmark,
-                lat: o.lat!,
-                lng: o.lng!,
-                region: routeOf(o.id)?.region,
-                mine: o),
-        if (!mineOnly)
-          for (final p in others)
-            if (p.lat != null && p.lng != null && (region == null || p.region == region))
-              MapPoint(id: p.id, name: p.name, place: p.address ?? p.landmark, lat: p.lat!, lng: p.lng!, region: p.region),
-      ];
 }
 
 /// Магазин другого торгового: название, адрес, владелец, прайс и точка (может не быть), без долгов и телефонов.
@@ -172,20 +171,20 @@ class LastOrder {
       );
 }
 
-/// Точка на карте агента; [mine] — свой магазин (с долгом и визитом), null — другого торгового.
-class MapPoint {
-  const MapPoint(
-      {required this.id, required this.name, this.place, required this.lat, required this.lng, this.region, this.mine});
+/// Сводка по магазину для карты и списка: когда в нём последний раз были (любой торговый), средний заказ за 90 дней
+/// (0 — заказов не было) и с какого дня он в базе.
+class OutletStat {
+  const OutletStat({this.lastVisit, required this.avgOrder, required this.createdOn});
 
-  final int id;
-  final String name;
+  final DateTime? lastVisit;
+  final int avgOrder;
+  final DateTime createdOn;
 
-  /// Адрес или ориентир.
-  final String? place;
-  final double lat;
-  final double lng;
-  final String? region;
-  final Outlet? mine;
+  factory OutletStat.fromJson(Map<String, dynamic> j) => OutletStat(
+        lastVisit: j['lastVisit'] == null ? null : DateTime.parse(j['lastVisit'] as String),
+        avgOrder: j['avgOrder'] as int,
+        createdOn: DateTime.parse(j['createdOn'] as String),
+      );
 }
 
 class AgentSettings {

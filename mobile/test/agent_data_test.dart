@@ -13,40 +13,53 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'fake_server.dart';
 
 void main() {
-  test('маршруты дня и магазины по порядку обхода', () {
-    final now = DateTime(2026, 10, 28); // среда
+  test('данные агента: товары с ценами, маршрут магазина, сводка для карты', () {
+    final now = DateTime(2026, 10, 28);
     final data = AgentData.fromJson(sampleAgentData(now: now));
 
-    expect(data.routesOn(3).map((r) => r.name), ['Центр']);
-    expect(data.routesOn(4).map((r) => r.name), ['Сайрам']);
-    expect(data.routesOn(1), isEmpty);
-    expect(data.outletsOf(data.routesOn(3).single).map((o) => o.name), ['Магазин «Береке»', 'Магазин «Арай»']);
     expect(data.outlets[1]!.debt, 45000);
     expect(data.product(1)!.priceFor('RETAIL'), 600);
     expect(data.product(1)!.priceFor('WHOLESALE'), 500);
     expect(data.settings.visitRadius, 200);
+    expect(data.routeOf(3)?.name, 'Сайрам');
+    expect([data.stats[1]!.lastVisit, data.stats[1]!.avgOrder], [DateTime(2026, 10, 27), 30400]);
+    expect(data.stats[3]!.lastVisit, isNull);
+    expect(data.stats[12]!.createdOn, DateTime(2026, 10, 24));
+
+    // старые данные на телефоне — без others и сводки
+    final old = AgentData.fromJson(sampleAgentData()
+      ..remove('others')
+      ..remove('stats'));
+    expect([old.others, old.stats], [isEmpty, isEmpty]);
   });
 
-  test('карта: свои и чужие магазины, филиал, «Мои»; без точки — не на карте', () {
+  test('новый магазин с телефона: в базе с номером телефона, после приёма — с номером сервера', () {
+    final data = AgentData.fromJson(sampleAgentData());
+    final fresh = NewOutlet(
+        uuid: 'n-1', createdAt: DateTime(2026, 10, 28, 10, 5), name: 'Магазин «Береке-2»', phone: '+77011234567',
+        address: 'ул. Сейфуллина, 40', lat: 42.3, lng: 69.6, priceKind: 'RETAIL');
+    final rejected = NewOutlet(
+        uuid: 'n-2', createdAt: DateTime(2026, 10, 28, 10, 6), name: 'Отклонён', phone: '+77011234568', error: 'Дубль');
+
+    final local = data.withLocal([fresh, rejected]);
+    expect(fresh.localId, isNegative);
+    expect(local.base.map((o) => o.id), [1, 2, 3, 10, 11, 12, fresh.localId]);
+    final o = local.outlet(fresh.localId)!;
+    expect([o.name, o.mine, o.pending, o.debt, o.priceKind], ['Магазин «Береке-2»', true, true, 0, 'RETAIL']);
+    expect(data.base, hasLength(6), reason: 'исходные данные не меняются');
+
+    // сервер принял, данные ещё старые — номер сервера, по номеру телефона тоже находится
+    fresh.serverId = 100;
+    final accepted = data.withLocal([fresh]);
+    expect(accepted.base.last.id, 100);
+    expect(accepted.outlet(fresh.localId)!.id, 100);
+
+    // данные обновились — магазин уже с сервера, без дубля
     final json = sampleAgentData();
-    (json['outlets'] as List).add({...(json['outlets'] as List).first as Map<String, dynamic>, 'id': 4, 'lat': null});
-    (json['routes'] as List).first['outlets'] = [2, 1, 4];
-    final data = AgentData.fromJson(json);
-
-    expect(data.regions, ['Сайрам', 'Шымкент']);
-    expect(data.mapPoints().map((p) => p.id), [1, 2, 3, 10, 11]);
-    expect(data.mapPoints(mineOnly: true).map((p) => p.id), [1, 2, 3]);
-    expect(data.mapPoints(region: 'Сайрам').map((p) => p.id), [3, 11]);
-    expect(data.mapPoints(region: 'Сайрам', mineOnly: true).map((p) => p.id), [3]);
-
-    final other = data.mapPoints().last;
-    expect([other.mine, other.place, other.region], [null, 'у трассы', 'Сайрам']);
-    final mine = data.mapPoints().first;
-    expect([mine.mine?.debt, mine.region], [45000, 'Шымкент']);
-    expect(data.routeOf(3)?.name, 'Сайрам');
-
-    // старые данные на телефоне — без others
-    expect(AgentData.fromJson(sampleAgentData()..remove('others')).others, isEmpty);
+    (json['outlets'] as List).add({...(json['outlets'] as List).first as Map<String, dynamic>, 'id': 100, 'name': 'С сервера'});
+    final synced = AgentData.fromJson(json).withLocal([fresh]);
+    expect(synced.base.where((o) => o.id == 100).map((o) => o.name), ['С сервера']);
+    expect(synced.outlet(fresh.localId)!.name, 'С сервера');
   });
 
   test('вся база: свои с долгами, чужие без долгов и с прайсом; последний заказ магазина', () {
