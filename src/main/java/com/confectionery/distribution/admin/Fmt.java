@@ -56,6 +56,11 @@ public class Fmt {
         return d == null ? "—" : d.format(DATE);
     }
 
+    /** С заглавной: «Вторник, 28 октября». */
+    public String cap(String s) {
+        return s == null || s.isEmpty() ? s : s.substring(0, 1).toUpperCase(RU) + s.substring(1);
+    }
+
     /** «28 окт», «вчера», «сегодня», «завтра». */
     public String day(LocalDate d) {
         if (d == null) return "—";

@@ -67,7 +67,7 @@ public class AdminSystemController {
         List<CrmSync.CrmClient> clients = crm.clients();
         model.addAttribute("rows", rows);
         model.addAttribute("crmOn", crm.enabled());
-        model.addAttribute("crmOk", crm.enabled() && crm.lastOk() != null && crm.lastError() == null);
+        model.addAttribute("crmOk", crm.enabled() && crm.lastError() == null);
         model.addAttribute("crmError", crm.lastError());
         model.addAttribute("crmKey", crmKey == null || crmKey.isBlank() ? null : "••••" + crmKey.strip().substring(Math.max(0, crmKey.strip().length() - 4)));
         model.addAttribute("crmClients", clients);

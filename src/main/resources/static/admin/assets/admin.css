@@ -136,6 +136,7 @@ a:hover{color:var(--accent)}
 .card--new{outline:1.5px dashed var(--accent);outline-offset:3px}
 .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));align-items:start}
 .grid-wide{display:grid;gap:20px;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);align-items:start}
+.grid-2{display:grid;gap:20px;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
 .stack{display:flex;flex-direction:column;gap:20px;min-width:0}
 
 .kpis{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
@@ -354,7 +355,7 @@ a.al:hover{background:var(--head);color:var(--ink)}
 
 /* ---------- узкие экраны ---------- */
 @media (max-width:1100px){
-  .grid-wide{grid-template-columns:minmax(0,1fr)}
+  .grid-wide,.grid-2{grid-template-columns:minmax(0,1fr)}
   .map-wrap{grid-template-columns:minmax(0,1fr)}
   .map-side{max-height:none}
 }
@@ -437,3 +438,7 @@ a.al:hover{background:var(--head);color:var(--ink)}
 .crm-pick summary::-webkit-details-marker{display:none}
 .crm-pick form{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .crm-pick select{max-width:240px}
+/* дашборд: торговый с инициалами, кнопка в «Требует внимания» */
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.who .sub{white-space:nowrap}
+.al .btn{flex:none}

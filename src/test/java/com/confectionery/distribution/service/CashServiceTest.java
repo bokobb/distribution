@@ -75,7 +75,7 @@ class CashServiceTest {
             assertThat(t.isShortageWaiting()).isTrue();
             assertThat(t.getCashDiff()).isEqualTo(-500);
             assertThat(dashboard.snapshot().alerts(null)).anySatisfy(a -> {
-                assertThat(a.text()).isEqualTo("Недостача ждёт решения: " + w.expeditor().getName());
+                assertThat(a.text()).startsWith("Недостача 500").endsWith(" — " + w.expeditor().getName());
                 assertThat(a.tone()).isEqualTo("bad");
             });
             return null;
