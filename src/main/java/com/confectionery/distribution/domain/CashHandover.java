@@ -1,6 +1,8 @@
 package com.confectionery.distribution.domain;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -34,4 +36,10 @@ public class CashHandover extends CompanyEntity {
     @JoinColumn(name = "accepted_by")
     private Employee acceptedBy;
     private LocalDateTime acceptedAt;
+    /** Недостача: на экспедитора, списана с причиной или в пределах допуска; пусто — недостачи нет или ждёт решения. */
+    @Enumerated(EnumType.STRING)
+    private ShortageDecision shortageDecision;
+    private String shortageReason;
+    private String decidedBy;
+    private LocalDateTime decidedAt;
 }

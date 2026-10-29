@@ -42,6 +42,10 @@ public class CompanySettings extends CompanyEntity {
     private boolean agentDiscount;
     /** Допустимая разница при приёме кассы, ₸. */
     private long cashTolerance;
+    /** Недостача больше допуска — рейс закрывает директор или владелец; выключено — и оператор. */
+    private boolean shortageDirector = true;
+    /** Недостачу можно записать в долг экспедитора. */
+    private boolean shortageToExpeditor = true;
     private boolean acceptKaspi = true;
     /** Создавать приход после отгрузки в CRM. */
     private boolean autoReceipt = true;

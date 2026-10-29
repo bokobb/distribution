@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Приём рейса вечером: недостача записывается на экспедитора, товар возвращается на склады. */
 @SpringBootTest
@@ -31,6 +32,8 @@ class CashServiceTest {
     TripService trips;
     @Autowired
     DashboardService dashboard;
+    @Autowired
+    CashReport report;
     @Autowired
     TransactionTemplate tx;
     @Autowired
@@ -64,8 +67,25 @@ class CashServiceTest {
     }
 
     @Test
-    void недостачаЗаписываетсяНаЭкспедитора() {
-        as(() -> cash.accept(trip.getId(), 7_500, true, true, operator()));
+    void недостачаБольшеДопуска_ждётДиректора_наЭкспедитора() {
+        as(() -> cash.accept(trip.getId(), 7_500, true, true, null, null, operator(), Role.OPERATOR));
+        as(() -> {
+            Trip t = trips.get(trip.getId());
+            assertThat(t.getStatus()).isEqualTo(TripStatus.RETURNED); // оператор не закрывает — ждёт директора
+            assertThat(t.isShortageWaiting()).isTrue();
+            assertThat(t.getCashDiff()).isEqualTo(-500);
+            assertThat(dashboard.snapshot().alerts(null)).anySatisfy(a -> {
+                assertThat(a.text()).isEqualTo("Недостача ждёт решения: " + w.expeditor().getName());
+                assertThat(a.tone()).isEqualTo("bad");
+            });
+            return null;
+        });
+        Actor director = new Actor(null, "Директор");
+        assertThatThrownBy(() -> as(() -> cash.accept(trip.getId(), 7_500, true, true, null, null, director, Role.DIRECTOR)))
+                .isInstanceOf(FormException.class).hasMessageStartingWith("Недостача больше допуска");
+        assertThatThrownBy(() -> as(() -> cash.accept(trip.getId(), 7_500, true, true, "WRITE_OFF", " ", director, Role.DIRECTOR)))
+                .isInstanceOf(FormException.class).hasMessage("Укажите причину списания недостачи");
+        as(() -> cash.accept(trip.getId(), 7_500, true, true, "EXPEDITOR", null, director, Role.DIRECTOR));
 
         as(() -> {
             Trip t = trips.get(trip.getId());
@@ -75,20 +95,33 @@ class CashServiceTest {
             assertThat(h.getKaspiExpected()).isEqualTo(2_000);
             assertThat(h.getCountedCash()).isEqualTo(7_500);
             assertThat(h.getCashDiff()).isEqualTo(-500);
+            assertThat(h.getShortageDecision()).isEqualTo(ShortageDecision.EXPEDITOR);
+            assertThat(h.getDecidedBy()).isEqualTo("Директор");
             assertThat(h.getExpeditor()).isEqualTo(w.expeditor());
-            assertThat(h.getAcceptedBy()).isEqualTo(w.operator());
-            assertThat(t.getCashDiff()).isEqualTo(-500);
-            assertThat(dashboard.snapshot().alerts(null)).anySatisfy(a -> {
-                assertThat(a.text()).isEqualTo("Недостача по рейсу: " + w.expeditor().getName());
-                assertThat(a.tone()).isEqualTo("bad");
-            });
+            assertThat(dashboard.snapshot().alerts(null)).noneMatch(a -> a.text().startsWith("Недостача"));
             return null;
         });
+        assertThat(as(() -> report.expeditorDebts(w.id())).get(w.expeditor().getId())).isEqualTo(500);
+    }
+
+    @Test
+    void недостачаВПределахДопуска_закрываетОператор_списаниеСПричиной() {
+        if (jdbc.update("update company_settings set cash_tolerance = 500 where company_id = ?", w.id()) == 0)
+            jdbc.update("insert into company_settings (company_id, cash_tolerance) values (?, 500)", w.id());
+        as(() -> cash.accept(trip.getId(), 7_600, true, true, null, null, operator(), Role.OPERATOR));
+        as(() -> {
+            CashHandover h = trips.get(trip.getId()).getHandover();
+            assertThat(trips.get(trip.getId()).getStatus()).isEqualTo(TripStatus.CLOSED);
+            assertThat(h.getShortageDecision()).isEqualTo(ShortageDecision.TOLERANCE);
+            assertThat(h.getAcceptedBy()).isEqualTo(w.operator());
+            return null;
+        });
+        assertThat(as(() -> report.expeditorDebts(w.id()))).doesNotContainKey(w.expeditor().getId());
     }
 
     @Test
     void товарВозвращаетсяНаСклады() {
-        as(() -> cash.accept(trip.getId(), 8_000, true, true, operator()));
+        as(() -> cash.accept(trip.getId(), 8_000, true, true, null, null, operator(), Role.OPERATOR));
         // загружено 10, выдано 8: 2 — на основной (100 − 10 + 2), 1 негодная — на склад негодного, машина пуста
         assertThat(data.balance(w.main(), w.product())).isEqualTo(92);
         assertThat(data.balance(w.defect(), w.product())).isEqualTo(1);
@@ -102,7 +135,7 @@ class CashServiceTest {
 
     @Test
     void безСверкиKaspiРейсНеЗакрывается() {
-        as(() -> cash.accept(trip.getId(), 8_000, false, true, operator()));
+        as(() -> cash.accept(trip.getId(), 8_000, false, true, null, null, operator(), Role.OPERATOR));
         as(() -> {
             Trip t = trips.get(trip.getId());
             assertThat(t.getStatus()).isEqualTo(TripStatus.RETURNED);
@@ -112,7 +145,7 @@ class CashServiceTest {
             return null;
         });
         // повторный приём не возвращает товар второй раз
-        as(() -> cash.accept(trip.getId(), 8_000, true, true, operator()));
+        as(() -> cash.accept(trip.getId(), 8_000, true, true, null, null, operator(), Role.OPERATOR));
         assertThat(data.balance(w.main(), w.product())).isEqualTo(92);
         as(() -> {
             assertThat(trips.get(trip.getId()).getStatus()).isEqualTo(TripStatus.CLOSED);
@@ -128,7 +161,7 @@ class CashServiceTest {
             assertThat(t.isWaitingCash()).isTrue(); // единственная точка пройдена
             return null;
         });
-        as(() -> cash.accept(trip.getId(), 8_000, true, true, operator()));
+        as(() -> cash.accept(trip.getId(), 8_000, true, true, null, null, operator(), Role.OPERATOR));
         as(() -> {
             Trip t = trips.get(trip.getId());
             assertThat(t.getStatus()).isEqualTo(TripStatus.CLOSED);
@@ -144,7 +177,7 @@ class CashServiceTest {
         Trip t2 = data.trip(w, TripStatus.ON_ROAD, missed);
         assertThat(data.balance(w.main(), w.product())).isEqualTo(87);
 
-        as(() -> cash.accept(t2.getId(), 0, true, true, operator()));
+        as(() -> cash.accept(t2.getId(), 0, true, true, null, null, operator(), Role.OPERATOR));
 
         assertThat(data.balance(w.main(), w.product())).isEqualTo(90);
         assertThat(jdbc.queryForObject("select status from orders where id = ?", String.class, missed.getId())).isEqualTo("ACCEPTED");
@@ -165,8 +198,8 @@ class CashServiceTest {
 
     @Test
     void закрытыйРейсНеМеняется() {
-        as(() -> cash.accept(trip.getId(), 8_000, true, true, operator()));
-        as(() -> cash.accept(trip.getId(), 1, true, true, operator()));
+        as(() -> cash.accept(trip.getId(), 8_000, true, true, null, null, operator(), Role.OPERATOR));
+        as(() -> cash.accept(trip.getId(), 1, true, true, null, null, operator(), Role.OPERATOR));
         as(() -> {
             assertThat(trips.get(trip.getId()).getCashCounted()).isEqualTo(8_000);
             return null;

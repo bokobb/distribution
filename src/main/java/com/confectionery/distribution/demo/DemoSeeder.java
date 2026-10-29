@@ -516,7 +516,7 @@ public class DemoSeeder implements ApplicationRunner {
             }
             if (plan[i] != TripStatus.ON_ROAD) t.setStatus(TripStatus.RETURNED).setReturnedAt(at.plusMinutes(30));
             if (plan[i] == TripStatus.CLOSED) {
-                cash.accept(t.getId(), t.getCash(), true, true, new Actor(co.operator, co.operator.getName() + " (оператор)"));
+                cash.accept(t.getId(), t.getCash(), true, true, null, null, new Actor(co.operator, co.operator.getName() + " (оператор)"), Role.OPERATOR);
                 t.setClosedAt(at.plusMinutes(50));
                 t.getHandover().setAcceptedAt(at.plusMinutes(50));
             }

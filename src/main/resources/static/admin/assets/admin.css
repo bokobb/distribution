@@ -297,6 +297,7 @@ a.al:hover{background:var(--head);color:var(--ink)}
 .diff{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;font-weight:600}
 .diff--bad{background:var(--bad-soft);color:var(--bad-ink)}
 .diff--ok{background:var(--ok-soft);color:var(--ok-ink)}
+.diff--warn{background:var(--warn-soft);color:var(--warn-ink)}
 .timeline{display:flex;flex-direction:column;gap:12px}
 .timeline li{display:grid;grid-template-columns:100px 1fr;gap:12px;font-size:14px}
 .timeline time{color:var(--ink-soft);font-variant-numeric:tabular-nums;font-size:13px}
@@ -418,3 +419,14 @@ a.al:hover{background:var(--head);color:var(--ink)}
 .savebar{position:sticky;bottom:16px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px 12px 20px;border:1px solid var(--line);border-radius:12px;background:var(--white);box-shadow:0 4px 16px rgba(16,19,24,.06);font-size:14px;color:var(--ink-soft)}
 .savebar--dirty{border-color:var(--accent-line);background:#F7F7FF;color:var(--ink)}
 @media (max-width:640px){.set-row{flex-wrap:wrap}}
+
+/* ---------- приём кассы ---------- */
+.choice{display:flex;flex-direction:column;gap:8px}
+.choice label{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--white);cursor:pointer}
+.choice label:has(input:checked){border-color:var(--accent-line);background:#F7F7FF}
+.choice input[type=radio]{margin-top:3px;accent-color:var(--accent)}
+.choice b{display:block;font-weight:600}
+.choice .hint{display:block;margin-top:2px}
+.choice .inp{margin-top:8px;width:100%}
+.big-sum{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.big-sum b{font:600 22px/28px var(--body);font-variant-numeric:tabular-nums}

@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!--/* «Приём кассы» (design/admin/AdmCash): пересчёт наличных оператором, сверка Kaspi, приём товара; недостача больше
+     допуска — решение директора или владельца. Справа — итог рейса, недостачи за месяц и касса сегодня. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
@@ -6,54 +8,98 @@
     <a class="back" href="/admin/cash"><th:block th:utext="${i16['back']}"></th:block>Приём кассы</a>
     <span style="flex:1"></span>
     <a class="link" th:href="${'/admin/trips/' + t.id}">Точки рейса</a>
-    <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
+    <span class="st" th:classappend="${t.shortageWaiting ? 'st--bad' : 'st--' + t.status.badge}" th:text="${t.shortageWaiting ? 'Ждёт решения' : t.status.label}"></span>
 </div>
 
 <p class="note" th:if="${t.open and !t.waitingCash}" th:text="${'Пройдено ' + t.doneStops + ' из ' + t.stops + ' точек: не все заказы выданы или отмечены отказом. Невыданный товар при приёме вернётся на основной склад, а невыданные заказы — в «Принят», их можно отгрузить снова.'}"></p>
+<p class="note note--bad" th:if="${t.shortageWaiting and !canDecide}">Недостача больше допуска — рейс закроет директор или владелец.</p>
 
-<form th:action="@{'/admin/cash/' + ${t.id}}" method="post" class="grid">
+<div class="grid-wide">
+<form th:action="@{'/admin/cash/' + ${t.id}}" method="post" class="stack">
     <section class="card">
-        <div class="card-h"><h2>Касса</h2><p>принимает оператор</p></div>
+        <div class="card-h"><div><h2>Касса</h2><p>принимает оператор</p></div></div>
         <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
-            <dl class="kv">
-                <dt>Ожидается наличными</dt><dd class="num"><b th:text="${@fmt.money(t.cash)}"></b></dd>
-                <dt>в т.ч. старые долги</dt><dd class="num" th:text="${@fmt.money(t.oldDebtCollected)}"></dd>
-            </dl>
-            <label class="field">Пересчитано наличных, ₸
+            <div class="big-sum"><span class="muted" th:text="${'Ожидается наличными · ' + @fmt.plural(t.stops, 'заказ', 'заказа', 'заказов')}"></span><b th:text="${@fmt.money(t.cash)}"></b></div>
+            <p class="hint" th:if="${t.oldDebtCollected > 0}" th:text="${'в т.ч. старые долги ' + @fmt.money(t.oldDebtCollected)}"></p>
+            <label class="field">Пересчитано оператором, ₸
                 <input class="inp inp--big" id="counted" name="counted" inputmode="numeric" autocomplete="off" required
-                       th:attr="data-expected=${t.cash}" th:value="${t.cashCounted}" th:readonly="${t.status.name() == 'CLOSED'}"></label>
+                       th:attr="data-expected=${t.cash}, data-tolerance=${st.cashTolerance}" th:value="${t.cashCounted}" th:readonly="${!t.open}"></label>
             <div class="diff" id="diff" hidden><span></span><span class="num"></span></div>
-            <label class="check"><input type="checkbox" name="kaspi" value="true" th:checked="${t.kaspiChecked}" th:disabled="${t.status.name() == 'CLOSED'}">
+            <label class="check"><input type="checkbox" name="kaspi" value="true" th:checked="${t.kaspiChecked}" th:disabled="${!t.open}">
                 <span th:text="${'Kaspi сверен с выпиской: ' + @fmt.money(t.kaspi)}"></span></label>
         </div>
     </section>
+
+    <section class="card card--bad" id="shortage" th:if="${t.open}" th:hidden="${!t.shortageWaiting}">
+        <div class="card-h"><div><h2>Решение по недостаче</h2>
+            <p th:text="${'больше допуска ' + @fmt.money(st.cashTolerance) + ' — закрывает ' + (st.shortageDirector ? 'директор или владелец' : 'оператор, директор или владелец')}"></p></div></div>
+        <div class="card-b choice">
+            <label th:if="${st.shortageToExpeditor}"><input type="radio" name="decision" value="EXPEDITOR" checked th:disabled="${!canDecide}">
+                <span><b>Записать на экспедитора</b><span class="hint">долг <th:block th:text="${t.expeditor.name}"></th:block> станет
+                    <b style="display:inline" th:attr="data-debt=${expDebt}" th:text="${@fmt.money(expDebt - (t.cashDiff == null ? 0 : t.cashDiff))}"></b> · виден в «Сотрудниках» и отчёте «Касса и недостачи»</span></span></label>
+            <label><input type="radio" name="decision" value="WRITE_OFF" th:checked="${!st.shortageToExpeditor}" th:disabled="${!canDecide}">
+                <span style="flex:1"><b>Списать с причиной</b><span class="hint">например, фальшивая купюра или ошибка магазина — причина обязательна</span>
+                    <input class="inp inp--sm" name="reason" maxlength="200" placeholder="Причина" th:disabled="${!canDecide}"></span></label>
+        </div>
+    </section>
+
     <section class="card">
-        <div class="card-h"><h2>Товар</h2><p>принимает кладовщик</p></div>
+        <div class="card-h"><div><h2>Товар</h2><p>принимает кладовщик</p></div></div>
         <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
             <dl class="kv">
                 <dt>Невыданный товар</dt><dd th:text="${t.undeliveredQty + ' шт → основной склад'}"></dd>
                 <dt>Негодный товар</dt><dd th:text="${t.returnsQty + ' шт, ' + @fmt.money(t.returnsTotal) + ' → склад негодного'}"></dd>
             </dl>
-            <label class="check"><input type="checkbox" name="goods" value="true" th:checked="${t.goodsChecked}" th:disabled="${t.status.name() == 'CLOSED'}">
+            <label class="check"><input type="checkbox" name="goods" value="true" th:checked="${t.goodsChecked}" th:disabled="${!t.open}">
                 <span>Товар пересчитан и принят</span></label>
         </div>
     </section>
+
+    <div class="acts" th:if="${t.open}">
+        <button class="btn btn-primary" type="submit">Закрыть рейс</button>
+        <span class="hint">Рейс закроется, когда отмечены Kaspi и товар. Недостача больше допуска — после решения.</span>
+    </div>
+    <p class="diff" th:unless="${t.open}" th:classappend="${t.shortage != null and t.shortage.shortageDecision.name() != 'TOLERANCE'} ? 'diff--bad' : 'diff--ok'">
+        <span th:text="${'Закрыт ' + @fmt.time(t.closedAt) + (t.acceptedBy == null ? '' : ', принял ' + t.acceptedBy)
+            + (t.shortage == null ? '' : ' · ' + t.shortage.shortageDecision.label + (t.shortage.shortageReason == null ? '' : ': ' + t.shortage.shortageReason)
+            + (t.shortage.decidedBy == null ? '' : ' · решил ' + t.shortage.decidedBy))}"></span>
+        <span class="num" th:text="${t.cashDiff == null or t.cashDiff == 0 ? 'сошлось' : @fmt.signed(t.cashDiff)}"></span></p>
+</form>
+
+<aside class="stack">
     <section class="card">
-        <div class="card-h"><h2>Итог рейса</h2></div>
-        <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
-            <dl class="kv">
-                <dt>Загружено</dt><dd class="num" th:text="${@fmt.money(t.loadedTotal)}"></dd>
-                <dt>Выдано</dt><dd class="num" th:text="${@fmt.money(t.deliveredTotal)}"></dd>
-                <dt>Отдано в долг</dt><dd class="num" th:text="${@fmt.money(t.credit)}"></dd>
-                <dt>Возвраты</dt><dd class="num" th:text="${@fmt.money(t.returnsTotal)}"></dd>
-            </dl>
-            <button class="btn btn-primary" type="submit" th:if="${t.open}">Закрыть рейс</button>
-            <p class="hint" th:if="${t.open}">Рейс закроется, когда отмечены Kaspi и товар. После закрытия изменить его сможет только директор.</p>
-            <p class="diff" th:if="${t.status.name() == 'CLOSED'}" th:classappend="${t.cashDiff < 0} ? 'diff--bad' : 'diff--ok'">
-                <span th:text="${'Закрыт ' + @fmt.time(t.closedAt) + ', принял ' + t.acceptedBy}"></span><span class="num" th:text="${t.cashDiff == 0 ? 'сошлось' : @fmt.signed(t.cashDiff)}"></span></p>
+        <div class="card-h"><div><h2>Итог рейса</h2></div></div>
+        <div class="card-b sum">
+            <div><span>Загружено</span><b th:text="${@fmt.money(t.loadedTotal)}"></b></div>
+            <div><span>Выдано</span><b th:text="${@fmt.money(t.deliveredTotal)}"></b></div>
+            <div><span>Отдано в долг</span><b th:text="${@fmt.money(t.credit)}"></b></div>
+            <div><span>Возвраты негодного</span><b th:text="${@fmt.money(t.returnsTotal)}"></b></div>
+            <div><span>Пройдено точек</span><b th:text="${t.doneStops + ' из ' + t.stops}"></b></div>
         </div>
     </section>
-</form>
+    <section class="card">
+        <div class="card-h"><div><h2 th:text="${'Недостачи за ' + month}">Недостачи за месяц</h2></div>
+            <a class="link" href="/admin/reports/cash" th:if="${v.can('reports')}">Отчёт</a></div>
+        <ul class="rows card-b" style="padding-top:0">
+            <li th:each="r : ${monthRows}"><span><b th:text="${r.name()}"></b>
+                <span class="sub" th:text="${r.cases() == 0 ? 'недостач нет' : @fmt.plural(r.cases(), 'случай', 'случая', 'случаев') + ' · ' + @fmt.money(r.shortage())}"></span></span>
+                <span class="r small" th:text="${@fmt.dot(r.expeditor() > 0 ? 'на экспедитора ' + @fmt.money(r.expeditor()) : null,
+                    r.writtenOff() > 0 ? 'списано ' + @fmt.money(r.writtenOff()) : null, r.waiting() > 0 ? 'ждёт ' + @fmt.money(r.waiting()) : null)}"></span></li>
+        </ul>
+        <p class="empty" th:if="${monthRows.isEmpty()}">Рейсов в этом месяце ещё не было.</p>
+    </section>
+    <section class="card">
+        <div class="card-h"><div><h2>Касса сегодня</h2></div></div>
+        <ul class="rows card-b" style="padding-top:0">
+            <li th:each="x : ${today}"><span><a class="rl" th:href="${'/admin/cash/' + x.id}" th:text="${x.expeditor.name}"></a>
+                <span class="sub" th:text="${x.number + ' · ' + @fmt.money(x.cash)}"></span></span>
+                <span class="st" th:classappend="${x.shortageWaiting ? 'st--bad' : (x.open ? 'st--warn' : 'st--done')}"
+                      th:text="${x.shortageWaiting ? 'недостача' : (x.open ? 'ждёт приёма' : @fmt.time(x.closedAt))}"></span></li>
+        </ul>
+        <p class="empty" th:if="${today.isEmpty()}">Сегодня кассу ещё не сдавали.</p>
+    </section>
+</aside>
+</div>
 </th:block>
 </body>
 </html>

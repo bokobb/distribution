@@ -147,9 +147,8 @@ public class DashboardService {
             if (drafts > 0)
                 out.add(new Alert("info", "Приходы из CRM ждут подтверждения", String.valueOf(drafts), "/admin/stock?tab=receipts"));
             for (Trip t : of(tripList, cid)) {
-                Long d = t.getCashDiff();
-                if (d != null && -d > settings.of(t.getCompanyId()).getCashTolerance())
-                    out.add(new Alert("bad", "Недостача по рейсу: " + t.getExpeditor().getName(), "−" + money(-d), "/admin/cash/" + t.getId()));
+                if (t.isShortageWaiting())
+                    out.add(new Alert("bad", "Недостача ждёт решения: " + t.getExpeditor().getName(), "−" + money(-t.getCashDiff()), "/admin/cash/" + t.getId()));
             }
             for (Employee a : of(people, cid)) {
                 if (a.getRole() == Role.AGENT && a.isStale())

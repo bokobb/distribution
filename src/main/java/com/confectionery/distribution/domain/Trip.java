@@ -155,6 +155,18 @@ public class Trip extends CompanyEntity {
         return h == null || h.getAcceptedBy() == null ? null : h.getAcceptedBy().getName();
     }
 
+    /** Недостача больше допуска пересчитана, рейс ждёт решения директора. */
+    public boolean isShortageWaiting() {
+        CashHandover h = getHandover();
+        return isOpen() && h != null && h.getCashDiff() != null && h.getCashDiff() < 0;
+    }
+
+    /** Что решили по недостаче; null — недостачи не было или ещё не решили. */
+    public CashHandover getShortage() {
+        CashHandover h = getHandover();
+        return h == null || h.getShortageDecision() == null ? null : h;
+    }
+
     /** Разница кассы: пересчитано − ожидается; минус — недостача. */
     public Long getCashDiff() {
         CashHandover h = getHandover();

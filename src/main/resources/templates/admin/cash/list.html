@@ -9,6 +9,15 @@
     <div class="kpi"><span class="kpi-l">Закрыты</span><span class="kpi-v num" th:text="${closed.size()}"></span></div>
 </section>
 
+<section class="card card--bad" th:unless="${decide.isEmpty()}">
+    <div class="card-h"><div><h2>Ждут решения</h2><p>недостача больше допуска — закрывает директор или владелец</p></div></div>
+    <ul class="rows card-b" style="padding-top:0">
+        <li th:each="t : ${decide}"><span><b th:text="${t.expeditor.name}"></b><span class="sub" th:text="${t.number + ' · ' + @fmt.money(t.cash)}"></span></span>
+            <span class="bad num" th:text="${'−' + @fmt.money(-t.cashDiff)}"></span>
+            <a class="btn btn-primary btn-sm" th:href="${'/admin/cash/' + t.id}">Решить</a></li>
+    </ul>
+</section>
+
 <section class="card">
     <div class="card-h"><h2>Ждут приёма</h2><p>оператор пересчитывает наличные и сверяет Kaspi, кладовщик принимает товар</p></div>
     <div class="tbl-w"><table class="tbl tbl--cards" th:unless="${waiting.isEmpty()}">

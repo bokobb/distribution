@@ -74,20 +74,29 @@
     sync();
   }
 
-  // приём кассы: разница считается сразу при вводе
+  // приём кассы: разница считается сразу при вводе; недостача больше допуска — открывается решение директора
   var counted = document.getElementById('counted');
   var diffBox = document.getElementById('diff');
   if (counted && diffBox) {
     var expected = parseInt(counted.getAttribute('data-expected'), 10) || 0;
-    var fmt = function (n) { return Math.abs(n).toLocaleString('ru-RU') + ' ₸'; };
+    var tol = parseInt(counted.getAttribute('data-tolerance'), 10) || 0;
+    var shortBox = document.getElementById('shortage');
+    var fmt = function (n) { return Math.abs(n).toLocaleString('ru-RU') + ' ₸'; };
     var upd = function () {
       var v = parseInt(counted.value.replace(/\D/g, ''), 10);
-      if (isNaN(v)) { diffBox.hidden = true; return; }
-      var d = v - expected;
+      if (isNaN(v)) { diffBox.hidden = true; if (shortBox) shortBox.hidden = true; return; }
+      var d = v - expected, big = d < -tol;
       diffBox.hidden = false;
-      diffBox.className = 'diff ' + (d < 0 ? 'diff--bad' : 'diff--ok');
-      diffBox.firstElementChild.textContent = d < 0 ? 'Недостача на экспедиторе' : d > 0 ? 'Излишек' : 'Касса сходится';
-      diffBox.lastElementChild.textContent = d === 0 ? '0 ₸' : (d < 0 ? '−' : '+') + fmt(d);
+      diffBox.className = 'diff ' + (big ? 'diff--bad' : d === 0 ? 'diff--ok' : 'diff--warn');
+      diffBox.firstElementChild.textContent = d === 0 ? 'Сошлось'
+        : d < 0 ? (big ? 'Недостача — больше допуска ' + fmt(tol) : 'Недостача в пределах допуска')
+        : (d > tol ? 'Излишек — больше допуска' : 'Излишек в пределах допуска');
+      diffBox.lastElementChild.textContent = d === 0 ? '0 ₸' : (d < 0 ? '−' : '+') + fmt(d);
+      if (shortBox) {
+        shortBox.hidden = !big;
+        var after = shortBox.querySelector('[data-debt]');
+        if (after) after.textContent = fmt((parseInt(after.getAttribute('data-debt'), 10) || 0) - d);
+      }
     };
     counted.addEventListener('input', upd);
     upd();
