@@ -175,6 +175,11 @@ public class TestData {
         });
     }
 
+    /** Заказ, принятый с телефона, — по uuid. */
+    public Order orderByUuid(UUID uuid) {
+        return root(() -> orders.findByUuid(uuid).orElseThrow());
+    }
+
     /** Выдача заказа: delivered штук (меньше заказанного — частично), без движения товара. */
     public void delivered(World w, Order order, Trip trip, int delivered, LocalDateTime at) {
         root(() -> {

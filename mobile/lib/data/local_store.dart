@@ -173,7 +173,7 @@ class SqliteStore implements LocalStore {
     final db = await f.openDatabase(
       path ?? p.join(await f.getDatabasesPath(), 'distribution.db'),
       options: OpenDatabaseOptions(
-        version: 8,
+        version: 9,
         onCreate: (db, version) async {
           await db.execute('create table snapshot (key text primary key, json text not null, saved_at text not null)');
           await _createTrack(db);
@@ -183,6 +183,7 @@ class SqliteStore implements LocalStore {
           await _createDeliveries(db);
           await _createDebtPayments(db);
           await _createReturns(db);
+          await _addOrderReturns(db);
         },
         onUpgrade: (db, from, to) async {
           if (from < 2) await _createTrack(db);
@@ -192,6 +193,7 @@ class SqliteStore implements LocalStore {
           if (from < 6) await _createDeliveries(db);
           if (from < 7) await _createDebtPayments(db);
           if (from < 8) await _createReturns(db);
+          if (from < 9) await _addOrderReturns(db);
         },
       ),
     );
@@ -223,6 +225,15 @@ class SqliteStore implements LocalStore {
         'items text not null, total integer not null, sent integer not null default 0, error text, number text, '
         'status text, status_label text, note text)');
     await db.execute('create index orders_created on orders (created_at)');
+  }
+
+  /// Версия 9: возврат с заказом — строки JSON и сумма.
+  static Future<void> _addOrderReturns(Database db) async {
+    final columns = {for (final c in await db.rawQuery('pragma table_info(orders)')) c['name']};
+    if (!columns.contains('returns')) await db.execute('alter table orders add column returns text');
+    if (!columns.contains('return_total')) {
+      await db.execute('alter table orders add column return_total integer not null default 0');
+    }
   }
 
   /// Версия 5: новые магазины агента до отправки; поля — одной строкой JSON, отметки отправки — отдельно.
@@ -396,6 +407,8 @@ class SqliteStore implements LocalStore {
           'comment': o.comment,
           'items': o.itemsJson(),
           'total': o.total,
+          'returns': o.returnsJson(),
+          'return_total': o.returnTotal,
           'sent': o.sent ? 1 : 0,
           'error': o.error,
           'number': o.number,
@@ -590,6 +603,8 @@ class SqliteStore implements LocalStore {
         comment: r['comment'] as String?,
         items: Order.parseItems(r['items'] as String),
         total: r['total'] as int,
+        returns: Order.parseReturns(r['returns'] as String?),
+        returnTotal: r['return_total'] as int? ?? 0,
         sent: r['sent'] == 1,
         error: r['error'] as String?,
         number: r['number'] as String?,

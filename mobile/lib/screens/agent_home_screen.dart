@@ -4,25 +4,19 @@ import '../api/api_client.dart';
 import '../data/agent_data.dart';
 import '../data/agent_repo.dart';
 import '../data/new_outlet.dart';
-import '../data/visit.dart';
-import '../format.dart';
 import '../session.dart';
-import '../theme.dart';
 import '../visits.dart';
 import '../widgets/layout.dart';
-import '../widgets/visit_panel.dart';
-import '../widgets/workday_card.dart';
 import '../workday.dart';
 import 'agent_map_screen.dart';
+import 'agent_today_tab.dart';
 import 'home_parts.dart';
-import 'new_outlet_screen.dart';
-import 'outlet_screen.dart';
 import 'profile_screen.dart';
 
-/// Главный экран торгового: разделы «Сегодня», «Магазины» (карта) и «Профиль». «Сегодня» — маршруты выбранного дня (по умолчанию сегодня) и магазины по порядку обхода
-/// с долгами и отметкой визита. Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи —
-/// работает с тем, что есть. «Карта» — точки всех магазинов компании. «Магазин» — новый магазин; пока он не ушёл на сервер, он в списке «Новые магазины»,
-/// а когда сервер принял — данные обновляются, и он в маршруте «на проверке».
+/// Главный экран торгового: разделы «Сегодня» (создать заказ, итоги и визиты дня), «Магазины» (карта) и
+/// «Профиль». Сразу показывает то, что на телефоне, и обновляет с сервера; нет связи — работает с тем, что есть.
+/// Новый магазин, пока не ушёл на сервер, — в списке «Новые магазины»; сервер принял — данные обновляются, и он в
+/// базе «на проверке».
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen(
       {super.key,
@@ -48,7 +42,6 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   AgentData? _data;
   bool _loading = true;
   String? _syncError;
-  int _weekday = DateTime.now().weekday;
 
   /// Новые магазины на телефоне, которые ещё не на сервере (или сервер не принял).
   List<NewOutlet> _newOutlets = const [];
@@ -82,22 +75,6 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
   Future<void> _loadNewOutlets() async {
     final list = [for (final o in await widget.visits.outbox.store.newOutlets()) if (!o.sent || o.error != null) o];
     if (mounted) setState(() => _newOutlets = list);
-  }
-
-  Future<void> _addOutlet(AgentData data) async {
-    final saved = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-            builder: (_) => NewOutletScreen(
-                data: data, visits: widget.visits, routeId: data.routesOn(_weekday).firstOrNull?.id)));
-    if (saved != true || !mounted) return;
-    await _loadNewOutlets();
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar() // подсказка формы, если осталась
-        ..showSnackBar(
-            const SnackBar(content: Text('Магазин сохранён. После отправки он появится в маршруте «на проверке»')));
-    }
   }
 
   Future<void> _start() async {
@@ -143,43 +120,15 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
         TabItem('Профиль', Icons.person_outline, Icons.person),
       ],
       pages: [
-        Scaffold(
-          floatingActionButton: data == null
-              ? null
-              : FloatingActionButton.extended(
-                  heroTag: null, // рядом в другой вкладке — кнопка карты
-                  onPressed: () => _addOutlet(data),
-                  icon: const Icon(Icons.add_business_outlined),
-                  label: const Text('Магазин'),
-                ),
-          body: RefreshIndicator(
-            onRefresh: _pull,
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 88), // под кнопкой «Магазин»
-              children: [
-                PageHeader(
-                  title: 'Сегодня',
-                  subtitle: '${dayTitle(DateTime.now())} · ${widget.session.name}',
-                  trailing: [_TrackChip(workday: widget.workday)],
-                ),
-                Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 0), child: WorkdayCard(workday: widget.workday)),
-                _days(),
-                _status(data),
-                if (_newOutlets.isNotEmpty) ..._pendingOutlets(),
-                if (data == null && !_loading)
-                  const EmptyState(
-                    icon: Icons.cloud_off_outlined,
-                    title: 'Нет данных',
-                    text: 'Подключитесь к интернету и потяните экран вниз, чтобы получить маршруты и товары.',
-                  ),
-                if (data != null)
-                  ListenableBuilder(
-                    listenable: widget.visits,
-                    builder: (context, _) => Column(children: _routes(data)),
-                  ),
-              ],
-            ),
-          ),
+        AgentTodayTab(
+          data: data,
+          loading: _loading,
+          syncError: _syncError,
+          onRefresh: _pull,
+          name: widget.session.name,
+          workday: widget.workday,
+          visits: widget.visits,
+          newOutlets: _newOutlets,
         ),
         data == null
             ? const Center(
@@ -195,216 +144,11 @@ class _AgentHomeScreenState extends State<AgentHomeScreen> {
           dataLabel: 'Каталог и цены',
           syncedAt: data?.syncedAt,
           onRefresh: _pull,
-          outletNames: {for (final o in data?.outlets.values ?? const <Outlet>[]) o.id: o.name},
+          outletNames: {for (final o in data?.base ?? const <Outlet>[]) o.id: o.name},
           onSession: widget.onSession,
           onLogout: widget.onLogout,
         ),
       ],
     );
   }
-
-  Widget _days() {
-    final today = DateTime.now().weekday;
-    return SizedBox(
-      height: 56,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        children: [
-          for (var d = 1; d <= 7; d++)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(d == today ? '${weekdaysShort[d - 1]} · сегодня' : weekdaysShort[d - 1]),
-                selected: _weekday == d,
-                onSelected: (_) => setState(() => _weekday = d),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _status(AgentData? data) {
-    final String text;
-    if (_loading) {
-      text = 'Обновляю…';
-    } else if (_syncError != null) {
-      text = data == null ? _syncError! : '$_syncError. Данные ${when(data.syncedAt)}';
-    } else if (data != null) {
-      text = 'Обновлено ${when(data.syncedAt)}';
-    } else {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Row(
-        children: [
-          Icon(_syncError != null ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
-              size: 16, color: _syncError != null ? AppColors.err : AppColors.text2),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(text,
-                style: TextStyle(fontSize: 13, color: _syncError != null ? AppColors.err : AppColors.text2)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _pendingOutlets() => [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Text('Новые магазины', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text2)),
-        ),
-        for (final o in _newOutlets)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Card(
-              child: ListTile(
-                leading: Icon(o.error != null ? Icons.error_outline : Icons.cloud_upload_outlined,
-                    color: o.error != null ? AppColors.err : AppColors.text2),
-                title: Text(o.name),
-                subtitle: Text(o.error != null ? 'Сервер не принял: ${o.error}' : 'Ждёт отправки · ${o.address ?? o.landmark ?? o.phone}',
-                    style: TextStyle(color: o.error != null ? AppColors.err : AppColors.text2)),
-              ),
-            ),
-          ),
-      ];
-
-  List<Widget> _routes(AgentData data) {
-    final routes = data.routesOn(_weekday);
-    if (routes.isEmpty) {
-      return const [
-        EmptyState(icon: Icons.event_busy_outlined, title: 'Маршрутов нет', text: 'В этот день по вашим маршрутам обхода нет.'),
-      ];
-    }
-    return [
-      for (final r in routes) ...[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Text(
-            [r.name, if (r.region != null) r.region!, plural(data.outletsOf(r).length, 'магазин', 'магазина', 'магазинов')]
-                .join(' · '),
-            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.text2),
-          ),
-        ),
-        for (final (i, o) in data.outletsOf(r).indexed)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _OutletTile(
-              number: i + 1,
-              outlet: o,
-              visit: _weekday == DateTime.now().weekday ? widget.visits.lastAt(o.id) : null,
-              onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => OutletScreen(
-                          outlet: o, data: data, routeId: r.id, visits: widget.visits, workday: widget.workday))),
-            ),
-          ),
-      ],
-    ];
-  }
-}
-
-class _OutletTile extends StatelessWidget {
-  const _OutletTile({required this.number, required this.outlet, this.visit, required this.onTap});
-
-  final int number;
-  final Outlet outlet;
-
-  /// Последний визит сегодня.
-  final Visit? visit;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final o = outlet;
-    final place = o.address ?? o.landmark;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 15,
-                backgroundColor: visit == null
-                    ? AppColors.fill
-                    : visit!.open
-                        ? AppColors.warnBg
-                        : AppColors.ok,
-                foregroundColor: visit == null || visit!.open ? AppColors.text : AppColors.card,
-                child: visit != null && !visit!.open
-                    ? const Icon(Icons.check, size: 18)
-                    : Text('$number', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(o.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    if (place != null) Text(place, style: const TextStyle(color: AppColors.text2)),
-                    if (visit != null)
-                      Text(visit!.open ? 'Визит идёт с ${time(visit!.startedAt)}' : '${time(visit!.startedAt)} — ${visitResult(visit!)}',
-                          style: TextStyle(color: visit!.error != null ? AppColors.err : AppColors.text)),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 10,
-                      children: [
-                        if (o.pending) const Text('на проверке', style: TextStyle(color: AppColors.text2)),
-                        if (o.debt > 0)
-                          Text('долг ${money(o.debt)}',
-                              style: TextStyle(color: o.overdue > 0 || o.overLimit ? AppColors.err : AppColors.text)),
-                        if (o.overdue > 0)
-                          Text('просрочено ${money(o.overdue)}', style: const TextStyle(color: AppColors.err)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.text2),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// «Путь пишется» в шапке «Сегодня», пока идёт рабочий день.
-class _TrackChip extends StatelessWidget {
-  const _TrackChip({required this.workday});
-
-  final Workday workday;
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-        listenable: workday,
-        builder: (context, _) => !workday.open
-            ? const SizedBox.shrink()
-            : Container(
-                height: 30,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: const BoxDecoration(color: AppColors.okBg, borderRadius: BorderRadius.all(Radius.circular(15))),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                            color: workday.gpsOff ? AppColors.err : AppColors.ok, shape: BoxShape.circle)),
-                    const SizedBox(width: 6),
-                    Text(workday.gpsOff ? 'GPS выключен' : 'Путь пишется',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0B5A40))),
-                  ],
-                ),
-              ),
-      );
 }

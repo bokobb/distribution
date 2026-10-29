@@ -30,7 +30,8 @@ class SchemaMigrationTest {
                 "outlet_opening_debts", "price_types", "products", "prices", "vehicles", "warehouses",
                 "stock_balances", "stock_movements", "receipts", "receipt_items", "visits", "orders",
                 "order_items", "order_events", "trips", "trip_orders", "deliveries", "delivery_items",
-                "payments", "returns", "return_items", "cash_handovers", "gps_points", "app_events", "device_sessions");
+                "payments", "returns", "return_items", "cash_handovers", "gps_points", "app_events", "device_sessions",
+                "order_return_items");
     }
 
     @Test

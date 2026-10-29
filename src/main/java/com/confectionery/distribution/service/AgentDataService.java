@@ -5,6 +5,7 @@ import com.confectionery.distribution.repository.OutletRepository;
 import com.confectionery.distribution.repository.ProductRepository;
 import com.confectionery.distribution.repository.RouteRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +18,10 @@ import java.util.*;
 
 /**
  * Всё, что нужно торговому агенту на телефоне для работы без сети: настройки компании, товары с ценами на
- * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня, а для
- * карты — остальные магазины компании (только название, адрес и точка, без долгов). Телефон забирает это целиком при
- * синхронизации и заменяет прежнее. Компания — из входа (TenantContext), чужое сюда не попадает.
+ * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня, остальные
+ * магазины компании (заказ можно принять в любом — магазин ищут по GPS и поиском; у чужих только название, адрес,
+ * владелец, прайс и точка, без долгов и телефонов) и последний заказ каждого магазина — «повторить». Телефон
+ * забирает это целиком при синхронизации и заменяет прежнее. Компания — из входа (TenantContext), чужое сюда не попадает.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,7 @@ public class AgentDataService {
     private final SettingsService settings;
     private final VisitService visits;
     private final MobileOrderService orders;
+    private final JdbcTemplate jdbc;
     private final Clock clock;
 
     public record Settings(int visitRadius, boolean shelfPhotoRequired, boolean refuseReasonRequired, int deliveryDays,
@@ -55,14 +58,22 @@ public class AgentDataService {
                             long lastPaymentSum) {
     }
 
-    /** Магазин другого торгового — для карты агента; region — филиал его маршрута. */
-    public record PlaceDto(Long id, String name, String address, String landmark, double lat, double lng, String region) {
+    /** Магазин другого торгового; region — филиал его маршрута; точки может не быть. status — ACTIVE или PENDING. */
+    public record PlaceDto(Long id, String name, String address, String landmark, Double lat, Double lng, String region,
+                           String owner, String priceKind, String status) {
     }
 
-    /** others — магазины компании не из маршрутов агента, у которых есть точка на карте. */
+    public record ItemDto(Long productId, int qty) {
+    }
+
+    /** Последний заказ магазина (не отменённый): день и товары — «Как 21 октября» на телефоне. */
+    public record LastOrderDto(Long outletId, LocalDate date, List<ItemDto> items) {
+    }
+
+    /** others — магазины компании не из маршрутов агента. */
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
                             List<RouteDto> routes, List<OutletDto> outlets, List<VisitService.VisitOut> visits,
-                            List<MobileOrderService.OrderOut> orders, List<PlaceDto> others) {
+                            List<MobileOrderService.OrderOut> orders, List<PlaceDto> others, List<LastOrderDto> lastOrders) {
     }
 
     /** Магазин для телефона; долг и последняя оплата — если заполнены (DebtService). */
@@ -105,14 +116,39 @@ public class AgentDataService {
                         p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
                 routeDtos,
                 outlets.values().stream().map(AgentDataService::outlet).toList(),
-                visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()));
+                visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()), lastOrders(companyId));
     }
 
     private List<PlaceDto> others(Set<Long> mine) {
         return allOutlets.findAllByOrderByNameAsc().stream()
-                .filter(o -> !mine.contains(o.getId()) && o.getStatus() != OutletStatus.CLOSED && o.getLat() != null && o.getLng() != null)
+                .filter(o -> !mine.contains(o.getId()) && o.getStatus() != OutletStatus.CLOSED)
                 .map(o -> new PlaceDto(o.getId(), o.getName(), o.getAddress(), o.getLandmark(), o.getLat(), o.getLng(),
-                        o.getRegion() == null ? null : o.getRegion().getName()))
+                        o.getRegion() == null ? null : o.getRegion().getName(), o.getOwner(),
+                        o.getPriceType() == null ? PriceKind.WHOLESALE.name() : o.getPriceType().getCode().name(),
+                        o.getStatus().name()))
                 .toList();
+    }
+
+    /** Последний не отменённый заказ каждого магазина компании. */
+    private List<LastOrderDto> lastOrders(Long companyId) {
+        Map<Long, LastOrderDto> byOutlet = new LinkedHashMap<>();
+        jdbc.query("""
+                with last as (
+                    select distinct on (o.outlet_id) o.id, o.outlet_id, o.created_at
+                    from orders o
+                    where o.company_id = ? and o.status not in ('CANCELLED', 'REFUSED')
+                    order by o.outlet_id, o.created_at desc, o.id desc)
+                select l.outlet_id, l.created_at, i.product_id, i.qty
+                from last l join order_items i on i.order_id = l.id
+                order by l.outlet_id, i.id""", rs -> {
+            long outlet = rs.getLong("outlet_id");
+            LastOrderDto last = byOutlet.get(outlet);
+            if (last == null) {
+                last = new LastOrderDto(outlet, rs.getTimestamp("created_at").toLocalDateTime().toLocalDate(), new ArrayList<>());
+                byOutlet.put(outlet, last);
+            }
+            last.items().add(new ItemDto(rs.getLong("product_id"), rs.getInt("qty")));
+        }, companyId);
+        return List.copyOf(byOutlet.values());
     }
 }

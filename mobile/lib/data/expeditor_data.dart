@@ -130,7 +130,7 @@ class Stop {
       );
 }
 
-/// Заказ в рейсе: как оформил торговый, что уже выдано и оплачено.
+/// Заказ в рейсе: как оформил торговый, что уже выдано и оплачено; [returns] — что торговый записал к возврату.
 class TripOrder {
   const TripOrder(
       {required this.id,
@@ -144,7 +144,8 @@ class TripOrder {
       required this.statusLabel,
       required this.total,
       required this.paid,
-      required this.lines});
+      required this.lines,
+      this.returns = const []});
 
   final int id;
   final String uuid;
@@ -165,6 +166,12 @@ class TripOrder {
   final int paid;
   final List<TripLine> lines;
 
+  /// Негодный товар, который магазин отдаёт: торговый записал с заказом, экспедитор забирает при доставке.
+  final List<PlannedReturn> returns;
+
+  /// Сколько вычтется, если забрать всё, что записал торговый.
+  int get returnsTotal => returns.fold(0, (a, r) => a + r.sum);
+
   String get paymentLabel => Order.paymentLabels[payment] ?? payment;
 
   /// Выдан целиком, частично или магазин отказался.
@@ -184,6 +191,29 @@ class TripOrder {
         total: j['total'] as int,
         paid: j['paid'] as int? ?? 0,
         lines: [for (final l in j['lines'] as List) TripLine.fromJson(l as Map<String, dynamic>)],
+        returns: [for (final r in j['returns'] as List? ?? const []) PlannedReturn.fromJson(r as Map<String, dynamic>)],
+      );
+}
+
+/// Строка возврата, который торговый записал с заказом; reason — EXPIRED, DEFECT или PACKAGING.
+class PlannedReturn {
+  const PlannedReturn(
+      {required this.productId, required this.name, required this.qty, required this.price, required this.reason});
+
+  final int productId;
+  final String name;
+  final int qty;
+  final int price;
+  final String reason;
+
+  int get sum => qty * price;
+
+  factory PlannedReturn.fromJson(Map<String, dynamic> j) => PlannedReturn(
+        productId: j['productId'] as int,
+        name: j['name'] as String,
+        qty: j['qty'] as int,
+        price: j['price'] as int,
+        reason: j['reason'] as String,
       );
 }
 

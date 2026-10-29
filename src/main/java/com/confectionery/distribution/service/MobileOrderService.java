@@ -21,6 +21,8 @@ import java.util.*;
  * Заказ торгового агента с телефона. Телефон собирает заказ без сети и шлёт его, когда есть связь; uuid
  * создаёт телефон, поэтому повтор возвращает уже принятый заказ. Цены сервер берёт сам — по прайсу магазина
  * на день заказа, а не с телефона. В долг сверх лимита магазина — «Нужно разрешение», если так в настройках.
+ * Вместе с заказом торговый может записать возврат негодного товара: экспедитор заберёт его при доставке, к оплате
+ * будет заказ минус возврат; долг уменьшится, когда экспедитор запишет, сколько забрал на самом деле.
  */
 @Service
 @RequiredArgsConstructor
@@ -47,18 +49,27 @@ public class MobileOrderService {
     public record ItemIn(Long productId, Integer qty) {
     }
 
-    /** payment — CASH, KASPI или CREDIT; deliveryDate не задана — через сколько дней по настройкам компании. */
+    /** reason — EXPIRED, DEFECT или PACKAGING. */
+    public record ReturnItemIn(Long productId, Integer qty, String reason) {
+    }
+
+    /** payment — CASH, KASPI или CREDIT; deliveryDate не задана — через сколько дней по настройкам компании; returns — что
+     * экспедитор заберёт у магазина при доставке (может не быть). */
     public record OrderIn(UUID uuid, UUID visitUuid, Long outletId, LocalDateTime createdAt, LocalDate deliveryDate,
-                          String payment, String comment, List<ItemIn> items) {
+                          String payment, String comment, List<ItemIn> items, List<ReturnItemIn> returns) {
     }
 
     public record LineOut(Long productId, String name, int qty, long price, long sum) {
     }
 
-    /** status — имя OrderStatus; note — для агента: почему ждёт разрешения или отменён. */
+    public record ReturnLineOut(Long productId, String name, int qty, long price, long sum, String reason) {
+    }
+
+    /** status — имя OrderStatus; note — для агента: почему ждёт разрешения или отменён; returnTotal — сколько вычтется
+     * за возврат. */
     public record OrderOut(UUID uuid, Long outletId, String number, LocalDateTime createdAt, LocalDate deliveryDate,
                            String payment, String status, String statusLabel, String note, long total,
-                           List<LineOut> lines) {
+                           List<LineOut> lines, long returnTotal, List<ReturnLineOut> returns) {
     }
 
     @Transactional
@@ -107,6 +118,17 @@ public class MobileOrderService {
             if (price == null) throw new FormException("Нет цены на «" + p.getName() + "» — обратитесь к оператору");
             o.addLine(new OrderLine().setProduct(p).setQty(e.getValue()).setPrice(price));
         }
+        Set<Long> back = new HashSet<>();
+        for (ReturnItemIn r : in.returns() == null ? List.<ReturnItemIn>of() : in.returns()) {
+            if (r.productId() == null || r.qty() == null || r.qty() <= 0 || r.qty() > MAX_QTY)
+                throw new FormException("Неверное количество в возврате — проверьте возврат");
+            if (!back.add(r.productId())) throw new FormException("Товар в возврате дважды — обновите приложение");
+            Product p = products.findById(r.productId())
+                    .orElseThrow(() -> new FormException("Товар не найден — обновите данные на телефоне"));
+            Long price = prices.get(p.getId());
+            if (price == null) throw new FormException("Нет цены на «" + p.getName() + "» — обратитесь к оператору");
+            o.addReturnLine(new OrderReturnLine().setProduct(p).setQty(r.qty()).setPrice(price).setReason(reason(r.reason())));
+        }
 
         String who = agent.getName() + " (" + agent.getRole().getLabel().toLowerCase() + ")";
         o.setStatus(OrderStatus.ACCEPTED);
@@ -114,10 +136,13 @@ public class MobileOrderService {
         if (payment == PaymentMethod.CREDIT && outlet.getCreditLimit() > 0) {
             debts.fill(outlet);
             long open = open(outlet.getId());
-            long after = outlet.getDebt() + open + o.getTotal();
+            // возврат экспедитор заберёт при доставке — к долгу добавится заказ минус возврат
+            long after = outlet.getDebt() + open + o.getTotal() - o.getReturnTotal();
             if (after > outlet.getCreditLimit()) {
                 String text = "Долг " + money(outlet.getDebt()) + (open > 0 ? " + не доставлено " + money(open) : "")
-                        + " + этот заказ " + money(o.getTotal()) + " = " + money(after) + " при лимите " + money(outlet.getCreditLimit());
+                        + " + этот заказ " + money(o.getTotal())
+                        + (o.getReturnTotal() > 0 ? " − возврат " + money(o.getReturnTotal()) : "")
+                        + " = " + money(after) + " при лимите " + money(outlet.getCreditLimit());
                 if (st.isApprovalOverLimit()) {
                     o.setStatus(OrderStatus.NEEDS_APPROVAL);
                     o.event(now, null, "Система", text + " — нужно разрешение");
@@ -153,6 +178,14 @@ public class MobileOrderService {
         return base + n;
     }
 
+    private static ReturnReason reason(String raw) {
+        try {
+            return ReturnReason.valueOf(raw);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new FormException("Укажите причину возврата: просрочка, брак или упаковка");
+        }
+    }
+
     private static PaymentMethod payment(String s, CompanySettings st) {
         PaymentMethod p;
         try {
@@ -174,7 +207,10 @@ public class MobileOrderService {
         return new OrderOut(o.getUuid(), o.getOutlet().getId(), o.getNumber(), o.getCreatedAt(), o.getDeliveryDate(),
                 o.getPayment().name(), o.getStatus().name(), o.getStatus().getLabel(), note, o.getTotal(),
                 o.getLines().stream().map(l -> new LineOut(l.getProduct().getId(), l.getProduct().getName(), l.getQty(),
-                        l.getNetPrice(), l.getSum())).toList());
+                        l.getNetPrice(), l.getSum())).toList(),
+                o.getReturnTotal(),
+                o.getReturnLines().stream().map(l -> new ReturnLineOut(l.getProduct().getId(), l.getProduct().getName(),
+                        l.getQty(), l.getPrice(), l.getSum(), l.getReason().name())).toList());
     }
 
     static String money(long v) {

@@ -15,6 +15,7 @@ class DefectReturn {
     this.sent = false,
     this.error,
     this.debtAfter,
+    this.plan = false,
   });
 
   final String uuid;
@@ -38,6 +39,9 @@ class DefectReturn {
 
   /// Долг магазина после возврата — как ответил сервер (минус — аванс).
   int? debtAfter;
+
+  /// Забран по списку, который торговый записал с заказом.
+  final bool plan;
 
   static const reasons = {'DEFECT': 'Брак', 'EXPIRED': 'Просрочка', 'PACKAGING': 'Упаковка'};
 
@@ -65,6 +69,7 @@ class DefectReturn {
         'sent': sent,
         'error': error,
         'debtAfter': debtAfter,
+        'plan': plan,
       });
 
   factory DefectReturn.decode(String s) {
@@ -80,6 +85,7 @@ class DefectReturn {
       sent: j['sent'] as bool? ?? false,
       error: j['error'] as String?,
       debtAfter: j['debtAfter'] as int?,
+      plan: j['plan'] as bool? ?? false,
     );
   }
 

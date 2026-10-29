@@ -49,6 +49,32 @@ void main() {
     expect(AgentData.fromJson(sampleAgentData()..remove('others')).others, isEmpty);
   });
 
+  test('вся база: свои с долгами, чужие без долгов и с прайсом; последний заказ магазина', () {
+    final data = AgentData.fromJson(sampleAgentData());
+
+    expect(data.base.map((o) => o.id), [1, 2, 3, 10, 11, 12]);
+    final sosed = data.outlet(10)!;
+    expect([sosed.mine, sosed.debt, sosed.owner, sosed.priceKind], [false, 0, 'Гульнара М.', 'RETAIL']);
+    expect(data.outlet(12)!.pending, isTrue);
+    expect([data.outlet(1)!.mine, data.outlet(1)!.debt], [true, 45000]);
+    expect(data.outlet(99), isNull);
+
+    final last = data.lastOrders[1]!;
+    expect([last.date, last.items], [DateTime(2026, 10, 21), {1: 24, 2: 40}]);
+    expect(data.lastOrders[2], isNull);
+
+    // старые данные: у чужих только точка, прайс — опт
+    final old = sampleAgentData();
+    old.remove('lastOrders');
+    for (final p in (old['others'] as List).cast<Map<String, dynamic>>()) {
+      p.remove('owner');
+      p.remove('priceKind');
+      p.remove('status');
+    }
+    final o = AgentData.fromJson(old);
+    expect([o.outlet(10)!.priceKind, o.outlet(10)!.status, o.lastOrders], ['WHOLESALE', 'ACTIVE', isEmpty]);
+  });
+
   test('подписи: деньги, склонения, когда обновлено', () {
     expect(money(45000), '45 000 ₸');
     expect(money(-500), '−500 ₸');
@@ -161,26 +187,30 @@ void main() {
     await store.close();
   });
 
-  test('SQLite: заказы — ждут отправки, ответ сервера, стирание отправленного', () async {
+  test('SQLite: заказы с возвратом — ждут отправки, ответ сервера, стирание отправленного', () async {
     sqfliteFfiInit();
     final store = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
     final o = Order(
         uuid: 'з1', visitUuid: 'в1', outletId: 2, createdAt: DateTime(2026, 10, 28, 10, 5),
         deliveryDate: DateTime(2026, 10, 29), payment: 'KASPI', comment: 'после обеда', items: {1: 12, 2: 20},
-        total: 12000);
+        total: 12000, returns: const [ReturnItem(productId: 2, qty: 3, reason: 'EXPIRED')], returnTotal: 1500);
     await store.saveOrder(o);
     expect(await store.unsentCount(), 1);
     final back = (await store.ordersToSend()).single;
     expect(back.toJson(), {
       'uuid': 'з1', 'visitUuid': 'в1', 'outletId': 2, 'createdAt': '2026-10-28T10:05:00', 'deliveryDate': '2026-10-29',
       'payment': 'KASPI', 'comment': 'после обеда', 'items': [{'productId': 1, 'qty': 12}, {'productId': 2, 'qty': 20}],
+      'returns': [{'productId': 2, 'qty': 3, 'reason': 'EXPIRED'}],
     });
+    expect([back.returnTotal, back.toPay], [1500, 10500]);
 
-    back.takeServer({'number': 'З-281026-4', 'status': 'ACCEPTED', 'statusLabel': 'Принят', 'note': null, 'total': 12500});
+    back.takeServer({'number': 'З-281026-4', 'status': 'ACCEPTED', 'statusLabel': 'Принят', 'note': null, 'total': 12500,
+        'returnTotal': 1600});
     await store.saveOrder(back);
     expect(await store.unsentCount(), 0);
     final saved = (await store.ordersSince(DateTime(2026, 10, 28))).single;
-    expect([saved.number, saved.statusLabel, saved.total], ['З-281026-4', 'Принят', 12500]);
+    expect([saved.number, saved.statusLabel, saved.total, saved.returnTotal, saved.returns.single.reasonLabel],
+        ['З-281026-4', 'Принят', 12500, 1600, 'Срок годности']);
 
     await store.pruneOrders(DateTime(2026, 10, 28));
     expect(await store.ordersSince(DateTime(2000)), hasLength(1));
@@ -228,6 +258,35 @@ void main() {
     expect((await store.newOutlets()).map((n) => n.uuid), ['н2']);
     await store.deleteNewOutlet('н2');
     expect(await store.newOutlets(), isEmpty);
+    await store.close();
+  });
+
+  test('SQLite: база версии 8 обновляется — у заказов появляется возврат, старые заказы на месте', () async {
+    sqfliteFfiInit();
+    final path = '${Directory.systemTemp.createTempSync('db').path}/v8.db';
+    var store = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    await store.close();
+    final db = await databaseFactoryFfi.openDatabase(path);
+    await db.execute('drop table orders');
+    await db.execute('create table orders (uuid text primary key, visit_uuid text, outlet_id integer not null, '
+        'created_at text not null, delivery_date text not null, payment text not null, comment text, '
+        'items text not null, total integer not null, sent integer not null default 0, error text, number text, '
+        'status text, status_label text, note text)');
+    await db.insert('orders', {
+      'uuid': 'старый', 'outlet_id': 1, 'created_at': '2026-10-28T10:00:00.000', 'delivery_date': '2026-10-29T00:00:00.000',
+      'payment': 'CASH', 'items': '{"1":2}', 'total': 1000,
+    });
+    await db.setVersion(8);
+    await db.close();
+
+    store = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
+    final old = (await store.ordersToSend()).single;
+    expect([old.uuid, old.returns, old.returnTotal], ['старый', isEmpty, 0]);
+    await store.saveOrder(Order(
+        uuid: 'новый', outletId: 1, createdAt: DateTime(2026, 10, 29, 9), deliveryDate: DateTime(2026, 10, 30),
+        payment: 'CASH', items: {1: 1}, total: 500, returns: const [ReturnItem(productId: 1, qty: 1, reason: 'DEFECT')],
+        returnTotal: 500));
+    expect((await store.ordersToSend()).last.returns.single.reason, 'DEFECT');
     await store.close();
   });
 

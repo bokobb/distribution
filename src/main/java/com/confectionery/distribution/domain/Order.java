@@ -49,6 +49,10 @@ public class Order extends CompanyEntity {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<OrderLine> lines = new ArrayList<>();
+    /** Возврат, который заберёт экспедитор при доставке, — записал торговый. */
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id")
+    private List<OrderReturnLine> returnLines = new ArrayList<>();
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("at, id")
     private List<OrderEvent> events = new ArrayList<>();
@@ -66,6 +70,13 @@ public class Order extends CompanyEntity {
         line.setOrder(this);
         line.setCompany(getCompany());
         lines.add(line);
+        return this;
+    }
+
+    public Order addReturnLine(OrderReturnLine line) {
+        line.setOrder(this);
+        line.setCompany(getCompany());
+        returnLines.add(line);
         return this;
     }
 
@@ -88,6 +99,11 @@ public class Order extends CompanyEntity {
 
     public long getTotal() {
         return lines.stream().mapToLong(OrderLine::getSum).sum();
+    }
+
+    /** Сколько вычтется за возврат, если экспедитор заберёт всё, что записал торговый. */
+    public long getReturnTotal() {
+        return returnLines.stream().mapToLong(OrderReturnLine::getSum).sum();
     }
 
     public long getDeliveredTotal() {

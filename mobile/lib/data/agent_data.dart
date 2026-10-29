@@ -2,11 +2,12 @@ import 'order.dart';
 import 'visit.dart';
 
 /// Данные торгового агента с сервера (/api/mobile/agent/data): настройки компании, товары с ценами на день
-/// синхронизации, маршруты агента, магазины с долгами, его визиты и заказы за этот день, а для карты — остальные
-/// магазины компании. Хранятся на телефоне целиком, обновляются целиком.
+/// синхронизации, маршруты агента, его магазины с долгами, его визиты и заказы за этот день, остальные магазины
+/// компании (заказ принимают в любом — без долгов) и последний заказ каждого магазина. Хранятся на телефоне
+/// целиком, обновляются целиком.
 class AgentData {
   AgentData._(this.json, this.date, this.syncedAt, this.settings, this.products, this.routes, this.outlets,
-      this.visits, this.orders, this.others);
+      this.visits, this.orders, this.others, this.lastOrders);
 
   /// Как пришло с сервера — так и хранится на телефоне.
   final Map<String, dynamic> json;
@@ -23,10 +24,19 @@ class AgentData {
   final List<Visit> visits;
   final List<Order> orders;
 
-  /// Магазины других торговых — только для карты.
+  /// Магазины других торговых: название, адрес, прайс — без долгов.
   final List<Place> others;
 
+  /// Последний заказ магазина: id магазина → заказ.
+  final Map<int, LastOrder> lastOrders;
+
   Product? product(int id) => products.where((p) => p.id == id).firstOrNull;
+
+  /// Вся база: свои магазины, потом чужие (без долгов).
+  late final List<Outlet> base = [...outlets.values, for (final p in others) p.asOutlet()];
+
+  /// Магазин из всей базы.
+  Outlet? outlet(int id) => outlets[id] ?? base.where((o) => o.id == id).firstOrNull;
 
   factory AgentData.fromJson(Map<String, dynamic> json) {
     final outlets = <int, Outlet>{};
@@ -45,6 +55,10 @@ class AgentData {
       [for (final v in json['visits'] as List? ?? const []) Visit.fromServer(v as Map<String, dynamic>)],
       [for (final o in json['orders'] as List? ?? const []) Order.fromServer(o as Map<String, dynamic>)],
       [for (final p in json['others'] as List? ?? const []) Place.fromJson(p as Map<String, dynamic>)],
+      {
+        for (final l in json['lastOrders'] as List? ?? const [])
+          (l as Map<String, dynamic>)['outletId'] as int: LastOrder.fromJson(l),
+      },
     );
   }
 
@@ -79,34 +93,82 @@ class AgentData {
                 mine: o),
         if (!mineOnly)
           for (final p in others)
-            if (region == null || p.region == region)
-              MapPoint(id: p.id, name: p.name, place: p.address ?? p.landmark, lat: p.lat, lng: p.lng, region: p.region),
+            if (p.lat != null && p.lng != null && (region == null || p.region == region))
+              MapPoint(id: p.id, name: p.name, place: p.address ?? p.landmark, lat: p.lat!, lng: p.lng!, region: p.region),
       ];
 }
 
-/// Магазин другого торгового: название, адрес и точка, без долгов.
+/// Магазин другого торгового: название, адрес, владелец, прайс и точка (может не быть), без долгов и телефонов.
 class Place {
   const Place(
-      {required this.id, required this.name, this.address, this.landmark, required this.lat, required this.lng, this.region});
+      {required this.id,
+      required this.name,
+      this.address,
+      this.landmark,
+      this.lat,
+      this.lng,
+      this.region,
+      this.owner,
+      this.priceKind = 'WHOLESALE',
+      this.status = 'ACTIVE'});
 
   final int id;
   final String name;
   final String? address;
   final String? landmark;
-  final double lat;
-  final double lng;
+  final double? lat;
+  final double? lng;
 
   /// Филиал.
   final String? region;
+  final String? owner;
+  final String priceKind;
+  final String status;
+
+  /// Для заказа: долгов не знаем — нули, [Outlet.mine] = false.
+  Outlet asOutlet() => Outlet(
+        id: id,
+        uuid: '',
+        name: name,
+        owner: owner,
+        address: address,
+        landmark: landmark,
+        lat: lat,
+        lng: lng,
+        priceKind: priceKind,
+        creditLimit: 0,
+        paymentDays: 0,
+        status: status,
+        debt: 0,
+        overdue: 0,
+        lastPaymentSum: 0,
+        mine: false,
+      );
 
   factory Place.fromJson(Map<String, dynamic> j) => Place(
         id: j['id'] as int,
         name: j['name'] as String,
         address: j['address'] as String?,
         landmark: j['landmark'] as String?,
-        lat: (j['lat'] as num).toDouble(),
-        lng: (j['lng'] as num).toDouble(),
+        lat: (j['lat'] as num?)?.toDouble(),
+        lng: (j['lng'] as num?)?.toDouble(),
         region: j['region'] as String?,
+        owner: j['owner'] as String?,
+        priceKind: j['priceKind'] as String? ?? 'WHOLESALE',
+        status: j['status'] as String? ?? 'ACTIVE',
+      );
+}
+
+/// Последний заказ магазина: день и товары (id → штук) — «Как 21 октября».
+class LastOrder {
+  const LastOrder({required this.date, required this.items});
+
+  final DateTime date;
+  final Map<int, int> items;
+
+  factory LastOrder.fromJson(Map<String, dynamic> j) => LastOrder(
+        date: DateTime.parse(j['date'] as String),
+        items: {for (final i in j['items'] as List) (i as Map)['productId'] as int: i['qty'] as int},
       );
 }
 
@@ -250,6 +312,7 @@ class Outlet {
     required this.overdue,
     this.lastPaymentDate,
     required this.lastPaymentSum,
+    this.mine = true,
   });
 
   final int id;
@@ -285,6 +348,9 @@ class Outlet {
   final int overdue;
   final DateTime? lastPaymentDate;
   final int lastPaymentSum;
+
+  /// Свой магазин (из маршрутов агента) — долги известны; чужой — без долгов.
+  final bool mine;
 
   bool get pending => status == 'PENDING';
   bool get overLimit => creditLimit > 0 && debt > creditLimit;

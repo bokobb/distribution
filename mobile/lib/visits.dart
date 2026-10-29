@@ -39,7 +39,7 @@ class VisitBook extends ChangeNotifier {
   /// Точность GPS засчитывается в пользу агента, но не больше стольких метров.
   static const accuracyAllowance = 50;
 
-  /// Частые причины «без заказа» — выбрать одним касанием.
+  /// Частые причины «без заказа» — выбрать одним касанием; есть ещё «Другая причина» — своими словами.
   static const reasons = [
     'Товар ещё есть',
     'Нет денег',
@@ -82,6 +82,21 @@ class VisitBook extends ChangeNotifier {
     ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   }
 
+  /// Все заказы агента за сегодня — для итогов дня.
+  List<Order> get todayOrders {
+    final from = _today();
+    final server = {for (final o in _serverOrders) o.uuid: o};
+    final mine = {for (final o in _localOrders) o.uuid};
+    return [
+      for (final o in _localOrders)
+        if (!o.createdAt.isBefore(from)) _fresher(o, server[o.uuid]),
+      ..._serverOrders.where((o) => !mine.contains(o.uuid) && !o.createdAt.isBefore(from)),
+    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
+  /// Заказ визита, если визит закончился заказом.
+  Order? orderOf(Visit v) => todayOrders.where((o) => o.visitUuid == v.uuid).firstOrNull;
+
   /// Статус на сервере мог поменяться (разрешили, отменили) — показываем его.
   static Order _fresher(Order local, Order? server) {
     if (server == null || local.error != null) return local;
@@ -90,7 +105,8 @@ class VisitBook extends ChangeNotifier {
       ..statusLabel = server.statusLabel
       ..note = server.note
       ..number = server.number
-      ..total = server.total;
+      ..total = server.total
+      ..returnTotal = server.returnTotal;
   }
 
   /// С телефона.
@@ -183,6 +199,8 @@ class VisitBook extends ChangeNotifier {
   Future<String?> finishWithOrder(
       {required Map<int, int> items,
       required int total,
+      List<ReturnItem> returns = const [],
+      int returnTotal = 0,
       required String payment,
       required DateTime deliveryDate,
       String? comment,
@@ -202,6 +220,8 @@ class VisitBook extends ChangeNotifier {
       comment: comment == null || comment.trim().isEmpty ? null : comment.trim(),
       items: {...items},
       total: total,
+      returns: [...returns],
+      returnTotal: returnTotal,
     );
     await store.saveOrder(o);
     v
@@ -220,17 +240,17 @@ class VisitBook extends ChangeNotifier {
   /// Ключ черновика заказа на телефоне: товары не теряются, если приложение закрылось посреди заказа.
   static const draftKey = 'order-draft';
 
-  /// Черновик заказа идущего визита: id товара → штук.
-  Future<Map<int, int>> draft() async {
+  /// Черновик заказа идущего визита: товары (id → штук) и возврат.
+  Future<({Map<int, int> items, List<ReturnItem> returns})> draft() async {
     final j = await store.read(draftKey);
-    if (j == null || j['visit'] != current?.uuid) return {};
-    return Order.parseItems(j['items'] as String);
+    if (j == null || j['visit'] != current?.uuid) return (items: <int, int>{}, returns: const <ReturnItem>[]);
+    return (items: Order.parseItems(j['items'] as String), returns: Order.parseReturns(j['returns'] as String?));
   }
 
-  Future<void> saveDraft(Map<int, int> items) async {
+  Future<void> saveDraft(Map<int, int> items, [List<ReturnItem> returns = const []]) async {
     final v = current;
     if (v == null) return;
-    await store.write(draftKey, {'visit': v.uuid, 'items': Order.encodeItems(items)});
+    await store.write(draftKey, {'visit': v.uuid, 'items': Order.encodeItems(items), 'returns': Order.encodeReturns(returns)});
   }
 
   /// Начали визит по ошибке — стереть, на сервер он не уйдёт.

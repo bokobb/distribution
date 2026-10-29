@@ -13,8 +13,9 @@ import 'return_screen.dart';
 import 'stop_screen.dart';
 
 /// «Состав» заказа по макету ExpDelivery: что отдаём магазину — по коробкам (не кратно коробке — по штуке), не
-/// больше заказанного; изменённая строка — янтарная, с тем, сколько было. «Забираем негодный товар» — возвраты
-/// у этого магазина сегодня, «Добавить» — экран возврата. Внизу — сколько к оплате: товар минус возврат.
+/// больше заказанного; изменённая строка — янтарная, с тем, сколько было. «Забираем негодный товар» — что торговый
+/// записал к возврату с заказом («Забрать по списку») и возвраты у этого магазина сегодня, «Добавить» — экран
+/// возврата. Внизу — сколько к оплате: товар минус возврат.
 /// «Готово» возвращает, сколько выдать по товарам (id → штук).
 class GoodsScreen extends StatefulWidget {
   const GoodsScreen(
@@ -66,6 +67,12 @@ class _GoodsScreenState extends State<GoodsScreen> {
             builder: (_) => ReturnScreen(
                 trip: widget.trip, stop: widget.stop, data: widget.data, deliveries: widget.deliveries)));
     if (ok == true && mounted) _say('Возврат сохранён');
+  }
+
+  Future<void> _takePlanned() async {
+    if (!widget.workday.open) return _say(startDayFirst);
+    final problem = await widget.deliveries.takePlannedReturns(widget.trip, widget.stop);
+    if (mounted) _say(problem ?? 'Возврат по списку торгового записан');
   }
 
   Future<void> _cancelReturn(DefectReturn r) async {
@@ -124,6 +131,7 @@ class _GoodsScreenState extends State<GoodsScreen> {
         listenable: widget.deliveries,
         builder: (context, _) {
           final returns = widget.deliveries.returnsAt(o.id);
+          final planned = order.returns.isNotEmpty && !widget.deliveries.plannedTaken(widget.trip, s);
           final back = returns.where((r) => r.error == null).fold(0, (a, r) => a + r.total);
           final goods = _goods;
           final toPay = (goods - back - order.paid).clamp(0, 1 << 40);
@@ -173,7 +181,8 @@ class _GoodsScreenState extends State<GoodsScreen> {
                                 icon: const Icon(Icons.add, size: 18),
                                 label: const Text('Добавить'),
                               )),
-                          if (returns.isEmpty)
+                          if (planned) ..._planned(order),
+                          if (returns.isEmpty && !planned)
                             const Padding(
                               padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
                               child: Text('Если магазин отдаёт брак или просрочку — добавьте, сумма вычтется из оплаты.',
@@ -328,6 +337,51 @@ class _GoodsScreenState extends State<GoodsScreen> {
           disabledColor: const Color(0xFFC9CDD5),
         ),
       );
+
+  /// Список торгового: что магазин отдаёт и почему; «Забрать по списку» записывает возврат.
+  List<Widget> _planned(TripOrder order) => [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text(
+              order.agent == null ? 'Торговый записал с заказом:' : 'Торговый ${order.agent} записал с заказом:',
+              style: const TextStyle(fontSize: 13, color: AppColors.text2)),
+        ),
+        for (final r in order.returns)
+          Container(
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(
+                color: Color(0xFFFFFAF0), border: Border(top: BorderSide(color: AppColors.divider))),
+            child: Row(children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text('${r.qty} шт · ${(DefectReturn.reasons[r.reason] ?? r.reason).toLowerCase()}',
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF8A5000))),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('−${money(r.sum)}',
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.warn, fontFeatures: tabular)),
+            ]),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          child: OutlinedButton(
+            onPressed: _takePlanned,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF8A5000),
+              side: const BorderSide(color: Color(0xFFC98A2E), width: 1.5),
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: Text('Забрать по списку · −${money(order.returnsTotal)}'),
+          ),
+        ),
+      ];
 
   Widget _returnLine(DefectReturn r, int productId, int qty) {
     final p = widget.data.products.where((x) => x.id == productId).firstOrNull;

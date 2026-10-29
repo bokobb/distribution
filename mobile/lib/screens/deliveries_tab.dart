@@ -8,6 +8,7 @@ import '../geo.dart';
 import '../launch.dart';
 import '../theme.dart';
 import '../widgets/layout.dart';
+import '../widgets/message_box.dart';
 import '../widgets/workday_card.dart';
 import '../workday.dart';
 import 'goods_screen.dart';
@@ -476,6 +477,13 @@ class _DeliveriesTabState extends State<DeliveriesTab> {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('Комментарий: ${order.comment}', style: const TextStyle(fontSize: 14, color: AppColors.label)),
+              ),
+            if (order.returns.isNotEmpty && !widget.deliveries.plannedTaken(t, s))
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: MessageBox.warn(
+                    'Магазин отдаёт возврат на ${money(order.returnsTotal)} — заберите в «Составе», сумма вычтется',
+                    onTap: () => _openGoods(t, s)),
               ),
             const SizedBox(height: 12),
             Row(children: [

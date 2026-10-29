@@ -42,9 +42,15 @@ public class ExpeditorDataService {
     public record LineDto(Long productId, String name, String unit, int perBox, int qty, long price, Integer delivered) {
     }
 
-    /** payment — CASH, KASPI, CREDIT, как оформил агент; paid — сколько уже оплачено по заказу. */
+    /** Что магазин отдаёт назад — записал торговый с заказом; reason — EXPIRED, DEFECT или PACKAGING. */
+    public record ReturnLineDto(Long productId, String name, int qty, long price, String reason) {
+    }
+
+    /** payment — CASH, KASPI, CREDIT, как оформил агент; paid — сколько уже оплачено по заказу; returns — возврат,
+     * который торговый записал с заказом: экспедитор забирает его при доставке. */
     public record OrderDto(Long id, UUID uuid, String number, String agent, LocalDate deliveryDate, String payment,
-                           String comment, String status, String statusLabel, long total, long paid, List<LineDto> lines) {
+                           String comment, String status, String statusLabel, long total, long paid, List<LineDto> lines,
+                           List<ReturnLineDto> returns) {
     }
 
     public record StopDto(int position, OutletDto outlet, OrderDto order) {
@@ -105,7 +111,9 @@ public class ExpeditorDataService {
             stops.add(new StopDto(to.getPosition(), AgentDataService.outlet(o.getOutlet()),
                     new OrderDto(o.getId(), o.getUuid(), o.getNumber(), o.getAgent() == null ? null : o.getAgent().getName(),
                             o.getDeliveryDate(), o.getPayment().name(), o.getComment(), o.getStatus().name(), o.getStatus().getLabel(),
-                            o.getTotal(), paid.getOrDefault(o.getId(), 0L), lines)));
+                            o.getTotal(), paid.getOrDefault(o.getId(), 0L), lines,
+                            o.getReturnLines().stream().map(l -> new ReturnLineDto(l.getProduct().getId(),
+                                    l.getProduct().getName(), l.getQty(), l.getPrice(), l.getReason().name())).toList())));
         }
         return new TripDto(t.getId(), t.getNumber(), t.getDate(), t.getStatus().name(), t.getStatus().getLabel(),
                 t.getVehicle() == null ? null : t.getVehicle().getPlate(), stops,

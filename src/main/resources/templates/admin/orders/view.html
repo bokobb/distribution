@@ -25,8 +25,9 @@
 </section>
 
 <div class="grid-wide">
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
     <section class="card">
-        <div class="card-h"><h2 th:text="${'Состав · ' + @fmt.plural(o.lines.size(), 'позиция', 'позиции', 'позиций')}">Состав</h2>
+        <div class="card-h"><h2 th:text="${'Состав · '  + @fmt.plural(o.lines.size(), 'позиция', 'позиции', 'позиций')}">Состав</h2>
             <span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></div>
         <div class="tbl-w"><table class="tbl">
             <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th><th class="r">Выдано</th></tr></thead>
@@ -41,6 +42,23 @@
                 <td class="r num" th:text="${o.status.delivered() ? @fmt.money(o.deliveredTotal) : '—'}"></td></tr></tfoot>
         </table></div>
     </section>
+
+    <section class="card" th:if="${!o.returnLines.isEmpty()}">
+        <div class="card-h"><h2 th:text="${'Возврат с заказом · ' + @fmt.plural(o.returnLines.size(), 'позиция', 'позиции', 'позиций')}">Возврат с заказом</h2>
+            <p>Записал торговый — экспедитор заберёт при доставке</p></div>
+        <div class="tbl-w"><table class="tbl">
+            <thead><tr><th>Товар</th><th>Причина</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead>
+            <tbody><tr th:each="l : ${o.returnLines}">
+                <td th:text="${l.product.name}"></td>
+                <td th:text="${l.reason.label}"></td>
+                <td class="r num" th:text="${l.qty + ' ' + l.product.unit}"></td>
+                <td class="r num" th:text="${@fmt.money(l.price)}"></td>
+                <td class="r num" th:text="${'−' + @fmt.money(l.sum)}"></td>
+            </tr></tbody>
+            <tfoot><tr><td colspan="4">К оплате за заказ</td><td class="r num" th:text="${@fmt.money(o.total - o.returnTotal)}"></td></tr></tfoot>
+        </table></div>
+    </section>
+    </div>
 
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
         <section class="card">

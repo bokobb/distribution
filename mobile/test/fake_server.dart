@@ -137,13 +137,14 @@ class FakeServer {
         orders.putIfAbsent(body['uuid'] as String, () => body);
         final n = orders.keys.toList().indexOf(body['uuid'] as String) + 1;
         final qty = (body['items'] as List).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
+        final back = (body['returns'] as List? ?? const []).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
         return _json({
           'uuid': body['uuid'], 'outletId': body['outletId'], 'number': 'З-281026-$n', 'createdAt': body['createdAt'],
           'deliveryDate': body['deliveryDate'], 'payment': body['payment'],
           'status': needsApproval ? 'NEEDS_APPROVAL' : 'ACCEPTED',
           'statusLabel': needsApproval ? 'Нужно разрешение' : 'Принят',
           'note': needsApproval ? 'Долг сверх лимита — ждёт разрешения оператора' : null,
-          'total': qty * 500, 'lines': [],
+          'total': qty * 500, 'lines': [], 'returnTotal': back * 500, 'returns': body['returns'] ?? [],
         }, 200);
       case '/api/mobile/agent/outlets':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
@@ -376,9 +377,14 @@ Map<String, dynamic> sampleAgentData({DateTime? now}) {
     ],
     'others': [
       {'id': 10, 'name': 'Магазин «Сосед»', 'address': 'ул. Абая, 1', 'landmark': null, 'lat': 42.31, 'lng': 69.61,
-        'region': 'Шымкент'},
+        'region': 'Шымкент', 'owner': 'Гульнара М.', 'priceKind': 'RETAIL', 'status': 'ACTIVE'},
       {'id': 11, 'name': 'Магазин «Ак жол»', 'address': null, 'landmark': 'у трассы', 'lat': 42.29, 'lng': 69.75,
-        'region': 'Сайрам'},
+        'region': 'Сайрам', 'owner': null, 'priceKind': 'WHOLESALE', 'status': 'ACTIVE'},
+      {'id': 12, 'name': 'Магазин «Без точки»', 'address': 'ул. Кунаева, 40', 'landmark': null, 'lat': null, 'lng': null,
+        'region': null, 'owner': null, 'priceKind': 'WHOLESALE', 'status': 'PENDING'},
+    ],
+    'lastOrders': [
+      {'outletId': 1, 'date': '2026-10-21', 'items': [{'productId': 1, 'qty': 24}, {'productId': 2, 'qty': 40}]},
     ],
   };
 }

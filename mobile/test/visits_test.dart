@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:distribution_mobile/api/api_client.dart';
 import 'package:distribution_mobile/data/agent_data.dart';
+import 'package:distribution_mobile/data/order.dart';
 import 'package:distribution_mobile/location.dart';
 import 'package:distribution_mobile/outbox.dart';
 import 'package:distribution_mobile/visits.dart';
@@ -177,17 +178,21 @@ void main() {
     expect(again.lastAt(1)!.reason, 'Нет денег');
   });
 
-  test('заказ заканчивает визит: визит и заказ уходят, номер и статус с сервера, черновик стёрт', () async {
+  test('заказ с возвратом заканчивает визит: визит и заказ уходят, номер и статус с сервера, черновик стёрт', () async {
     server.needsApproval = true;
     await book.start(outlet(1), routeId: 1, radius: 200, confirmFar: yes);
     final visit = book.current!.uuid;
-    await book.saveDraft({1: 3});
-    expect(await book.draft(), {1: 3});
+    await book.saveDraft({1: 3}, const [ReturnItem(productId: 2, qty: 4, reason: 'PACKAGING')]);
+    final draft = await book.draft();
+    expect(draft.items, {1: 3});
+    expect([draft.returns.single.qty, draft.returns.single.reason], [4, 'PACKAGING']);
 
     expect(
         await book.finishWithOrder(
             items: {1: 12, 2: 20},
             total: 12000,
+            returns: const [ReturnItem(productId: 2, qty: 4, reason: 'PACKAGING')],
+            returnTotal: 1200,
             payment: 'CREDIT',
             deliveryDate: DateTime(2026, 10, 29, 15),
             comment: '  после обеда ',
@@ -203,6 +208,7 @@ void main() {
     expect(sent['payment'], 'CREDIT');
     expect(sent['comment'], 'после обеда');
     expect(sent['items'], [{'productId': 1, 'qty': 12}, {'productId': 2, 'qty': 20}]);
+    expect(sent['returns'], [{'productId': 2, 'qty': 4, 'reason': 'PACKAGING'}]);
     expect(server.visits[visit]!['result'], 'ORDER');
 
     final o = book.ordersAt(1).single;
@@ -210,7 +216,10 @@ void main() {
     expect(o.status, 'NEEDS_APPROVAL');
     expect(o.note, 'Долг сверх лимита — ждёт разрешения оператора');
     expect(o.total, 16000); // итог сервера
-    expect(await book.draft(), isEmpty);
+    expect(o.returnTotal, 2000);
+    expect(book.orderOf(book.lastAt(1)!)?.uuid, o.uuid);
+    expect(book.todayOrders.single.uuid, o.uuid);
+    expect((await book.draft()).items, isEmpty);
     expect(store.data, isNot(contains(VisitBook.draftKey)));
     expect(outbox.unsent, 0);
   });
@@ -244,7 +253,10 @@ void main() {
   test('черновик другого визита не подставляется; отмена визита стирает черновик', () async {
     await store.write(VisitBook.draftKey, {'visit': 'другой', 'items': '{"1":4}'});
     await book.start(outlet(1), radius: 200, confirmFar: yes);
-    expect(await book.draft(), isEmpty);
+    expect((await book.draft()).items, isEmpty);
+    // черновик прежней версии — без возврата
+    await store.write(VisitBook.draftKey, {'visit': book.current!.uuid, 'items': '{"1":4}'});
+    expect([(await book.draft()).items, (await book.draft()).returns], [{1: 4}, isEmpty]);
     await book.saveDraft({2: 1});
     await book.cancel();
     expect(store.data, isNot(contains(VisitBook.draftKey)));

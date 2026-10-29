@@ -2,6 +2,7 @@ package com.confectionery.distribution;
 
 import com.confectionery.distribution.TestData.World;
 import com.confectionery.distribution.domain.PriceKind;
+import com.confectionery.distribution.domain.TripStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,6 +10,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -19,12 +21,16 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Заказ агента с телефона: цены сервера, номер, повтор без дубля, долг сверх лимита, оплата по настройкам. */
+/** Заказ агента с телефона: цены сервера, номер, повтор без дубля, долг сверх лимита, оплата по настройкам, возврат
+ * вместе с заказом. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, TestData.class})
@@ -97,6 +103,63 @@ class OrderApiTest {
                 .isEqualTo("Долг 80 000 ₸ + не доставлено 15 000 ₸ + этот заказ 10 000 ₸ = 105 000 ₸ при лимите 100 000 ₸ — нужно разрешение");
         // за наличные лимит не проверяется
         send(jwt, order(UUID.randomUUID(), w, "CASH", 50, null)).andExpect(jsonPath("$.status").value("ACCEPTED"));
+    }
+
+    @Test
+    void сВозвратом_лимитСЧётомВозврата_экспедиторВидит_последнийЗаказМагазина() throws Exception {
+        World w = data.world("Возврат с заказом");
+        data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
+        data.openingDebt(w, 80_000, data.today().minusDays(3));
+        String jwt = data.jwt(w.agent());
+        UUID uuid = UUID.randomUUID();
+        LocalDateTime at = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).minusMinutes(5);
+        String json = """
+                {"uuid": "%s", "outletId": %d, "createdAt": "%s", "payment": "CREDIT",
+                 "items": [{"productId": %d, "qty": 25}], "returns": [{"productId": %d, "qty": 6, "reason": "%s"}]}""";
+
+        send(jwt, json.formatted(UUID.randomUUID(), w.outlet().getId(), at, w.product().getId(), w.product().getId(), "OLD"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Укажите причину возврата: просрочка, брак или упаковка"));
+        // долг 80 000 + заказ 25 000 − возврат 6 000 = 99 000 — в лимите 100 000
+        send(jwt, json.formatted(uuid, w.outlet().getId(), at, w.product().getId(), w.product().getId(), "EXPIRED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.total").value(25_000))
+                .andExpect(jsonPath("$.returnTotal").value(6000))
+                .andExpect(jsonPath("$.returns[0].qty").value(6))
+                .andExpect(jsonPath("$.returns[0].reason").value("EXPIRED"));
+        // возврат — план: долг не меняется, пока экспедитор не заберёт
+        assertThat(jdbc.queryForObject("select count(*) from returns where company_id = ?", Integer.class, w.id())).isZero();
+
+        mvc.perform(get("/api/mobile/agent/data").header("Authorization", "Bearer " + jwt))
+                .andExpect(jsonPath("$.orders[0].returnTotal").value(6000))
+                .andExpect(jsonPath("$.outlets[0].debt").value(80_000))
+                .andExpect(jsonPath("$.lastOrders[0].outletId").value(w.outlet().getId()))
+                .andExpect(jsonPath("$.lastOrders[0].date").value(at.toLocalDate().toString()))
+                .andExpect(jsonPath("$.lastOrders[0].items[0].productId").value(w.product().getId()))
+                .andExpect(jsonPath("$.lastOrders[0].items[0].qty").value(25));
+
+        data.stockIn(w, 100);
+        data.trip(w, TripStatus.ON_ROAD, data.orderByUuid(uuid));
+        mvc.perform(get("/api/mobile/expeditor/data").header("Authorization", "Bearer " + data.jwt(w.expeditor())))
+                .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].productId").value(w.product().getId()))
+                .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].qty").value(6))
+                .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].price").value(1000))
+                .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].reason").value("EXPIRED"));
+        data.password(w.operator(), "Проверка-2026", false);
+        MockHttpSession s = (MockHttpSession) mvc.perform(formLogin("/login").user(w.operator().getPhone()).password("Проверка-2026"))
+                .andReturn().getRequest().getSession(false);
+        mvc.perform(get("/admin/orders/{id}", data.orderByUuid(uuid).getId()).session(s)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Возврат с заказом · 1 позиция")));
+
+        // повтор лимита с возвратом: 80 000 + не доставлено 25 000 + 30 000 − 6 000 = 129 000 > 100 000
+        send(jwt, json.formatted(UUID.randomUUID(), w.outlet().getId(), at, w.product().getId(), w.product().getId(), "DEFECT")
+                .replace("\"qty\": 25", "\"qty\": 30"))
+                .andExpect(jsonPath("$.status").value("NEEDS_APPROVAL"));
+        assertThat(jdbc.queryForObject("select e.message from order_events e join orders o on o.id = e.order_id "
+                + "where o.status = 'NEEDS_APPROVAL' and o.company_id = ? and e.who_name = 'Система'", String.class, w.id()))
+                .isEqualTo("Долг 80 000 ₸ + не доставлено 25 000 ₸ + этот заказ 30 000 ₸ − возврат 6 000 ₸ = 129 000 ₸ "
+                        + "при лимите 100 000 ₸ — нужно разрешение");
     }
 
     @Test

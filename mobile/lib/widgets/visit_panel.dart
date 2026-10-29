@@ -7,7 +7,8 @@ import '../data/order.dart';
 import '../data/visit.dart';
 import '../format.dart';
 import '../geo.dart';
-import '../screens/order_screen.dart';
+import '../screens/agent_order_screen.dart';
+import '../screens/no_order_screen.dart';
 import '../theme.dart';
 import '../visits.dart';
 import '../workday.dart';
@@ -75,19 +76,11 @@ class _VisitPanelState extends State<VisitPanel> {
       return;
     }
     await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => OrderScreen(outlet: widget.outlet, data: widget.data, visits: widget.visits)));
+        MaterialPageRoute(builder: (_) => AgentOrderScreen(outlet: widget.outlet, data: widget.data, visits: widget.visits)));
   }
 
-  Future<void> _noOrder() async {
-    final s = widget.data.settings;
-    if (s.shelfPhotoRequired && widget.visits.current?.photo == null) {
-      _say('Сначала сфотографируйте полку');
-      return;
-    }
-    final reason = await _askReason(context, required: s.refuseReasonRequired);
-    if (reason == null) return;
-    await _run(() => widget.visits.finishNoOrder(reason, s));
-  }
+  Future<void> _noOrder() => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => NoOrderScreen(outlet: widget.outlet, data: widget.data, visits: widget.visits)));
 
   Future<void> _cancel() async {
     final ok = await showDialog<bool>(
@@ -251,71 +244,4 @@ class _Spinner extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.card));
-}
-
-/// Почему без заказа: частая причина одним касанием или своя. Отмена — null; «без причины» — пустая строка.
-Future<String?> _askReason(BuildContext context, {required bool required}) => showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (c) => _ReasonSheet(required: required),
-    );
-
-class _ReasonSheet extends StatefulWidget {
-  const _ReasonSheet({required this.required});
-
-  final bool required;
-
-  @override
-  State<_ReasonSheet> createState() => _ReasonSheetState();
-}
-
-class _ReasonSheetState extends State<_ReasonSheet> {
-  final _other = TextEditingController();
-
-  @override
-  void dispose() {
-    _other.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-                  child: Text('Почему без заказа?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                ),
-                for (final r in VisitBook.reasons) ListTile(title: Text(r), onTap: () => Navigator.pop(context, r)),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                  child: TextField(
-                    controller: _other,
-                    maxLength: 200,
-                    decoration: const InputDecoration(labelText: 'Другая причина'),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: FilledButton(
-                    onPressed: () {
-                      if (_other.text.trim().isNotEmpty) Navigator.pop(context, _other.text.trim());
-                    },
-                    child: const Text('Готово'),
-                  ),
-                ),
-                if (!widget.required)
-                  TextButton(onPressed: () => Navigator.pop(context, ''), child: const Text('Без причины')),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        ),
-      );
 }
