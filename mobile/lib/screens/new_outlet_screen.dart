@@ -12,12 +12,14 @@ import '../geo.dart';
 import '../location.dart';
 import '../theme.dart';
 import '../visits.dart';
-import '../widgets/layout.dart';
+import 'point_pick_screen.dart';
 
 /// «Новый магазин» по макету AgentNewOutlet — магазина нет в базе, торговый заполняет на месте: точка по GPS (сразу
-/// при открытии, «Уточнить» — ещё раз), название на вывеске, телефон владельца, кто принимает товар, адрес и
-/// ориентир, фото фасада, прайс. Сохраняется на телефон и уходит на сервер сам (там «на проверке» и в маршруте
-/// агента); «Создать и оформить заказ» возвращает магазин — в нём сразу начинается заказ, без долга.
+/// при открытии, «Уточнить» — ещё раз) или вручную на карте, название на вывеске, телефон владельца, кто принимает
+/// товар, адрес и ориентир (улица и дом подставляются по точке — можно исправить), фото фасада по желанию. Тип цен
+/// торговый не выбирает — его ставит руководитель, до того цены оптовые. Сохраняется на телефон и уходит на сервер
+/// сам (там «на проверке» и в маршруте агента); «Создать и оформить заказ» возвращает магазин — в нём сразу
+/// начинается заказ, без долга.
 class NewOutletScreen extends StatefulWidget {
   const NewOutletScreen({super.key, required this.data, required this.visits, this.routeId});
 
@@ -39,9 +41,14 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
   final _phone = TextEditingController();
   final _owner = TextEditingController();
   final _address = TextEditingController();
-  String _price = 'WHOLESALE';
   Fix? _fix;
+
+  /// Точку поставили вручную на карте.
+  bool _manual = false;
   bool _locating = false;
+
+  /// Что подставили в адрес по точке; торговый написал своё — больше не трогаем.
+  String? _autoAddress;
   String? _photo;
   bool _saved = false;
   bool _saving = false;
@@ -68,12 +75,53 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
   Future<void> _locate() async {
     setState(() => _locating = true);
     final fix = await widget.visits.location.current();
-    if (mounted) {
-      setState(() {
-        _fix = fix ?? _fix;
-        _locating = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      if (fix != null) {
+        _fix = fix;
+        _manual = false;
+      }
+      _locating = false;
+    });
+    if (fix != null) await _fillAddress();
+  }
+
+  /// Середина магазинов базы — карта без GPS начинается с города.
+  LatLng get _baseCenter {
+    final pts = [for (final o in widget.data.base) if (o.lat != null && o.lng != null) LatLng(o.lat!, o.lng!)];
+    if (pts.isEmpty) return const LatLng(42.3417, 69.5901); // Шымкент
+    return LatLng(pts.map((p) => p.latitude).reduce((a, b) => a + b) / pts.length,
+        pts.map((p) => p.longitude).reduce((a, b) => a + b) / pts.length);
+  }
+
+  Future<void> _pickOnMap() async {
+    final f = _fix;
+    final gps = f != null && !_manual ? LatLng(f.lat, f.lng) : null;
+    final point = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PointPickScreen(
+            start: f != null ? LatLng(f.lat, f.lng) : _baseCenter, location: widget.visits.location, here: gps),
+      ),
+    );
+    if (point == null || !mounted) return;
+    setState(() {
+      _fix = Fix(at: DateTime.now(), lat: point.latitude, lng: point.longitude);
+      _manual = true;
+    });
+    await _fillAddress();
+  }
+
+  /// Улица и дом по точке — в пустой адрес или поверх подставленного раньше.
+  Future<void> _fillAddress() async {
+    final f = _fix;
+    if (f == null) return;
+    final street = await widget.visits.location.address(f.lat, f.lng);
+    if (!mounted || street == null || !identical(f, _fix)) return;
+    final typed = _address.text.trim();
+    if (typed.isNotEmpty && typed != _autoAddress) return;
+    _autoAddress = street;
+    _address.text = street;
   }
 
   Future<void> _takePhoto() async {
@@ -101,7 +149,6 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
         if (!_nameOk) 'название',
         if (!_phoneOk) 'телефон',
         if (!_addressOk) 'адрес',
-        if (_photo == null) 'фото фасада',
       ];
 
   /// Адрес ближайшего магазина из базы — подсказка, где стоит торговый.
@@ -132,7 +179,6 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
       lat: _fix?.lat,
       lng: _fix?.lng,
       accuracy: _fix?.accuracy,
-      priceKind: _price,
       photo: _photo,
     );
     await outbox.store.saveNewOutlet(outlet);
@@ -166,24 +212,12 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
           _field(_phone, 'Телефон владельца *',
               hint: '+7 7__ ___ __ __', keyboard: TextInputType.phone, error: _phone.text.isNotEmpty && !_phoneOk),
           _field(_owner, 'Кто принимает товар', hint: 'Имя продавца или хозяина'),
-          _field(_address, 'Адрес и ориентир *', hint: 'Улица, дом — напротив чего'),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Expanded(child: _photoTile()),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(4, 0, 4, 6),
-                  child: Text('Цены', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.label)),
-                ),
-                PillTabs(
-                  labels: const ['Опт', 'Розница'],
-                  index: _price == 'RETAIL' ? 1 : 0,
-                  onChanged: (i) => setState(() => _price = i == 1 ? 'RETAIL' : 'WHOLESALE'),
-                ),
-              ]),
-            ),
-          ]),
+          _field(_address, 'Адрес и ориентир *',
+              hint: 'Улица, дом — напротив чего',
+              helper: _autoAddress != null && _address.text.trim() == _autoAddress
+                  ? 'По точке на карте — исправьте, если не так, и добавьте ориентир'
+                  : null),
+          _photoTile(),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -195,7 +229,7 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
               Expanded(
                 child: Text(
                     'Заказ можно оформить сразу. Первый заказ нового магазина — без долга, оплата при доставке. '
-                    'Руководитель проверит магазин сегодня.',
+                    'Руководитель проверит магазин сегодня и назначит ему цены.',
                     style: TextStyle(fontSize: 14, height: 20 / 14, color: Color(0xFF2A21B8))),
               ),
             ]),
@@ -227,93 +261,106 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
     );
   }
 
-  /// Мини-карта с точкой, точность GPS, адрес рядом и «Уточнить».
+  /// Мини-карта с точкой (касание — поправить на карте), откуда точка, адрес рядом; «Уточнить» по GPS и «На карте».
   Widget _point() {
     final f = _fix;
     final near = _near;
+    const green = Color(0xFF0E6B4C);
+    final status = _locating
+        ? 'Определяю, где вы…'
+        : f == null
+            ? 'Точка не определена'
+            : _manual
+                ? 'Точка на карте — указана вручную'
+                : ['Точка по GPS', if (f.accuracy != null) 'точность ${f.accuracy} м'].join(' · ');
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: const BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.all(Radius.circular(16))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (f != null) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              height: 104,
-              child: IgnorePointer(
-                child: FlutterMap(
-                  key: ValueKey((f.lat, f.lng)),
-                  options: MapOptions(initialCenter: LatLng(f.lat, f.lng), initialZoom: 17),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.confectionery.distribution_mobile',
-                    ),
-                    MarkerLayer(markers: [
-                      Marker(
-                        point: LatLng(f.lat, f.lng),
-                        width: 44,
-                        height: 44,
-                        child: Container(
-                          decoration: const BoxDecoration(color: Color(0x244136F1), shape: BoxShape.circle),
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.storefront, size: 22, color: AppColors.accent),
+          Semantics(
+            button: true,
+            label: 'Поправить точку на карте',
+            child: GestureDetector(
+              onTap: _locating ? null : _pickOnMap,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  height: 104,
+                  child: IgnorePointer(
+                    child: FlutterMap(
+                      key: ValueKey((f.lat, f.lng)),
+                      options: MapOptions(initialCenter: LatLng(f.lat, f.lng), initialZoom: 17),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.confectionery.distribution_mobile',
                         ),
-                      ),
-                    ]),
-                  ],
+                        MarkerLayer(markers: [
+                          Marker(
+                            point: LatLng(f.lat, f.lng),
+                            width: 44,
+                            height: 44,
+                            child: Container(
+                              decoration: const BoxDecoration(color: Color(0x244136F1), shape: BoxShape.circle),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.storefront, size: 22, color: AppColors.accent),
+                            ),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 8),
         ],
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(f == null ? Icons.location_off_outlined : (_manual ? Icons.touch_app_outlined : Icons.check_circle_outline),
+                  size: 16, color: f == null ? AppColors.warn : green),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(status,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: f == null ? AppColors.warn : green)),
+              ),
+            ]),
+            Text(
+                near != null
+                    ? 'рядом: $near'
+                    : f == null && !_locating
+                        ? 'Укажите магазин на карте — по точке его найдёт экспедитор'
+                        : 'Стойте у входа — по точке магазин найдёт экспедитор',
+                style: const TextStyle(fontSize: 13, color: AppColors.text2)),
+          ]),
+        ),
+        const SizedBox(height: 8),
         Row(children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Icon(f == null ? Icons.location_off_outlined : Icons.check_circle_outline,
-                      size: 16, color: f == null ? AppColors.warn : const Color(0xFF0E6B4C)),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      _locating
-                          ? 'Определяю, где вы…'
-                          : f == null
-                              ? 'Точка не определена'
-                              : ['Точка по GPS', if (f.accuracy != null) 'точность ${f.accuracy} м'].join(' · '),
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: f == null ? AppColors.warn : const Color(0xFF0E6B4C)),
-                    ),
-                  ),
-                ]),
-                Text(
-                    near != null ? 'рядом: $near' : 'Стойте у входа — по точке магазин найдёт экспедитор',
-                    style: const TextStyle(fontSize: 13, color: AppColors.text2)),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 12),
-          TextButton(
-            onPressed: _locating ? null : _locate,
-            style: TextButton.styleFrom(
-              backgroundColor: AppColors.fill,
-              foregroundColor: AppColors.text,
-              minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
-              textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            child: Text(f == null ? 'Ещё раз' : 'Уточнить'),
-          ),
+          Expanded(child: _pointButton(Icons.my_location, f == null || _manual ? 'По GPS' : 'Уточнить', _locate)),
+          const SizedBox(width: 8),
+          Expanded(child: _pointButton(Icons.map_outlined, 'На карте', _pickOnMap)),
         ]),
       ]),
     );
   }
+
+  Widget _pointButton(IconData icon, String label, VoidCallback onPressed) => TextButton.icon(
+        onPressed: _locating ? null : onPressed,
+        style: TextButton.styleFrom(
+          backgroundColor: AppColors.fill,
+          foregroundColor: AppColors.text,
+          minimumSize: const Size(0, 40),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+          textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+      );
 
   Widget _photoTile() {
     final photo = _photo;
@@ -332,7 +379,8 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Icon(Icons.photo_camera_outlined, color: AppColors.text),
               SizedBox(height: 6),
-              Text('Фото фасада *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text('Фото фасада', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text('по желанию', style: TextStyle(fontSize: 12, color: AppColors.text2)),
             ]),
           ),
         ),
@@ -372,7 +420,8 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label, {String? hint, TextInputType? keyboard, bool error = false}) =>
+  Widget _field(TextEditingController c, String label,
+          {String? hint, String? helper, TextInputType? keyboard, bool error = false}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -386,6 +435,8 @@ class _NewOutletScreenState extends State<NewOutletScreen> {
             textCapitalization: keyboard == null ? TextCapitalization.sentences : TextCapitalization.none,
             decoration: InputDecoration(
               hintText: hint,
+              helperText: helper,
+              helperMaxLines: 2,
               errorText: error ? (keyboard == null ? 'Хотя бы две буквы' : '+7 и 10 цифр, например +7 701 123 45 67') : null,
             ),
           ),

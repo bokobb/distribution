@@ -37,7 +37,8 @@ void main() {
     final data = AgentData.fromJson(sampleAgentData());
     final fresh = NewOutlet(
         uuid: 'n-1', createdAt: DateTime(2026, 10, 28, 10, 5), name: 'Магазин «Береке-2»', phone: '+77011234567',
-        address: 'ул. Сейфуллина, 40', lat: 42.3, lng: 69.6, priceKind: 'RETAIL');
+        address: 'ул. Сейфуллина, 40', lat: 42.3, lng: 69.6);
+    expect(fresh.toJson().containsKey('priceKind'), isFalse); // тип цен ставит руководитель
     final rejected = NewOutlet(
         uuid: 'n-2', createdAt: DateTime(2026, 10, 28, 10, 6), name: 'Отклонён', phone: '+77011234568', error: 'Дубль');
 
@@ -45,7 +46,7 @@ void main() {
     expect(fresh.localId, isNegative);
     expect(local.base.map((o) => o.id), [1, 2, 3, 10, 11, 12, fresh.localId]);
     final o = local.outlet(fresh.localId)!;
-    expect([o.name, o.mine, o.pending, o.debt, o.priceKind], ['Магазин «Береке-2»', true, true, 0, 'RETAIL']);
+    expect([o.name, o.mine, o.pending, o.debt, o.priceKind], ['Магазин «Береке-2»', true, true, 0, 'WHOLESALE']); // тип цен ставит руководитель
     expect(data.base, hasLength(6), reason: 'исходные данные не меняются');
 
     // сервер принял, данные ещё старые — номер сервера, по номеру телефона тоже находится
@@ -241,7 +242,7 @@ void main() {
     final store = await SqliteStore.open(path: inMemoryDatabasePath, factory: databaseFactoryFfi);
     final o = NewOutlet(
         uuid: 'н1', createdAt: DateTime(2026, 10, 28, 11), routeId: 2, name: 'Магазин «Нур»', bin: '123456789012',
-        phone: '+7 701 555 44 33', address: 'ул. Абая, 5', lat: 42.31, lng: 69.59, accuracy: 9, priceKind: 'RETAIL',
+        phone: '+7 701 555 44 33', address: 'ул. Абая, 5', lat: 42.31, lng: 69.59, accuracy: 9,
         photo: '/фото/н1.jpg');
     await store.saveNewOutlet(o);
     expect(await store.unsentCount(), 2);

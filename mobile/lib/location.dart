@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:ui' show Locale;
 
 import 'package:battery_plus/battery_plus.dart';
+import 'package:geocoding/geocoding.dart' show Geocoding;
 import 'package:geolocator/geolocator.dart';
 
 /// Где телефон: координаты, точность (м), когда снято.
@@ -36,6 +38,24 @@ abstract class LocationSource {
 
   /// Заряд батареи, %; не узнали — null.
   Future<int?> battery();
+
+  /// Улица и дом у точки — для адреса нового магазина; нет сети или не нашлось — null.
+  Future<String?> address(double lat, double lng);
+}
+
+/// «улица Абая, 41» из ответа геокодера: улица [road] и дом [house]; улицы нет — начало полного адреса [line]
+/// («ул. Абая 41, Шымкент, Казахстан» → «ул. Абая 41»); дорога без названия — null.
+String? streetAndHouse({String? road, String? house, String? line}) {
+  bool unnamed(String s) => s.toLowerCase().contains('unnamed') || s.toLowerCase().contains('безымян');
+  final r = road?.trim() ?? '', h = house?.trim() ?? '';
+  if (r.isNotEmpty && !unnamed(r)) return h.isEmpty ? r : '$r, $h';
+  final parts = (line ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  if (parts.isEmpty || unnamed(parts.first)) return null;
+  // «41, мкр. Нурсат, …» — номер без улицы: берём и следующую часть
+  if (!parts.first.contains(RegExp(r'[A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]')) && parts.length > 1) {
+    return '${parts[1]}, ${parts.first}';
+  }
+  return parts.first;
 }
 
 /// Настоящий GPS (geolocator) и батарея (battery_plus).
@@ -111,6 +131,21 @@ class DeviceLocation implements LocationSource {
 
   @override
   Stream<bool> serviceStatus() => Geolocator.getServiceStatusStream().map((s) => s == ServiceStatus.enabled);
+
+  /// Геокодер телефона (на Android — службы Google, нужен интернет), названия по-русски.
+  @override
+  Future<String?> address(double lat, double lng) async {
+    try {
+      final found = await Geocoding(locale: const Locale('ru', 'KZ'))
+          .placemarkFromCoordinates(lat, lng)
+          .timeout(const Duration(seconds: 10));
+      if (found.isEmpty) return null;
+      final p = found.first;
+      return streetAndHouse(road: p.thoroughfare, house: p.subThoroughfare, line: p.street);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Future<int?> battery() async {

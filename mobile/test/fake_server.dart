@@ -227,7 +227,9 @@ class FakeServer {
     final routes = (agentData['routes'] as List).cast<Map<String, dynamic>>();
     final id = 100 + outlets.length;
     final o = {
-      ...body, 'id': id, 'creditLimit': 0, 'paymentDays': 0, 'status': 'PENDING', 'debt': 0, 'overdue': 0,
+      // тип цен — как на сервере: опт, пока руководитель не поставит другой
+      ...body, 'id': id, 'priceKind': 'WHOLESALE', 'creditLimit': 0, 'paymentDays': 0, 'status': 'PENDING', 'debt': 0,
+      'overdue': 0,
       'lastPaymentDate': null, 'lastPaymentSum': 0,
     };
     all.add(o);

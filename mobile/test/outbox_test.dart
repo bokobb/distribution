@@ -106,7 +106,7 @@ void main() {
     final paths = server.requests.map((r) => r.url.path).toList();
     expect(paths.indexOf('/api/mobile/agent/outlets'), lessThan(paths.indexOf('/api/mobile/agent/visits')));
     expect(server.outlets['n1']!['landmark'], 'у мечети');
-    expect(server.outlets['n1']!['priceKind'], 'WHOLESALE');
+    expect(server.outlets['n1']!['priceKind'], 'WHOLESALE'); // тип цен ставит руководитель
     expect(server.facades['n1'], [0xFF, 0xD8]);
     expect(o.outletsAdded, 1);
     expect(o.unsent, 0);

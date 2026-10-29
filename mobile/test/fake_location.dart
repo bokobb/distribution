@@ -48,5 +48,17 @@ class FakeLocation implements LocationSource {
   @override
   Future<int?> battery() async => 77;
 
+  /// Что ответит геокодер; null — не нашёл или нет сети.
+  String? street = 'улица Абая, 7';
+
+  /// Точки, для которых спросили адрес.
+  final addressed = <(double, double)>[];
+
+  @override
+  Future<String?> address(double lat, double lng) async {
+    addressed.add((lat, lng));
+    return street;
+  }
+
   void fix(DateTime at, {double lat = 42.3, double lng = 69.6}) => fixes.add(Fix(at: at, lat: lat, lng: lng, accuracy: 10));
 }

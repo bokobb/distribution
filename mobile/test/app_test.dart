@@ -9,6 +9,7 @@ import 'package:distribution_mobile/session.dart';
 import 'package:distribution_mobile/widgets/layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -737,10 +738,12 @@ void main() {
     expect(server.trackEvents.map((e) => e['kind']), containsAll(['APP_OPEN', 'DAY_START']));
   });
 
-  testWidgets('новый магазин: форма, сразу заказ без долга; без сети ждёт, после отправки — с номером сервера', (t) async {
+  testWidgets('новый магазин: точка вручную на карте, адрес по точке, без цен и фото; сразу заказ без долга; '
+      'без сети ждёт, после отправки — с номером сервера', (t) async {
     final server = FakeServer();
+    final gps = FakeLocation();
     await t.pumpWidget(DistributionApp(
-        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+        location: gps, camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
     await tapVisible(t, find.text('Начать рабочий день'));
     await t.pumpAndSettle();
@@ -752,9 +755,29 @@ void main() {
     expect(find.text('Магазина нет в базе — заполните на месте'), findsOneWidget);
     expect(find.text('Точка по GPS · точность 12 м'), findsOneWidget);
     expect(find.text('рядом: ул. Байтурсынова, 1'), findsOneWidget);
-    expect(find.text('Не хватает: название, телефон, адрес, фото фасада'), findsOneWidget);
+    // улица и дом — по точке GPS, сами
+    expect(find.text('Не хватает: название, телефон'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Фото фасада'), 100, scrollable: find.byType(Scrollable).first);
+    expect(find.widgetWithText(TextField, 'улица Абая, 7'), findsOneWidget);
+    expect(find.text('По точке на карте — исправьте, если не так, и добавьте ориентир'), findsOneWidget);
+    expect(find.text('Опт'), findsNothing); // тип цен ставит руководитель
+    await t.scrollUntilVisible(find.text('На карте'), -100, scrollable: find.byType(Scrollable).first);
     final create = find.widgetWithText(FilledButton, 'Создать и оформить заказ');
     expect(t.widget<FilledButton>(create).onPressed, isNull);
+
+    // точка вручную: карту сдвинули вниз — магазин севернее GPS, адрес по новой точке
+    gps.street = 'улица Абая, 9';
+    await tapVisible(t, find.text('На карте'));
+    await t.pumpAndSettle();
+    expect(find.text('Двигайте карту — магазин под булавкой'), findsOneWidget);
+    await t.drag(find.byType(FlutterMap), const Offset(0, 120));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Магазин здесь'));
+    await t.pumpAndSettle();
+    expect(find.text('Точка на карте — указана вручную'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Фото фасада'), 100, scrollable: find.byType(Scrollable).first);
+    expect(find.widgetWithText(TextField, 'улица Абая, 9'), findsOneWidget);
+    expect(gps.addressed.last.$1, greaterThan(42.3));
 
     // поле по подсказке в нём; список строит только видимое — сначала прокрутить
     Future<void> type(String hint, String text) async {
@@ -769,12 +792,17 @@ void main() {
     expect(find.text('+7 и 10 цифр, например +7 701 123 45 67'), findsOneWidget);
     await type('+7 7__ ___ __ __', '8 701 555 44 33');
     await type('Имя продавца или хозяина', 'Айдос Н.');
-    await type('Улица, дом — напротив чего', 'у мечети');
-    await tapVisible(t, find.text('Розница'));
-    await tapVisible(t, find.text('Фото фасада *'));
+    await type('улица Абая, 9', 'у мечети'); // своё — по новой точке уже не перепишется
+    expect(find.text('Магазин сразу появится у вас, руководитель проверит'), findsOneWidget); // фото по желанию
+    await tapVisible(t, find.text('Фото фасада'));
     await settleIo(t);
     expect(find.text('Фото есть'), findsOneWidget);
-    expect(find.text('Магазин сразу появится у вас, руководитель проверит'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('По GPS'), -100, scrollable: find.byType(Scrollable).first);
+    await tapVisible(t, find.text('По GPS')); // назад к GPS
+    await t.pumpAndSettle();
+    expect(find.text('Точка по GPS · точность 12 м'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Фото есть'), 100, scrollable: find.byType(Scrollable).first);
+    expect(find.widgetWithText(TextField, 'у мечети'), findsOneWidget);
 
     server.offline = true;
     await tapVisible(t, create);
@@ -783,7 +811,7 @@ void main() {
     expect(find.text('Магазин «Нур»'), findsOneWidget); // заказ — сразу в нём
     await tapVisible(t, find.text('Добавить позицию'));
     await t.pumpAndSettle();
-    expect(inSheet(find.text('${money(600)} / шт · 12 шт в кор')), findsOneWidget); // розница
+    expect(inSheet(find.text('${money(500)} / шт · 12 шт в кор')), findsOneWidget); // опт, пока руководитель не назначит
     await t.tap(inSheet(find.text('Печенье овсяное')));
     await t.pumpAndSettle();
     await t.enterText(inDialog(find.byType(TextField)), '12');
@@ -808,8 +836,9 @@ void main() {
     await settleIo(t, rounds: 2);
     expect(find.text('Всё отправлено'), findsOneWidget);
     final sent = server.outlets.values.single;
-    expect([sent['name'], sent['phone'], sent['owner'], sent['address'], sent['priceKind'], sent['routeId'], sent['lat']],
-        ['Магазин «Нур»', '8 701 555 44 33', 'Айдос Н.', 'у мечети', 'RETAIL', 1, 42.3]);
+    expect([sent['name'], sent['phone'], sent['owner'], sent['address'], sent['routeId'], sent['lat']],
+        ['Магазин «Нур»', '8 701 555 44 33', 'Айдос Н.', 'у мечети', 1, 42.3]);
+    expect(sent['priceKind'], 'WHOLESALE');
     expect(server.facades.values.single, FakeCamera.jpeg);
     expect(server.visits.values.single['outletId'], 100);
     expect([server.orders.values.single['outletId'], server.orders.values.single['payment']], [100, 'CASH']);

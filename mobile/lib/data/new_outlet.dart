@@ -21,7 +21,6 @@ class NewOutlet {
     this.lat,
     this.lng,
     this.accuracy,
-    this.priceKind = 'WHOLESALE',
     this.photo,
     this.sent = false,
     this.photoSent = false,
@@ -41,15 +40,12 @@ class NewOutlet {
   final String? address;
   final String? landmark;
 
-  /// Где агент отметил магазин и с какой точностью (м).
+  /// Где агент отметил магазин и с какой точностью GPS (м); отмечен вручную на карте — точности нет.
   final double? lat;
   final double? lng;
   final int? accuracy;
 
-  /// WHOLESALE — опт, RETAIL — розница.
-  final String priceKind;
-
-  /// Файл фото фасада на телефоне.
+  /// Файл фото фасада на телефоне; фото по желанию.
   String? photo;
   bool sent;
   bool photoSent;
@@ -64,7 +60,7 @@ class NewOutlet {
   /// заказ в новом магазине записываются с ним и ждут, пока сервер примет магазин и даст свой номер.
   int get localId => -createdAt.millisecondsSinceEpoch;
 
-  /// Как магазин из данных агента: свой, «на проверке», без долга.
+  /// Как магазин из данных агента: свой, «на проверке», без долга; цены оптовые — тип цен ставит руководитель.
   Outlet asOutlet() => Outlet(
         id: serverId ?? localId,
         uuid: uuid,
@@ -77,7 +73,7 @@ class NewOutlet {
         landmark: landmark,
         lat: lat,
         lng: lng,
-        priceKind: priceKind,
+        priceKind: 'WHOLESALE',
         creditLimit: 0,
         paymentDays: 0,
         status: 'PENDING',
@@ -100,7 +96,6 @@ class NewOutlet {
         'landmark': landmark,
         'lat': lat,
         'lng': lng,
-        'priceKind': priceKind,
       };
 
   /// Всё, что нужно хранить на телефоне, — одной строкой JSON.
@@ -132,7 +127,6 @@ class NewOutlet {
       lat: (j['lat'] as num?)?.toDouble(),
       lng: (j['lng'] as num?)?.toDouble(),
       accuracy: j['accuracy'] as int?,
-      priceKind: j['priceKind'] as String? ?? 'WHOLESALE',
       photo: j['photo'] as String?,
       sent: j['sent'] as bool? ?? false,
       photoSent: j['photoSent'] as bool? ?? false,

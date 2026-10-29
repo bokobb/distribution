@@ -261,5 +261,13 @@ void main() {
     await book.cancel();
     expect(store.data, isNot(contains(VisitBook.draftKey)));
   });
-}
 
+  test('адрес нового магазина по точке: улица и дом; без улицы — начало адреса; дорога без названия — ничего', () {
+    expect(streetAndHouse(road: 'улица Абая', house: '41', line: 'ул. Абая 41, Шымкент, Казахстан'), 'улица Абая, 41');
+    expect(streetAndHouse(road: 'проспект Тауке хана'), 'проспект Тауке хана');
+    expect(streetAndHouse(line: 'ул. Абая 41, Шымкент 160000, Казахстан'), 'ул. Абая 41');
+    expect(streetAndHouse(line: '41, мкр. Нурсат, Шымкент'), 'мкр. Нурсат, 41');
+    expect(streetAndHouse(road: 'Unnamed Road', line: 'Unnamed Road, Шымкент'), isNull);
+    expect(streetAndHouse(), isNull);
+  });
+}
