@@ -39,7 +39,7 @@ a{color:#4136F1}a:hover{color:#3329D6}
     </section>
 
     <div role="tablist" aria-label="День" style="height: 40px; box-sizing: border-box; padding: 3px; border-radius: 12px; background: #E9EBEF; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;">
-      <button type="button" role="tab" aria-selected="{{ todaySelected }}" onClick="{{ toToday }}" style="border: 0; border-radius: 9px; background: {{ todayBg }}; box-shadow: {{ todayShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ todayColor }}; cursor: pointer;">Сегодня · 6</button>
+      <button type="button" role="tab" aria-selected="{{ todaySelected }}" onClick="{{ toToday }}" style="border: 0; border-radius: 9px; background: {{ todayBg }}; box-shadow: {{ todayShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ todayColor }}; cursor: pointer;">Сегодня · 7</button>
       <button type="button" role="tab" aria-selected="{{ ydaySelected }}" onClick="{{ toYday }}" style="border: 0; border-radius: 9px; background: {{ ydayBg }}; box-shadow: {{ ydayShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ ydayColor }}; cursor: pointer;">Вчера · 14</button>
     </div>
   </div>
@@ -71,14 +71,14 @@ a{color:#4136F1}a:hover{color:#3329D6}
 
   <nav aria-label="Разделы" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; box-sizing: border-box; padding: 6px 8px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
     <a href="AgentToday.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
-      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.2"></circle><circle cx="18" cy="5" r="2.2"></circle><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"></path></svg>
-      Маршрут
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"></path></svg>
+      Сегодня
     </a>
     <a href="AgentOrders.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #4136F1; font-size: 11px; font-weight: 600;">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>
       Заказы
     </a>
-    <a href="AgentRoute.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
+    <a href="AgentShopsMap.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"></path><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"></path><path d="M5 11.5V20h14v-8.5M10 20v-5h4v5"></path></svg>
       Магазины
     </a>
@@ -98,10 +98,11 @@ this.state = { tab: 'yday' };
 renderVals() {
 const TODAY = [
 { name: '«Айгуль»', meta: '10:48 · 3 позиции', sum: 21300 },
+{ name: '«Береке-2»', meta: '10:40 · новый магазин · 2 позиции', sum: 15600 },
 { name: '«Жулдыз»', meta: '10:05 · 5 позиций · сверх лимита', sum: 27450 },
-{ name: '«Нурлы»', meta: '09:48 · 6 позиций', sum: 41300 },
+{ name: '«Нурлы»', meta: '09:48 · 6 позиций · возврат 2 280 ₸', sum: 41300 },
 { name: '«Камила»', meta: '09:15 · сам через бот · 3 позиции', sum: 24960 },
-{ name: '«Береке»', meta: '08:55 · 3 позиции', sum: 18900 },
+{ name: '«Береке»', meta: '08:55 · 3 позиции · возврат 1 520 ₸', sum: 18900 },
 { name: '«Асель»', meta: '08:31 · 4 позиции', sum: 32400 }
 ];
 const YDAY = [

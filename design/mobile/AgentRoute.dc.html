@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Мои магазины</title>
+<title>База магазинов</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -21,7 +21,7 @@ a{color:#4136F1}a:hover{color:#3329D6}
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
       <div style="min-width: 0; display: flex; flex-direction: column; gap: 2px;">
         <h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em;">Магазины</h1>
-        <div style="font-size: 14px; line-height: 20px; color: #5C6370;">64 магазина в ваших маршрутах</div>
+        <div style="font-size: 14px; line-height: 20px; color: #5C6370;">312 в базе · ближние сверху</div>
       </div>
       <a href="AgentNewOutlet.dc.html" style="flex: none; height: 44px; box-sizing: border-box; padding: 0 16px 0 12px; border-radius: 22px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; gap: 6px; text-decoration: none; font-size: 15px; font-weight: 600; box-shadow: 0 8px 18px -8px rgba(65,54,241,0.6);">
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
@@ -29,71 +29,61 @@ a{color:#4136F1}a:hover{color:#3329D6}
       </a>
     </div>
 
-    <div style="position: relative; display: flex; align-items: center;">
-      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 14px;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
-      <label for="s" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Поиск магазина</label>
-      <input id="s" type="search" placeholder="Название, адрес или телефон" style="flex: 1 1 auto; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 14px 0 44px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); font: 400 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center;">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 14px;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+        <label for="s" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Поиск магазина</label>
+        <input id="s" type="search" autocomplete="off" placeholder="Название, адрес, телефон" value="{{ q }}" onChange="{{ onQ }}" style="flex: 1 1 auto; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 14px 0 44px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); font: 400 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+      </div>
+      <a href="AgentShopsMap.dc.html" style="flex: none; height: 48px; box-sizing: border-box; padding: 0 15px 0 12px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); color: #101318; display: flex; align-items: center; gap: 7px; text-decoration: none; font-size: 15px; font-weight: 600;">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z"></path><path d="M9 4v14M15 6v14"></path></svg>
+        Карта
+      </a>
     </div>
 
     <div role="group" aria-label="Фильтр" style="margin: 0 -16px; padding: 0 16px; display: flex; gap: 6px; overflow-x: auto;">
-      <sc-for list="{{ filters }}" as="c" hint-placeholder-count="5">
-        <button type="button" aria-pressed="{{ c.pressed }}" onClick="{{ c.pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ c.border }}; border-radius: 18px; background: {{ c.bg }}; color: {{ c.color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; cursor: pointer;">{{ c.label }}</button>
-      </sc-for>
+      <button type="button" aria-pressed="{{ f1on }}" onClick="{{ f1pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ f1border }}; border-radius: 18px; background: {{ f1bg }}; color: {{ f1color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; cursor: pointer;">Рядом</button>
+      <button type="button" aria-pressed="{{ f2on }}" onClick="{{ f2pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ f2border }}; border-radius: 18px; background: {{ f2bg }}; color: {{ f2color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; cursor: pointer;">С долгом</button>
+      <button type="button" aria-pressed="{{ f3on }}" onClick="{{ f3pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ f3border }}; border-radius: 18px; background: {{ f3bg }}; color: {{ f3color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; cursor: pointer;">Просрочка</button>
+      <button type="button" aria-pressed="{{ f4on }}" onClick="{{ f4pick }}" style="flex: none; height: 36px; box-sizing: border-box; padding: 0 14px; border: 1px solid {{ f4border }}; border-radius: 18px; background: {{ f4bg }}; color: {{ f4color }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; white-space: nowrap; cursor: pointer;">Новые</button>
     </div>
   </div>
 
   <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 16px 104px;">
-    <div style="border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); overflow: hidden;">
-      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
-        <div style="min-height: 64px; box-sizing: border-box; padding: 10px 16px; border-bottom: 1px solid #EDEFF2; display: flex; align-items: center; gap: 12px;">
-          <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
-            <span style="font-size: 15px; font-weight: 600;">{{ r.name }}</span>
-            <span style="font-size: 13px; color: #5C6370; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.addr }}</span>
-          </div>
-          <div style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: right;">
-            <sc-if value="{{ r.isOver }}" hint-placeholder-val="{{ false }}">
-              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
-                <span style="font-size: 15px; font-weight: 700; color: #B0261A; font-variant-numeric: tabular-nums;">{{ r.amount }}</span>
-                <span style="font-size: 12px; font-weight: 600; color: #B0261A;">сверх лимита</span>
-              </div>
-            </sc-if>
-            <sc-if value="{{ r.isOverdue }}" hint-placeholder-val="{{ false }}">
-              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
-                <span style="font-size: 15px; font-weight: 700; color: #8A5000; font-variant-numeric: tabular-nums;">{{ r.amount }}</span>
-                <span style="font-size: 12px; font-weight: 600; color: #8A5000; font-variant-numeric: tabular-nums;">{{ r.note }}</span>
-              </div>
-            </sc-if>
-            <sc-if value="{{ r.isDebt }}" hint-placeholder-val="{{ true }}">
-              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
-                <span style="font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;">{{ r.amount }}</span>
-                <span style="font-size: 12px; color: #5C6370;">долг</span>
-              </div>
-            </sc-if>
-            <sc-if value="{{ r.isClean }}" hint-placeholder-val="{{ false }}">
-              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
-                <span style="font-size: 13px; font-weight: 600; color: #0E6B4C;">без долга</span>
-                <span style="font-size: 12px; color: #5C6370;">{{ r.note }}</span>
-              </div>
-            </sc-if>
-            <sc-if value="{{ r.isPending }}" hint-placeholder-val="{{ false }}">
-              <span style="height: 22px; box-sizing: border-box; padding: 0 8px; border-radius: 6px; background: #EEEDFE; color: #3329D6; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">На проверке</span>
-            </sc-if>
-          </div>
-        </div>
-      </sc-for>
-    </div>
+    <sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}">
+      <section aria-label="Магазины" style="border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); overflow: hidden;">
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+          <a href="{{ r.href }}" style="min-height: 64px; box-sizing: border-box; padding: 10px 12px 10px 16px; border-top: {{ r.border }}; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #101318;">
+            <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 15px; font-weight: 600;">{{ r.name }}</span>
+              <span style="font-size: 13px; color: #5C6370; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.addr }}</span>
+            </span>
+            <span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+              <span style="font-size: 13px; font-weight: 600; color: #5C6370; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ r.dist }}</span>
+              <span style="height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 5px; background: {{ r.chipBg }}; color: {{ r.chipColor }}; font-size: 11px; font-weight: 600; display: {{ r.chipShow }}; align-items: center; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ r.chip }}</span>
+            </span>
+          </a>
+        </sc-for>
+      </section>
+    </sc-if>
+    <sc-if value="{{ noRows }}" hint-placeholder-val="{{ false }}">
+      <div style="box-sizing: border-box; padding: 20px 16px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; font-size: 14px; line-height: 20px; color: #5C6370;">
+        Такого магазина нет в базе
+        <a href="AgentNewOutlet.dc.html" style="height: 40px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; background: #EEEDFE; color: #3329D6; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 600;">Создать новый магазин</a>
+      </div>
+    </sc-if>
   </div>
 
   <nav aria-label="Разделы" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; box-sizing: border-box; padding: 6px 8px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
     <a href="AgentToday.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
-      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.2"></circle><circle cx="18" cy="5" r="2.2"></circle><path d="M8.2 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8"></path></svg>
-      Маршрут
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"></path></svg>
+      Сегодня
     </a>
     <a href="AgentOrders.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #5C6370; font-size: 11px; font-weight: 600;">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>
       Заказы
     </a>
-    <a href="AgentRoute.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #4136F1; font-size: 11px; font-weight: 600;">
+    <a href="AgentShopsMap.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: #4136F1; font-size: 11px; font-weight: 600;">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"></path><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"></path><path d="M5 11.5V20h14v-8.5M10 20v-5h4v5"></path></svg>
       Магазины
     </a>
@@ -108,60 +98,71 @@ a{color:#4136F1}a:hover{color:#3329D6}
 class Component extends DCLogic {
 constructor(props) {
 super(props);
-this.state = { f: 'all' };
+this.state = { f: 'near', q: '' };
 }
 renderVals() {
-const O = [
-{ name: 'Магазин «Алтын»', addr: 'мкр. Нурсат, 112', debt: 61000, limit: 50000, overdue: 0 },
-{ name: 'Магазин «Нур»', addr: 'ул. Абая, 41', debt: 48200, limit: 50000, overdue: 12000 },
-{ name: 'Магазин «Сая»', addr: 'ул. Сейфуллина, 5', debt: 15600, limit: 30000, overdue: 4200 },
-{ name: 'Магазин «Шанырак»', addr: 'ул. Байтурсынова, 21', debt: 22300, limit: 50000, overdue: 0 },
-{ name: 'Магазин «Береке-2»', addr: 'ул. Сейфуллина, 40', debt: 0, limit: 0, overdue: 0, pending: true },
-{ name: 'Магазин «Арман»', addr: 'пр. Республики, 63', debt: 9800, limit: 50000, overdue: 0 },
-{ name: 'Магазин «Тумар»', addr: 'ул. Кунаева, 40', debt: 4500, limit: 30000, overdue: 0 },
-{ name: 'Магазин «Мерей»', addr: 'ул. Толе би, 17', debt: 0, limit: 50000, overdue: 0, last: 'заказ 21 окт' },
-{ name: 'Магазин «Улан»', addr: 'ул. Момышулы, 8', debt: 0, limit: 50000, overdue: 0, last: 'заказ 24 окт' },
-{ name: 'Магазин «Камила»', addr: 'ул. Аль-Фараби, 19', debt: 0, limit: 50000, overdue: 0, last: 'заказ 20 окт' }
+const DB = [
+{ name: 'Магазин «Нур»', addr: 'ул. Абая, 41 · Айжан К.', m: 18, debt: 48200, overdue: 12000 },
+{ name: 'Магазин «Мерей»', addr: 'ул. Абая, 52 · Гульнара М.', m: 140, debt: 0 },
+{ name: 'Магазин «Алтын»', addr: 'ул. Абая, 77 · Марат Е.', m: 260, debt: 61000, overdue: 32000, blocked: true },
+{ name: 'Магазин «Шанырак»', addr: 'ул. Байтурсынова, 21', m: 410, debt: 22300 },
+{ name: 'Магазин «Улан»', addr: 'ул. Момышулы, 8', m: 520, debt: 0 },
+{ name: 'Магазин «Айгуль»', addr: 'ул. Толе би, 104', m: 690, debt: 0 },
+{ name: 'Магазин «Береке-2»', addr: 'ул. Сейфуллина, 40 · напротив школы', m: 1100, debt: 0, fresh: true },
+{ name: 'Магазин «Достык»', addr: 'ул. Желтоксан, 22 · Ерлан Б.', m: 1700, debt: 15400 },
+{ name: 'Магазин «Арман»', addr: 'пр. Республики, 63', m: 2000, debt: 9800 },
+{ name: 'Магазин «Сая»', addr: 'ул. Сейфуллина, 5', m: 2600, debt: 15600, overdue: 4200 },
+{ name: 'Магазин «Камила»', addr: 'ул. Аль-Фараби, 19', m: 3000, debt: 0 },
+{ name: 'Магазин «Тумар»', addr: 'ул. Кунаева, 40', m: 3600, debt: 4500 }
 ];
-const money = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
-const f = this.state.f;
+const FILTERS = ['near', 'debt', 'overdue', 'fresh'];
+const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const distText = (m) => m < 1000 ? m + ' м' : (Math.round(m / 100) / 10).toString().replace('.', ',') + ' км';
+const st = this.state;
+const f = st.f || 'near';
+const q = (st.q || '').trim().toLowerCase();
 const test = {
-all: () => true,
-debt: (o) => o.debt > 0,
-overdue: (o) => o.overdue > 0,
-over: (o) => o.debt > o.limit && !o.pending,
-pending: (o) => !!o.pending
+near: () => true,
+debt: (s) => s.debt > 0,
+overdue: (s) => (s.overdue || 0) > 0,
+fresh: (s) => !!s.fresh
 };
-const rows = O.filter(test[f]).map((o) => {
-const isPending = !!o.pending;
-const isOver = !isPending && o.debt > o.limit;
-const isOverdue = !isPending && !isOver && o.overdue > 0;
-const isDebt = !isPending && !isOver && !isOverdue && o.debt > 0;
-const isClean = !isPending && o.debt === 0;
+const list = DB.filter(test[f]).filter((s) => !q || (s.name + ' ' + s.addr).toLowerCase().indexOf(q) >= 0);
+const rows = list.map((s, i) => {
+let chip = '', bg = '#F1F2F5', color = '#3D434D';
+if (s.blocked) { chip = 'Заказ закрыт'; bg = '#FDECEA'; color = '#A3241A'; }
+else if (s.fresh) { chip = 'На проверке'; bg = '#EEEDFE'; color = '#3329D6'; }
+else if (s.overdue) { chip = 'Просрочено ' + group(s.overdue) + ' ₸'; bg = '#FFF4DF'; color = '#8A5000'; }
+else if (s.debt) { chip = 'Долг ' + group(s.debt) + ' ₸'; }
 return {
-name: o.name,
-addr: o.addr,
-amount: money(o.debt),
-note: isOverdue ? 'просрочено ' + money(o.overdue) : (o.last || ''),
-isOver: isOver,
-isOverdue: isOverdue,
-isDebt: isDebt,
-isClean: isClean,
-isPending: isPending
+name: s.name,
+addr: s.addr,
+dist: distText(s.m),
+chip: chip,
+chipShow: chip ? 'inline-flex' : 'none',
+chipBg: bg,
+chipColor: color,
+border: i === 0 ? '0' : '1px solid #EDEFF2',
+href: s.blocked ? 'AgentBlocked.dc.html' : 'AgentOutlet.dc.html'
 };
 });
-const F = [['all', 'Все · 64'], ['debt', 'С долгом · 18'], ['overdue', 'Просрочка · 6'], ['over', 'Сверх лимита · 2'], ['pending', 'На проверке · 1']];
-return {
+const vals = {};
+FILTERS.forEach((k, i) => {
+const on = k === f;
+const p = 'f' + (i + 1);
+vals[p + 'on'] = on ? 'true' : 'false';
+vals[p + 'bg'] = on ? '#101318' : '#FFFFFF';
+vals[p + 'color'] = on ? '#FFFFFF' : '#101318';
+vals[p + 'border'] = on ? '#101318' : '#E1E4EA';
+vals[p + 'pick'] = () => this.setState({ f: k });
+});
+return Object.assign(vals, {
+q: st.q || '',
+onQ: (e) => this.setState({ q: String((e && e.target && e.target.value) || '').slice(0, 40) }),
 rows: rows,
-filters: F.map((x) => ({
-label: x[1],
-pressed: x[0] === f ? 'true' : 'false',
-bg: x[0] === f ? '#101318' : '#FFFFFF',
-color: x[0] === f ? '#FFFFFF' : '#101318',
-border: x[0] === f ? '#101318' : '#E1E4EA',
-pick: () => this.setState({ f: x[0] })
-}))
-};
+hasRows: rows.length > 0,
+noRows: rows.length === 0
+});
 }
 }
 </script>

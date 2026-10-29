@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Выбор магазина</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+@keyframes dcPulse{0%{transform:scale(.6);opacity:.55}100%{transform:scale(1.7);opacity:0}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column;">
+
+  <div style="flex: none; box-sizing: border-box; padding: 52px 16px 0; display: flex; flex-direction: column; gap: 12px;">
+    <div style="height: 44px; display: flex; align-items: center; gap: 12px;">
+      <a href="AgentToday.dc.html" aria-label="Закрыть" style="flex: none; width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); display: flex; align-items: center; justify-content: center;">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </a>
+      <div style="min-width: 0; display: flex; flex-direction: column;">
+        <h1 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600;">Создать заказ</h1>
+        <span style="font-size: 13px; line-height: 18px; color: #5C6370;">Выберите магазин</span>
+      </div>
+      <a href="AgentShopsMap.dc.html" style="margin-left: auto; flex: none; height: 40px; box-sizing: border-box; padding: 0 14px 0 11px; border-radius: 20px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.08); color: #101318; display: flex; align-items: center; gap: 6px; text-decoration: none; font-size: 14px; font-weight: 600;">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z"></path><path d="M9 4v14M15 6v14"></path></svg>
+        На карте
+      </a>
+    </div>
+
+    <div style="position: relative; display: flex; align-items: center;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 14px;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+      <label for="shop-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Найти магазин</label>
+      <input id="shop-q" type="search" autocomplete="off" placeholder="Название или адрес — вся база" value="{{ q }}" onChange="{{ onQ }}" style="flex: 1 1 auto; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 14px 0 44px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); font: 400 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+    </div>
+  </div>
+
+  <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 12px 16px 28px; display: flex; flex-direction: column;">
+    <sc-if value="{{ showGps }}" hint-placeholder-val="{{ true }}">
+      <section aria-label="Магазин рядом с вами" style="flex: none; margin-bottom: 18px; box-sizing: border-box; padding: 14px 16px 16px; border-radius: 20px; background: #FFFFFF; box-shadow: 0 0 0 1.5px #4136F1, 0 14px 30px -18px rgba(65,54,241,0.5); display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #3329D6;">
+            <span aria-hidden="true" style="position: relative; width: 12px; height: 12px;">
+              <span style="position: absolute; inset: 0; border-radius: 50%; background: #4136F1; animation: dcPulse 1.8s ease-out infinite;"></span>
+              <span style="position: absolute; left: 2px; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: #4136F1;"></span>
+            </span>
+            Вы сейчас у этого магазина
+          </span>
+          <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">18 м · GPS 6 м</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 700; letter-spacing: -0.01em;">Магазин «Нур»</h2>
+          <span style="font-size: 14px; line-height: 20px; color: #5C6370;">ИП «Нур» · Айжан К. · ул. Абая, 41</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #F1F2F5; color: #3D434D; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;">Долг 48 200 ₸</span>
+          <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #FFF4DF; color: #8A5000; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;">Просрочено 12 000 ₸</span>
+          <span style="height: 24px; box-sizing: border-box; padding: 0 9px; border-radius: 6px; background: #F1F2F5; color: #3D434D; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">Прошлый заказ 21 окт</span>
+        </div>
+        <div style="margin-top: 4px; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 8px;">
+          <a href="AgentOrder.dc.html" style="height: 50px; border-radius: 14px; background: #4136F1; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">
+            Заказ здесь
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
+          <a href="AgentNoOrder.dc.html" style="height: 50px; border-radius: 14px; background: #F1F2F5; color: #101318; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 15px; font-weight: 600;">Без заказа</a>
+        </div>
+      </section>
+    </sc-if>
+
+    <div style="flex: none; margin-bottom: 8px; padding: 0 4px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 700;">{{ listTitle }}</h2>
+      <span style="font-size: 13px; color: #5C6370;">{{ listNote }}</span>
+    </div>
+    <sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}">
+      <section aria-label="{{ listTitle }}" style="flex: none; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.06); overflow: hidden;">
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+          <a href="{{ r.href }}" style="min-height: 64px; box-sizing: border-box; padding: 10px 12px 10px 16px; border-top: {{ r.border }}; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #101318;">
+            <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 15px; font-weight: 600;">{{ r.name }}</span>
+              <span style="font-size: 13px; color: #5C6370; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.addr }}</span>
+            </span>
+            <span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+              <span style="font-size: 13px; font-weight: 600; color: #5C6370; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ r.dist }}</span>
+              <span style="height: 20px; box-sizing: border-box; padding: 0 7px; border-radius: 5px; background: {{ r.chipBg }}; color: {{ r.chipColor }}; font-size: 11px; font-weight: 600; display: {{ r.chipShow }}; align-items: center; white-space: nowrap;">{{ r.chip }}</span>
+            </span>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C929C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="M9 6l6 6-6 6"></path></svg>
+          </a>
+        </sc-for>
+      </section>
+    </sc-if>
+    <sc-if value="{{ noRows }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: none; box-sizing: border-box; padding: 20px 16px; border-radius: 16px; background: #FFFFFF; text-align: center; font-size: 14px; line-height: 20px; color: #5C6370;">В базе такого магазина нет — создайте его ниже</div>
+    </sc-if>
+
+    <a href="AgentNewOutlet.dc.html" style="flex: none; margin-top: 12px; min-height: 64px; box-sizing: border-box; padding: 10px 16px; border: 1.5px dashed #C9CDD5; border-radius: 16px; background: #FFFFFF; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #101318;">
+      <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 12px; background: #EEEDFE; display: flex; align-items: center; justify-content: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4136F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 5.5 4h13L20 9.5"></path><path d="M5 11.5V20h8M12 16h7M15.5 12.5v7"></path></svg></span>
+      <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+        <span style="font-size: 15px; font-weight: 600;">Новый магазин</span>
+        <span style="font-size: 13px; color: #5C6370;">Магазина нет в базе — создать с нуля</span>
+      </span>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C929C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="M9 6l6 6-6 6"></path></svg>
+    </a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { q: '' };
+}
+renderVals() {
+const DB = [
+{ name: 'Магазин «Нур»', addr: 'ул. Абая, 41 · Айжан К.', m: 18, chip: 'Вы здесь', kind: 'here' },
+{ name: 'Магазин «Мерей»', addr: 'ул. Абая, 52 · Гульнара М.', m: 140 },
+{ name: 'Магазин «Алтын»', addr: 'ул. Абая, 77 · Марат Е.', m: 260, chip: 'Заказ закрыт', kind: 'blocked' },
+{ name: 'Магазин «Шанырак»', addr: 'ул. Байтурсынова, 21', m: 410, chip: 'Долг 22 300 ₸', kind: 'debt' },
+{ name: 'Магазин «Улан»', addr: 'ул. Момышулы, 8', m: 520 },
+{ name: 'Магазин «Достык»', addr: 'ул. Желтоксан, 22 · Ерлан Б.', m: 1700 },
+{ name: 'Магазин «Арман»', addr: 'пр. Республики, 63', m: 2000, chip: 'Долг 9 800 ₸', kind: 'debt' },
+{ name: 'Магазин «Сая»', addr: 'ул. Сейфуллина, 5', m: 2600, chip: 'Просрочка', kind: 'overdue' },
+{ name: 'Магазин «Камила»', addr: 'ул. Аль-Фараби, 19', m: 3000 },
+{ name: 'Магазин «Мирас»', addr: 'мкр. Самал, 22', m: 3300 },
+{ name: 'Магазин «Тумар»', addr: 'ул. Кунаева, 40', m: 3600 },
+{ name: 'Магазин «Береке-2»', addr: 'ул. Сейфуллина, 40 · напротив школы', m: 1100, chip: 'На проверке', kind: 'new' }
+];
+const CHIP = {
+here: ['#EEEDFE', '#3329D6'],
+blocked: ['#FDECEA', '#A3241A'],
+debt: ['#F1F2F5', '#3D434D'],
+overdue: ['#FFF4DF', '#8A5000'],
+new: ['#EEEDFE', '#3329D6']
+};
+const distText = (m) => m < 1000 ? m + ' м' : (Math.round(m / 100) / 10).toString().replace('.', ',') + ' км';
+const q = (this.state.q || '').trim().toLowerCase();
+const plural = (n, one, few, many) => {
+const m10 = n % 10, m100 = n % 100;
+if (m10 === 1 && m100 !== 11) return one;
+if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+return many;
+};
+let list;
+if (q) {
+list = DB.filter((s) => (s.name + ' ' + s.addr).toLowerCase().indexOf(q) >= 0).sort((a, b) => a.m - b.m);
+} else {
+list = DB.filter((s) => s.m <= 600 && s.kind !== 'here');
+}
+const rows = list.map((s, i) => {
+const c = CHIP[s.kind] || ['#F1F2F5', '#3D434D'];
+return {
+name: s.name,
+addr: s.addr,
+dist: distText(s.m),
+chip: s.chip || '',
+chipShow: s.chip ? 'inline-flex' : 'none',
+chipBg: c[0],
+chipColor: c[1],
+border: i === 0 ? '0' : '1px solid #EDEFF2',
+href: s.kind === 'blocked' ? 'AgentBlocked.dc.html' : 'AgentOrder.dc.html'
+};
+});
+return {
+q: this.state.q || '',
+onQ: (e) => this.setState({ q: String((e && e.target && e.target.value) || '').slice(0, 40) }),
+showGps: !q,
+listTitle: q ? 'Найдено в базе' : 'Рядом',
+listNote: q ? rows.length + ' ' + plural(rows.length, 'магазин', 'магазина', 'магазинов') : 'до 600 м · в базе 312 магазинов',
+rows: rows,
+hasRows: rows.length > 0,
+noRows: rows.length === 0
+};
+}
+}
+</script>
+</body>
+</html>

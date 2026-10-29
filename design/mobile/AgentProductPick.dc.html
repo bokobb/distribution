@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Подбор товара</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4136F1}a:hover{color:#3329D6}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F4F5F7; color: #101318; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 15px; line-height: 1.4;">
+
+  <div aria-hidden="true" style="box-sizing: border-box; padding: 52px 16px 0; display: flex; align-items: center; gap: 12px;">
+    <span style="width: 44px; height: 44px; border-radius: 50%; background: #FFFFFF;"></span>
+    <span style="display: flex; flex-direction: column;"><span style="font-size: 17px; font-weight: 600;">Магазин «Нур»</span><span style="font-size: 13px; color: #5C6370;">ул. Абая, 41</span></span>
+  </div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(16,19,24,0.48);"></div>
+
+  <section role="dialog" aria-modal="true" aria-label="Добавить товар" style="position: absolute; left: 0; right: 0; top: 92px; bottom: 0; box-sizing: border-box; border-radius: 24px 24px 0 0; background: #FFFFFF; box-shadow: 0 -10px 30px -12px rgba(16,19,24,0.35); display: flex; flex-direction: column;">
+    <div style="flex: none; box-sizing: border-box; padding: 8px 16px 0; display: flex; flex-direction: column; gap: 10px;">
+      <span aria-hidden="true" style="align-self: center; width: 36px; height: 5px; border-radius: 3px; background: #D5D9E0;"></span>
+      <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <h1 style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 700;">Добавить товар</h1>
+        <a href="AgentOrder.dc.html" aria-label="Закрыть" style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: #F1F2F5; display: flex; align-items: center; justify-content: center;">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </a>
+      </div>
+      <div role="tablist" aria-label="Куда добавить" style="height: 40px; box-sizing: border-box; padding: 3px; border-radius: 12px; background: #E9EBEF; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;">
+        <button type="button" role="tab" aria-selected="{{ oSel }}" onClick="{{ toOrder }}" style="border: 0; border-radius: 9px; background: {{ oBg }}; box-shadow: {{ oShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ oColor }}; cursor: pointer;">В заказ</button>
+        <button type="button" role="tab" aria-selected="{{ rSel }}" onClick="{{ toReturn }}" style="border: 0; border-radius: 9px; background: {{ rBg }}; box-shadow: {{ rShadow }}; font: 600 14px/1 'Inter', -apple-system, sans-serif; color: {{ rColor }}; cursor: pointer;">В возврат</button>
+      </div>
+      <div style="position: relative; display: flex; align-items: center;">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C6370" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 14px;"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+        <label for="pq" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Поиск товара</label>
+        <input id="pq" type="search" autocomplete="off" placeholder="Поиск товара" value="{{ q }}" onChange="{{ onQ }}" style="flex: 1 1 auto; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 50px 0 44px; border: 0; border-radius: 12px; background: #F1F2F5; font: 400 16px/1 'Inter', -apple-system, sans-serif; color: #101318;">
+        <button type="button" aria-label="Сканировать штрихкод" style="position: absolute; right: 2px; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 9v6M11 9v6M14 9v6M17 9v6"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 6px 8px 8px;">
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+        <button type="button" onClick="{{ r.pick }}" style="width: 100%; min-height: 62px; box-sizing: border-box; margin-bottom: 2px; padding: 8px 10px; border: 0; border-radius: 12px; background: {{ r.bg }}; display: flex; align-items: center; gap: 12px; text-align: left; font: inherit; color: #101318; cursor: pointer;">
+          <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: {{ r.avBg }}; color: {{ r.avColor }}; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ r.ini }}</span>
+          <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+            <span style="font-size: 15px; line-height: 20px; font-weight: 600;">{{ r.name }}</span>
+            <span style="font-size: 13px; line-height: 18px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ r.meta }}</span>
+          </span>
+          <span style="flex: none; height: 22px; box-sizing: border-box; padding: 0 8px; border-radius: 6px; background: {{ r.tagBg }}; color: {{ r.tagColor }}; font-size: 12px; font-weight: 600; display: {{ r.tagShow }}; align-items: center; white-space: nowrap;">{{ r.tag }}</span>
+        </button>
+      </sc-for>
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 24px 16px; text-align: center; font-size: 14px; color: #5C6370;">Такого товара нет в каталоге</div>
+      </sc-if>
+    </div>
+
+    <div style="flex: none; box-sizing: border-box; padding: 12px 16px 30px; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span aria-hidden="true" style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: {{ selAvBg }}; color: {{ selAvColor }}; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ selIni }}</span>
+        <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;">
+          <span style="font-size: 15px; line-height: 20px; font-weight: 700;">{{ selName }}</span>
+          <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ selMeta }}</span>
+        </span>
+      </div>
+      <sc-if value="{{ isReturn }}" hint-placeholder-val="{{ true }}">
+        <div role="radiogroup" aria-label="Причина возврата" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+          <button type="button" role="radio" aria-checked="{{ c1on }}" onClick="{{ c1pick }}" style="height: 34px; box-sizing: border-box; border: 1px solid {{ c1border }}; border-radius: 17px; background: {{ c1bg }}; color: {{ c1color }}; font: 600 13px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Срок годности</button>
+          <button type="button" role="radio" aria-checked="{{ c2on }}" onClick="{{ c2pick }}" style="height: 34px; box-sizing: border-box; border: 1px solid {{ c2border }}; border-radius: 17px; background: {{ c2bg }}; color: {{ c2color }}; font: 600 13px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Брак</button>
+          <button type="button" role="radio" aria-checked="{{ c3on }}" onClick="{{ c3pick }}" style="height: 34px; box-sizing: border-box; border: 1px solid {{ c3border }}; border-radius: 17px; background: {{ c3bg }}; color: {{ c3color }}; font: 600 13px/1 'Inter', -apple-system, sans-serif; cursor: pointer;">Упаковка</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isOrder }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;">
+          <button type="button" onClick="{{ quick1 }}" style="height: 34px; border: 1px solid #E1E4EA; border-radius: 17px; background: #FFFFFF; font: 600 13px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">1 кор</button>
+          <button type="button" onClick="{{ quick2 }}" style="height: 34px; border: 1px solid #E1E4EA; border-radius: 17px; background: #FFFFFF; font: 600 13px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">2 кор</button>
+          <button type="button" onClick="{{ quick3 }}" style="height: 34px; border: 1px solid #E1E4EA; border-radius: 17px; background: #FFFFFF; font: 600 13px/1 'Inter', -apple-system, sans-serif; color: #101318; cursor: pointer;">3 кор</button>
+        </div>
+      </sc-if>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <span style="height: 48px; box-sizing: border-box; padding: 0 5px; border-radius: 24px; background: #F4F5F7; border: 1px solid #E8EAEE; display: flex; align-items: center; gap: 4px;">
+          <button type="button" aria-label="Меньше" onClick="{{ dec }}" style="width: 36px; height: 36px; border: 0; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"></path></svg></button>
+          <span style="min-width: 64px; text-align: center; font-size: 17px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ qtyText }}</span>
+          <button type="button" aria-label="Больше" onClick="{{ inc }}" style="width: 36px; height: 36px; border: 0; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(16,19,24,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#101318" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+        </span>
+        <span style="display: flex; flex-direction: column; align-items: flex-end;">
+          <span style="font-size: 13px; color: #5C6370; font-variant-numeric: tabular-nums;">{{ piecesText }}</span>
+          <span style="font-size: 18px; font-weight: 700; white-space: nowrap; color: {{ sumColor }}; font-variant-numeric: tabular-nums;">{{ sumText }}</span>
+        </span>
+      </div>
+      <a href="AgentOrder.dc.html" style="height: 52px; border-radius: 26px; background: {{ ctaBg }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ ctaText }}</a>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { mode: 'return', q: '', sel: 'p7', qty: 3, reason: 'exp' };
+}
+renderVals() {
+const P = [
+{ id: 'p1', name: 'Печенье овсяное, 400 г', ini: 'ПО', per: 12, price: 620, av: ['#FDE9DA', '#9A4B12'] },
+{ id: 'p2', name: 'Печенье сахарное, 350 г', ini: 'ПС', per: 12, price: 540, av: ['#FCE4EC', '#9C2752'] },
+{ id: 'p3', name: 'Пряники медовые, 300 г', ini: 'ПМ', per: 16, price: 480, av: ['#FFF1CC', '#8A6100'] },
+{ id: 'p4', name: 'Рулет бисквитный, 300 г', ini: 'РБ', per: 12, price: 780, av: ['#E8F0FE', '#2B5BA8'] },
+{ id: 'p5', name: 'Рулет с маком, 350 г', ini: 'РМ', per: 12, price: 860, av: ['#EDE7FF', '#5B3FB3'] },
+{ id: 'p6', name: 'Кекс «Столичный», 500 г', ini: 'КС', per: 10, price: 1220, av: ['#E6F4EA', '#1E7A46'] },
+{ id: 'p7', name: 'Кекс с изюмом, 300 г', ini: 'КИ', per: 12, price: 760, av: ['#E3F1FF', '#1F5C99'] },
+{ id: 'p8', name: 'Пирожное «Картошка», 6 шт', ini: 'ПК', per: 8, price: 1150, av: ['#F3E8E2', '#7A4A2E'] },
+{ id: 'p9', name: 'Торт «Медовик», 1 кг', ini: 'ТМ', per: 4, price: 3600, av: ['#FFF4DF', '#8A5000'] },
+{ id: 'p10', name: 'Вафли «Сливочные», 250 г', ini: 'ВС', per: 20, price: 540, av: ['#E2F5EC', '#1D7A4E'] }
+];
+const IN_ORDER = { p1: '2 кор', p3: '2 кор', p5: '1 кор', p7: '1 кор' };
+const IN_RETURN = { p1: '2 шт', p3: '4 шт' };
+const REASONS = ['exp', 'defect', 'pack'];
+const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const money = (n) => group(n) + ' ₸';
+const st = this.state;
+const isReturn = st.mode === 'return';
+const q = (st.q || '').trim().toLowerCase();
+const list = P.filter((p) => !q || p.name.toLowerCase().indexOf(q) >= 0);
+const sel = P.find((p) => p.id === st.sel) || P[6];
+const n = Math.max(1, st.qty || 1);
+const rows = list.map((p) => {
+const inList = isReturn ? IN_RETURN[p.id] : IN_ORDER[p.id];
+const on = p.id === sel.id;
+return {
+name: p.name,
+ini: p.ini, avBg: p.av[0], avColor: p.av[1],
+meta: money(p.price) + ' / шт · ' + p.per + ' шт в кор',
+bg: on ? '#EEEDFE' : 'transparent',
+tag: inList ? (isReturn ? 'в возврате ' : 'в заказе ') + inList : '',
+tagShow: inList ? 'inline-flex' : 'none',
+tagBg: isReturn ? '#FFF4DF' : '#F1F2F5',
+tagColor: isReturn ? '#8A5000' : '#3D434D',
+pick: () => this.setState({ sel: p.id, qty: 1 })
+};
+});
+const pieces = isReturn ? n : n * sel.per;
+const sum = pieces * sel.price;
+const seg = (on) => ({ bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 3px rgba(16,19,24,0.14)' : 'none', color: on ? '#101318' : '#5C6370', sel: on ? 'true' : 'false' });
+const a = seg(!isReturn), b = seg(isReturn);
+const vals = {};
+REASONS.forEach((k, i) => {
+const on = st.reason === k;
+const c = 'c' + (i + 1);
+vals[c + 'on'] = on ? 'true' : 'false';
+vals[c + 'bg'] = on ? '#FFF4DF' : '#FFFFFF';
+vals[c + 'color'] = on ? '#8A5000' : '#5C6370';
+vals[c + 'border'] = on ? '#E3B66B' : '#E1E4EA';
+vals[c + 'pick'] = () => this.setState({ reason: k });
+});
+return Object.assign(vals, {
+isReturn: isReturn,
+isOrder: !isReturn,
+oBg: a.bg, oShadow: a.shadow, oColor: a.color, oSel: a.sel,
+rBg: b.bg, rShadow: b.shadow, rColor: b.color, rSel: b.sel,
+toOrder: () => this.setState({ mode: 'order', qty: 1 }),
+toReturn: () => this.setState({ mode: 'return', qty: 1 }),
+q: st.q || '',
+onQ: (e) => this.setState({ q: String((e && e.target && e.target.value) || '').slice(0, 40) }),
+rows: rows,
+empty: rows.length === 0,
+selName: sel.name,
+selIni: sel.ini, selAvBg: sel.av[0], selAvColor: sel.av[1],
+selMeta: money(sel.price) + ' / шт · ' + sel.per + ' шт в кор',
+qtyText: n + (isReturn ? ' шт' : ' кор'),
+piecesText: isReturn ? 'вычтется из заказа' : pieces + ' шт',
+sumText: (isReturn ? '−' : '') + money(sum),
+sumColor: isReturn ? '#9A5B00' : '#101318',
+dec: () => this.setState((s) => ({ qty: Math.max(1, (s.qty || 1) - 1) })),
+inc: () => this.setState((s) => ({ qty: Math.min(99, (s.qty || 1) + 1) })),
+quick1: () => this.setState({ qty: 1 }),
+quick2: () => this.setState({ qty: 2 }),
+quick3: () => this.setState({ qty: 3 }),
+ctaBg: isReturn ? '#9A5B00' : '#4136F1',
+ctaText: (isReturn ? 'В возврат · ' : 'В заказ · ') + n + (isReturn ? ' шт' : ' кор')
+});
+}
+}
+</script>
+</body>
+</html>
