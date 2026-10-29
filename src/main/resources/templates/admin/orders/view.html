@@ -47,15 +47,14 @@
         <div class="card-h"><h2 th:text="${'Возврат с заказом · ' + @fmt.plural(o.returnLines.size(), 'позиция', 'позиции', 'позиций')}">Возврат с заказом</h2>
             <p>Записал торговый — экспедитор заберёт при доставке</p></div>
         <div class="tbl-w"><table class="tbl">
-            <thead><tr><th>Товар</th><th>Причина</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead>
+            <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead>
             <tbody><tr th:each="l : ${o.returnLines}">
                 <td th:text="${l.product.name}"></td>
-                <td th:text="${l.reason.label}"></td>
                 <td class="r num" th:text="${l.qty + ' ' + l.product.unit}"></td>
                 <td class="r num" th:text="${@fmt.money(l.price)}"></td>
                 <td class="r num" th:text="${'−' + @fmt.money(l.sum)}"></td>
             </tr></tbody>
-            <tfoot><tr><td colspan="4">К оплате за заказ</td><td class="r num" th:text="${@fmt.money(o.total - o.returnTotal)}"></td></tr></tfoot>
+            <tfoot><tr><td colspan="3">К оплате за заказ</td><td class="r num" th:text="${@fmt.money(o.total - o.returnTotal)}"></td></tr></tfoot>
         </table></div>
     </section>
     </div>

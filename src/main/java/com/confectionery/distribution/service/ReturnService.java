@@ -38,7 +38,7 @@ public class ReturnService {
     private final DebtService debts;
     private final Clock clock;
 
-    /** reason — EXPIRED, DEFECT или PACKAGING. */
+    /** reason — не обязательна (старые телефоны: EXPIRED, DEFECT или PACKAGING). */
     public record LineIn(Long productId, Integer qty, String reason) {
     }
 
@@ -102,18 +102,20 @@ public class ReturnService {
         return out(r);
     }
 
+    /** Причину больше не спрашивают — пусто; старые телефоны ещё присылают, сохраняем. */
     private static ReturnReason reason(String raw) {
+        if (raw == null || raw.isBlank()) return null;
         try {
             return ReturnReason.valueOf(raw);
-        } catch (IllegalArgumentException | NullPointerException e) {
-            throw new FormException("Укажите причину возврата: просрочка, брак или упаковка");
+        } catch (IllegalArgumentException e) {
+            throw new FormException("Неизвестная причина возврата: " + raw);
         }
     }
 
     private ReturnOut out(ProductReturn r) {
         debts.fill(r.getOutlet());
         List<LineOut> lines = r.getLines().stream().map(l -> new LineOut(l.getProduct().getId(), l.getProduct().getName(),
-                l.getQty(), l.getPrice(), l.getSum(), l.getReason().name(), l.getReason().getLabel())).toList();
+                l.getQty(), l.getPrice(), l.getSum(), ReturnReason.code(l.getReason()), l.getReason() == null ? null : l.getReason().getLabel())).toList();
         return new ReturnOut(r.getUuid(), r.getOutlet().getId(), r.getTotal(), r.getOutlet().getDebt(), lines);
     }
 }

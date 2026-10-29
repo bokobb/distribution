@@ -90,7 +90,7 @@
         <section class="card">
             <div class="card-h"><h2>Что возвращают</h2><a class="link" href="/admin/reports/quality">Отчёт</a></div>
             <div class="tbl-w"><table class="tbl">
-                <tbody><tr th:each="q : ${quality}"><td th:text="${q.product()}"></td><td class="muted small" th:text="${q.reason()}"></td><td class="r num" th:text="${q.qty() + ' шт'}"></td></tr></tbody>
+                <tbody><tr th:each="q : ${quality}"><td th:text="${q.product()}"></td><td class="r num" th:text="${q.qty() + ' шт'}"></td></tr></tbody>
             </table></div>
             <p class="empty" th:if="${quality.isEmpty()}">Возвратов нет.</p>
         </section>

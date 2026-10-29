@@ -56,7 +56,7 @@ public class DashboardService {
     }
 
     /** Возвраты негодного по товарам (для отчёта о качестве). */
-    public record QualityRow(String product, String reason, int qty, long sum) {
+    public record QualityRow(String product, int qty, long sum) {
     }
 
     public Snapshot snapshot() {
@@ -72,10 +72,9 @@ public class DashboardService {
         for (ProductReturn r : list) {
             if (cid != null && !cid.equals(r.getCompanyId())) continue;
             for (ReturnLine l : r.getLines()) {
-                String k = l.getProduct().getName() + "|" + l.getReason().getLabel();
+                String k = l.getProduct().getName();
                 QualityRow q = m.get(k);
-                m.put(k, new QualityRow(l.getProduct().getName(), l.getReason().getLabel(),
-                        (q == null ? 0 : q.qty()) + l.getQty(), (q == null ? 0 : q.sum()) + l.getSum()));
+                m.put(k, new QualityRow(k, (q == null ? 0 : q.qty()) + l.getQty(), (q == null ? 0 : q.sum()) + l.getSum()));
             }
         }
         return m.values().stream().sorted(Comparator.comparingInt(QualityRow::qty).reversed()).toList();

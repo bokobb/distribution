@@ -52,7 +52,7 @@ public class MobileOrderService {
     public record ItemIn(Long productId, Integer qty) {
     }
 
-    /** reason — EXPIRED, DEFECT или PACKAGING. */
+    /** reason — не обязательна (старые телефоны: EXPIRED, DEFECT или PACKAGING). */
     public record ReturnItemIn(Long productId, Integer qty, String reason) {
     }
 
@@ -335,11 +335,13 @@ public class MobileOrderService {
         return base + n;
     }
 
+    /** Причину больше не спрашивают — пусто; старые телефоны ещё присылают, сохраняем. */
     private static ReturnReason reason(String raw) {
+        if (raw == null || raw.isBlank()) return null;
         try {
             return ReturnReason.valueOf(raw);
-        } catch (IllegalArgumentException | NullPointerException e) {
-            throw new FormException("Укажите причину возврата: просрочка, брак или упаковка");
+        } catch (IllegalArgumentException e) {
+            throw new FormException("Неизвестная причина возврата: " + raw);
         }
     }
 
@@ -371,7 +373,7 @@ public class MobileOrderService {
                         l.getNetPrice(), l.getSum())).toList(),
                 o.getReturnTotal(),
                 o.getReturnLines().stream().map(l -> new ReturnLineOut(l.getProduct().getId(), l.getProduct().getName(),
-                        l.getQty(), l.getPrice(), l.getSum(), l.getReason().name())).toList(),
+                        l.getQty(), l.getPrice(), l.getSum(), ReturnReason.code(l.getReason()))).toList(),
                 deliveredAt, o.getComment());
     }
 

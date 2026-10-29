@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -119,15 +120,16 @@ class OrderApiTest {
 
         send(jwt, json.formatted(UUID.randomUUID(), w.outlet().getId(), at, w.product().getId(), w.product().getId(), "OLD"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Укажите причину возврата: просрочка, брак или упаковка"));
-        // долг 80 000 + заказ 25 000 − возврат 6 000 = 99 000 — в лимите 100 000
-        send(jwt, json.formatted(uuid, w.outlet().getId(), at, w.product().getId(), w.product().getId(), "EXPIRED"))
+                .andExpect(jsonPath("$.message").value("Неизвестная причина возврата: OLD"));
+        // долг 80 000 + заказ 25 000 − возврат 6 000 = 99 000 — в лимите 100 000; причину больше не спрашивают
+        send(jwt, json.formatted(uuid, w.outlet().getId(), at, w.product().getId(), w.product().getId(), "")
+                .replace(", \"reason\": \"\"", ""))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACCEPTED"))
                 .andExpect(jsonPath("$.total").value(25_000))
                 .andExpect(jsonPath("$.returnTotal").value(6000))
                 .andExpect(jsonPath("$.returns[0].qty").value(6))
-                .andExpect(jsonPath("$.returns[0].reason").value("EXPIRED"));
+                .andExpect(jsonPath("$.returns[0].reason").value(nullValue()));
         // возврат — план: долг не меняется, пока экспедитор не заберёт
         assertThat(jdbc.queryForObject("select count(*) from returns where company_id = ?", Integer.class, w.id())).isZero();
 
@@ -145,14 +147,14 @@ class OrderApiTest {
                 .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].productId").value(w.product().getId()))
                 .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].qty").value(6))
                 .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].price").value(1000))
-                .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].reason").value("EXPIRED"));
+                .andExpect(jsonPath("$.trips[0].stops[0].order.returns[0].reason").value(nullValue()));
         data.password(w.operator(), "Проверка-2026", false);
         MockHttpSession s = (MockHttpSession) mvc.perform(formLogin("/login").user(w.operator().getPhone()).password("Проверка-2026"))
                 .andReturn().getRequest().getSession(false);
         mvc.perform(get("/admin/orders/{id}", data.orderByUuid(uuid).getId()).session(s)).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Возврат с заказом · 1 позиция")));
 
-        // повтор лимита с возвратом: 80 000 + не доставлено 25 000 + 30 000 − 6 000 = 129 000 > 100 000
+        // старый телефон присылает причину — сохраняется; повтор лимита с возвратом: 80 000 + не доставлено 25 000 + 30 000 − 6 000 = 129 000 > 100 000
         send(jwt, json.formatted(UUID.randomUUID(), w.outlet().getId(), at, w.product().getId(), w.product().getId(), "DEFECT")
                 .replace("\"qty\": 25", "\"qty\": 30"))
                 .andExpect(jsonPath("$.status").value("NEEDS_APPROVAL"));

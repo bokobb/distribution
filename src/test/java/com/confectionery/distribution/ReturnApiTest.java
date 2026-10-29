@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -78,8 +79,9 @@ class ReturnApiTest {
         return back(UUID.randomUUID(), w.outlet().getId(), at, line(qty, reason));
     }
 
+    /** reason null — как с нового телефона, без причины. */
     private String line(int qty, String reason) {
-        return """
+        return reason == null ? "[{\"productId\": %d, \"qty\": %d}]".formatted(w.product().getId(), qty) : """
                 [{"productId": %d, "qty": %d, "reason": "%s"}]""".formatted(w.product().getId(), qty, reason);
     }
 
@@ -94,12 +96,12 @@ class ReturnApiTest {
     @Test
     void бракВМашину_долгМеньшеПоЦенеДня_повторБезДубля() throws Exception {
         UUID uuid = UUID.randomUUID();
-        String json = back(uuid, w.outlet().getId(), earlier(), line(3, "DEFECT"));
+        String json = back(uuid, w.outlet().getId(), earlier(), line(3, null));
         send(json).andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(2_850))
                 .andExpect(jsonPath("$.debt").value(27_150))
                 .andExpect(jsonPath("$.lines[0].price").value(950))
-                .andExpect(jsonPath("$.lines[0].reasonLabel").value("Брак"));
+                .andExpect(jsonPath("$.lines[0].reason").value(nullValue()));
         send(json).andExpect(status().isOk()).andExpect(jsonPath("$.debt").value(27_150));
 
         assertThat(returns()).isEqualTo(1);
@@ -110,7 +112,7 @@ class ReturnApiTest {
     }
 
     @Test
-    void ценаНаДеньВозврата() throws Exception {
+    void ценаНаДеньВозврата_причинаСоСтарогоТелефона() throws Exception {
         send(back(earlier().minusDays(1), 2, "EXPIRED")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.lines[0].price").value(900))
                 .andExpect(jsonPath("$.lines[0].reasonLabel").value("Просрочка"))
@@ -124,7 +126,7 @@ class ReturnApiTest {
         send(back(earlier(), 0, "DEFECT")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("Неверное количество")));
         send(back(earlier(), 1, "ДРУГОЕ")).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("причину возврата")));
+                .andExpect(jsonPath("$.message").value("Неизвестная причина возврата: ДРУГОЕ"));
         send(back(earlier().minusDays(30), 1, "DEFECT")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("Нет цены")));
         send(back(LocalDateTime.now().plusHours(1), 1, "DEFECT")).andExpect(status().isBadRequest())

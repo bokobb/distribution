@@ -43,7 +43,7 @@ public class ExpeditorDataService {
     public record LineDto(Long productId, String name, String unit, int perBox, int qty, long price, Integer delivered) {
     }
 
-    /** Что магазин отдаёт назад — записал торговый с заказом; reason — EXPIRED, DEFECT или PACKAGING. */
+    /** Что магазин отдаёт назад — записал торговый с заказом; reason — у старых: EXPIRED, DEFECT или PACKAGING, у новых нет. */
     public record ReturnLineDto(Long productId, String name, int qty, long price, String reason) {
     }
 
@@ -115,7 +115,7 @@ public class ExpeditorDataService {
                             o.getDeliveryDate(), o.getPayment().name(), o.getComment(), o.getStatus().name(), o.getStatus().getLabel(),
                             o.getTotal(), paid.getOrDefault(o.getId(), 0L), lines,
                             o.getReturnLines().stream().map(l -> new ReturnLineDto(l.getProduct().getId(),
-                                    l.getProduct().getName(), l.getQty(), l.getPrice(), l.getReason().name())).toList())));
+                                    l.getProduct().getName(), l.getQty(), l.getPrice(), ReturnReason.code(l.getReason()))).toList())));
         }
         return new TripDto(t.getId(), t.getNumber(), t.getDate(), t.getStatus().name(), t.getStatus().getLabel(),
                 t.getVehicle() == null ? null : t.getVehicle().getPlate(), stops,

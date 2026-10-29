@@ -50,9 +50,9 @@
         <section class="card" th:unless="${returns.isEmpty()}">
             <div class="card-h"><h2>Возвраты негодного</h2></div>
             <div class="tbl-w"><table class="tbl">
-                <thead><tr><th>Дата</th><th>Товар</th><th>Причина</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead>
+                <thead><tr><th>Дата</th><th>Товар</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead>
                 <tbody><th:block th:each="r : ${returns}"><tr th:each="l : ${r.lines}">
-                    <td th:text="${@fmt.day(r.date)}"></td><td th:text="${l.product.name}"></td><td th:text="${l.reason.label}"></td>
+                    <td th:text="${@fmt.day(r.date)}"></td><td th:text="${l.product.name}"></td>
                     <td class="r num" th:text="${l.qty}"></td><td class="r num" th:text="${@fmt.money(l.sum)}"></td>
                 </tr></th:block></tbody>
             </table></div>
