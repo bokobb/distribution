@@ -29,6 +29,7 @@ public class AdminStaffController {
 
     private final AdminContext ctx;
     private final StaffService staff;
+    private final com.confectionery.distribution.service.CashReport cashReport;
 
     @GetMapping("/admin/staff")
     public String staff(@RequestParam(defaultValue = "people") String tab, Model model, HttpSession session) {
@@ -43,6 +44,7 @@ public class AdminStaffController {
         model.addAttribute("agents", people.stream().filter(e -> e.getRole() == Role.AGENT).count());
         model.addAttribute("expeditors", people.stream().filter(e -> e.getRole() == Role.EXPEDITOR).count());
         model.addAttribute("outletsOf", staff.outletCounts());
+        model.addAttribute("debtOf", cashReport.expeditorDebts(v.companyId()));
         return "admin/staff/list";
     }
 

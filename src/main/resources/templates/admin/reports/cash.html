@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!--/* «Касса и недостачи» (design/admin/AdmReports): получено наличными и сдано в кассу по экспедиторам за месяц,
+     случаи недостачи и что по ним решили. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<form class="tools" method="get" action="/admin/reports/cash">
+    <a class="back" href="/admin/reports"><th:block th:utext="${i16['back']}"></th:block>Отчёты</a>
+    <span class="tools-sp"></span>
+    <a class="btn btn-line btn-sm" th:href="@{/admin/reports/cash(month=${prev}, exp=${exp})}" aria-label="Прошлый месяц">‹</a>
+    <b th:text="${monthTitle}">Октябрь 2026</b>
+    <a class="btn btn-line btn-sm" th:if="${next != null}" th:href="@{/admin/reports/cash(month=${next}, exp=${exp})}" aria-label="Следующий месяц">›</a>
+    <input type="hidden" name="month" th:value="${month}">
+    <select class="sel inp--sm" name="exp" style="width:auto" onchange="this.form.submit()" aria-label="Экспедитор">
+        <option value="">Все экспедиторы</option>
+        <option th:each="x : ${all.rows()}" th:value="${x.id()}" th:text="${x.name()}" th:selected="${exp == x.id()}"></option>
+    </select>
+</form>
+
+<section class="kpis" th:with="tot=${r.total()}">
+    <div class="kpi"><span class="kpi-l">Получено наличными</span><span class="kpi-v num" th:text="${@fmt.money(tot.received())}"></span>
+        <span class="kpi-s" th:text="${@fmt.plural(tot.trips(), 'рейс', 'рейса', 'рейсов')}"></span></div>
+    <div class="kpi"><span class="kpi-l">Сдано в кассу</span><span class="kpi-v num" th:text="${@fmt.money(tot.handed())}"></span>
+        <span class="kpi-s" th:text="${r.handedShare() == null ? '—' : #numbers.formatDecimal(r.handedShare(), 1, 1, 'COMMA') + '%'}"></span></div>
+    <div class="kpi" th:classappend="${tot.shortage() > 0} ? 'kpi--bad'"><span class="kpi-l">Недостачи</span><span class="kpi-v num" th:text="${@fmt.money(tot.shortage())}"></span>
+        <span class="kpi-s" th:text="${@fmt.plural(tot.cases(), 'случай', 'случая', 'случаев')}"></span></div>
+    <div class="kpi" th:classappend="${tot.waiting() > 0} ? 'kpi--alert'"><span class="kpi-l">На экспедиторов</span><span class="kpi-v num" th:text="${@fmt.money(tot.expeditor())}"></span>
+        <span class="kpi-s" th:text="${tot.waiting() > 0 ? 'и ' + @fmt.money(tot.waiting()) + ' ждёт решения' : 'решено всё'}"></span></div>
+</section>
+
+<section class="card">
+    <div class="card-h"><div><h2>По экспедиторам</h2><p th:if="${tolerance != null}" th:text="${'допуск при приёме ' + @fmt.money(tolerance)}"></p></div></div>
+    <div class="tbl-w"><table class="tbl" th:unless="${r.rows().isEmpty()}">
+        <thead><tr><th>Экспедитор</th><th class="r">Получено</th><th class="r">Сдано</th><th class="r">Недостача</th><th class="r">Случаев</th>
+            <th class="r">На экспедитора</th><th class="r">Списано</th><th class="r">Ждёт</th></tr></thead>
+        <tbody>
+        <tr th:each="x : ${r.rows()}">
+            <td><b th:text="${x.name()}"></b><span class="sub" th:text="${@fmt.plural(x.trips(), 'рейс', 'рейса', 'рейсов')}"></span></td>
+            <td class="r num" th:text="${@fmt.money(x.received())}"></td>
+            <td class="r num" th:text="${@fmt.money(x.handed())}"></td>
+            <td class="r num" th:classappend="${x.shortage() > 0} ? 'bad'" th:text="${x.shortage() > 0 ? @fmt.money(x.shortage()) : '—'}"></td>
+            <td class="r num" th:text="${x.cases() > 0 ? x.cases() : '—'}"></td>
+            <td class="r num" th:text="${x.expeditor() > 0 ? @fmt.money(x.expeditor()) : '—'}"></td>
+            <td class="r num" th:text="${x.writtenOff() > 0 ? @fmt.money(x.writtenOff()) : '—'}"></td>
+            <td class="r num" th:classappend="${x.waiting() > 0} ? 'warn'" th:text="${x.waiting() > 0 ? @fmt.money(x.waiting()) : '—'}"></td>
+        </tr>
+        <tr th:with="tot=${r.total()}" class="tot">
+            <td><b th:text="${'Итого · ' + @fmt.plural(tot.trips(), 'рейс', 'рейса', 'рейсов')}"></b></td>
+            <td class="r num"><b th:text="${@fmt.money(tot.received())}"></b></td>
+            <td class="r num"><b th:text="${@fmt.money(tot.handed())}"></b></td>
+            <td class="r num"><b th:text="${@fmt.money(tot.shortage())}"></b></td>
+            <td class="r num"><b th:text="${tot.cases()}"></b></td>
+            <td class="r num"><b th:text="${@fmt.money(tot.expeditor())}"></b></td>
+            <td class="r num"><b th:text="${@fmt.money(tot.writtenOff())}"></b></td>
+            <td class="r num"><b th:text="${@fmt.money(tot.waiting())}"></b></td>
+        </tr>
+        </tbody>
+    </table></div>
+    <p class="empty" th:if="${r.rows().isEmpty()}">Рейсов за этот месяц нет.</p>
+</section>
+
+<section class="card">
+    <div class="card-h"><div><h2>Случаи</h2><p th:text="${@fmt.plural(r.cases().size(), 'случай', 'случая', 'случаев') + ' за месяц'}"></p></div></div>
+    <div class="tbl-w"><table class="tbl" th:unless="${r.cases().isEmpty()}">
+        <thead><tr><th>Дата</th><th>Экспедитор</th><th>Рейс</th><th class="r">Недостача</th><th>Решение</th><th>Решил</th></tr></thead>
+        <tbody><tr th:each="c : ${r.cases()}">
+            <td th:text="${@fmt.day(c.date())}"></td>
+            <td th:text="${c.expeditor()}"></td>
+            <td><a class="rl" th:href="${'/admin/cash/' + c.tripId()}" th:text="${c.trip()}"></a></td>
+            <td class="r num bad" th:text="${@fmt.money(c.amount())}"></td>
+            <td><span th:classappend="${c.decision() == null} ? 'warn'" th:text="${c.decisionText()}"></span></td>
+            <td class="muted" th:text="${c.decidedBy() ?: '—'}"></td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${r.cases().isEmpty()}">Недостач больше допуска не было.</p>
+</section>
+</th:block>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Role;
+import com.confectionery.distribution.service.CashReport;
 import com.confectionery.distribution.service.DashboardService;
 import com.confectionery.distribution.service.MapService;
 import com.confectionery.distribution.service.SettingsService;
@@ -28,6 +29,7 @@ public class AdminReportController {
     private final MapService map;
     private final WorkdayReport workday;
     private final SettingsService settings;
+    private final CashReport cashReport;
     private final Fmt fmt;
     private final Clock clock;
 
@@ -43,7 +45,7 @@ public class AdminReportController {
             new ReportCard("agents", "Продажи по агентам", "Визиты, заказы, отказы и сумма по каждому агенту за период.", false),
             new ReportCard("outlets", "Продажи по магазинам", "Кто сколько берёт, средний заказ, магазины без заказов.", false),
             new ReportCard("products", "Продажи по товарам", "Штуки и суммы по товарам и категориям, по регионам.", false),
-            new ReportCard("cash", "Касса и недостачи", "Наличные по рейсам, сдано, разница по экспедиторам.", false),
+            new ReportCard("cash", "Касса и недостачи", "Получено наличными, сдано в кассу, недостачи и решения по ним — по экспедиторам.", true),
             new ReportCard("debts", "Долги на дату", "Долги магазинов, просрочка, оплаты за период.", false));
 
     @GetMapping("/admin/reports")
@@ -52,6 +54,33 @@ public class AdminReportController {
         AdminPage.head(model, "reports", "Отчёты", v.scopeName());
         model.addAttribute("cards", CARDS);
         return "admin/reports/list";
+    }
+
+    /** «Касса и недостачи» за месяц (month = 2026-10), по всем экспедиторам или одному. */
+    @GetMapping("/admin/reports/cash")
+    public String cash(@RequestParam(required = false) String month, @RequestParam(required = false) Long exp,
+                       Model model, HttpSession session) {
+        Viewer v = ctx.viewer(session);
+        LocalDate today = LocalDate.now(clock);
+        java.time.YearMonth ym;
+        try {
+            ym = month == null ? java.time.YearMonth.from(today) : java.time.YearMonth.parse(month);
+        } catch (java.time.format.DateTimeParseException e) {
+            ym = java.time.YearMonth.from(today);
+        }
+        String title = ym.getMonth().getDisplayName(java.time.format.TextStyle.FULL_STANDALONE, java.util.Locale.forLanguageTag("ru"));
+        title = Character.toUpperCase(title.charAt(0)) + title.substring(1) + " " + ym.getYear();
+        AdminPage.head(model, "reports", "Касса и недостачи", v.scopeName() + " · " + title);
+        CashReport.Report r = cashReport.build(v.companyId(), ym.atDay(1), ym.atEndOfMonth(), exp);
+        model.addAttribute("r", r);
+        model.addAttribute("all", exp == null ? r : cashReport.build(v.companyId(), ym.atDay(1), ym.atEndOfMonth(), null));
+        model.addAttribute("month", ym.toString());
+        model.addAttribute("monthTitle", title);
+        model.addAttribute("prev", ym.minusMonths(1).toString());
+        model.addAttribute("next", ym.isBefore(java.time.YearMonth.from(today)) ? ym.plusMonths(1).toString() : null);
+        model.addAttribute("exp", exp);
+        model.addAttribute("tolerance", v.companyId() == null ? null : settings.of(v.companyId()).getCashTolerance());
+        return "admin/reports/cash";
     }
 
     @GetMapping("/admin/reports/quality")

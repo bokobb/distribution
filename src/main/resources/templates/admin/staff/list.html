@@ -22,6 +22,8 @@
             <td class="hide-m small">
                 <th:block th:if="${e.role.name() == 'AGENT'}" th:text="${@fmt.plural(outletsOf.getOrDefault(e.id, 0L), 'магазин', 'магазина', 'магазинов')}"></th:block>
                 <th:block th:if="${e.vehicle != null}" th:text="${e.vehicle.model + ' · ' + e.vehicle.plate}"></th:block>
+                <a class="sub bad" th:if="${debtOf.getOrDefault(e.id, 0L) > 0}" href="/admin/reports/cash"
+                   th:text="${'долг по недостачам ' + @fmt.money(debtOf.get(e.id))}"></a>
             </td>
             <td class="small">
                 <th:block th:if="${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}">

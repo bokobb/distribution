@@ -430,3 +430,4 @@ a.al:hover{background:var(--head);color:var(--ink)}
 .choice .inp{margin-top:8px;width:100%}
 .big-sum{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
 .big-sum b{font:600 22px/28px var(--body);font-variant-numeric:tabular-nums}
+.tbl tr.tot td{border-top:1px solid var(--line-strong);background:var(--head)}
