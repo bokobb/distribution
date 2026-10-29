@@ -88,11 +88,11 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     _changed();
   }
 
-  void _setRet(int id, int n, String reason) {
+  void _setRet(int id, int n) {
     if (n <= 0) {
       _ret.remove(id);
     } else {
-      _ret[id] = ReturnItem(productId: id, qty: n, reason: reason);
+      _ret[id] = ReturnItem(productId: id, qty: n);
     }
     _changed();
   }
@@ -121,20 +121,18 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     await _enter(picked.product, toReturn: picked.toReturn);
   }
 
-  /// Сколько штук — окном с цифровой клавиатурой; у возврата там же причина.
+  /// Сколько штук — окном с цифровой клавиатурой.
   Future<void> _enter(Product p, {required bool toReturn}) async {
-    final r = _ret[p.id];
-    final got = await showDialog<(int, String?)>(
+    final n = await showDialog<int>(
         context: context,
         builder: (_) => _QtyDialog(
             product: p,
             price: _price(p),
-            qty: toReturn ? r?.qty ?? 0 : _qty[p.id] ?? 0,
-            reason: toReturn ? r?.reason ?? 'EXPIRED' : null));
-    if (got == null || !mounted) return;
-    final (n, reason) = got;
-    if (reason != null) {
-      _setRet(p.id, n, reason);
+            qty: toReturn ? _ret[p.id]?.qty ?? 0 : _qty[p.id] ?? 0,
+            toReturn: toReturn));
+    if (n == null || !mounted) return;
+    if (toReturn) {
+      _setRet(p.id, n);
     } else {
       _setQty(p.id, n);
     }
@@ -455,34 +453,30 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
   Widget _returnRow(Product p, ReturnItem r) {
     final price = _price(p);
     return _card(
-      child: Column(children: [
-        Row(children: [
-          ProductAvatar(id: p.id, name: p.name),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(p.name, style: const TextStyle(fontSize: 15, height: 20 / 15, fontWeight: FontWeight.w600)),
-                Text('${r.qty} ${p.unit} × ${money(price)} = −${money(price * r.qty)}',
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.warn, fontFeatures: tabular)),
-              ],
-            ),
+      child: Row(children: [
+        ProductAvatar(id: p.id, name: p.name),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(p.name, style: const TextStyle(fontSize: 15, height: 20 / 15, fontWeight: FontWeight.w600)),
+              Text('${r.qty} ${p.unit} × ${money(price)} = −${money(price * r.qty)}',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.warn, fontFeatures: tabular)),
+            ],
           ),
-          const SizedBox(width: 8),
-          PillStepper(
-            text: '${r.qty} ${p.unit}',
-            removes: r.qty <= 1,
-            decLabel: r.qty <= 1 ? 'Убрать из возврата' : 'Убрать штуку',
-            incLabel: 'Добавить штуку',
-            onDec: () => _setRet(p.id, r.qty - 1, r.reason),
-            onInc: () => _setRet(p.id, r.qty + 1, r.reason),
-            onText: () => _enter(p, toReturn: true),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        ReasonChips(reasons: ReturnItem.reasons, value: r.reason, onChanged: (why) => _setRet(p.id, r.qty, why)),
+        ),
+        const SizedBox(width: 8),
+        PillStepper(
+          text: '${r.qty} ${p.unit}',
+          removes: r.qty <= 1,
+          decLabel: r.qty <= 1 ? 'Убрать из возврата' : 'Убрать штуку',
+          incLabel: 'Добавить штуку',
+          onDec: () => _setRet(p.id, r.qty - 1),
+          onInc: () => _setRet(p.id, r.qty + 1),
+          onText: () => _enter(p, toReturn: true),
+        ),
       ]),
     );
   }
@@ -513,15 +507,15 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
 }
 
 /// Количество в штуках числом: товар добавляют из «Добавить позицию» или правят касанием количества в строке.
-/// В заказе — подсказка «+ коробка» и сколько это коробок; в возврате ([reason] не null) — причина. Сумма по прайсу
+/// В заказе — подсказка «+ коробка» и сколько это коробок; в возврате ([toReturn]) — янтарная кнопка. Сумма по прайсу
 /// магазина. Было 0 — кнопка «В заказ» / «В возврат», иначе «Готово» (0 — убрать из списка).
 class _QtyDialog extends StatefulWidget {
-  const _QtyDialog({required this.product, required this.price, required this.qty, this.reason});
+  const _QtyDialog({required this.product, required this.price, required this.qty, required this.toReturn});
 
   final Product product;
   final int price;
   final int qty;
-  final String? reason;
+  final bool toReturn;
 
   @override
   State<_QtyDialog> createState() => _QtyDialogState();
@@ -529,7 +523,6 @@ class _QtyDialog extends StatefulWidget {
 
 class _QtyDialogState extends State<_QtyDialog> {
   late final _c = TextEditingController(text: widget.qty == 0 ? '' : '${widget.qty}');
-  late String? _reason = widget.reason;
 
   @override
   void dispose() {
@@ -539,12 +532,12 @@ class _QtyDialogState extends State<_QtyDialog> {
 
   int get _value => int.tryParse(_c.text) ?? 0;
 
-  bool get _return => widget.reason != null;
+  bool get _return => widget.toReturn;
 
   bool get _ok => _value > 0 || widget.qty > 0;
 
   void _done() {
-    if (_ok) Navigator.pop(context, (_value, _reason));
+    if (_ok) Navigator.pop(context, _value);
   }
 
   void _box() {
@@ -612,11 +605,6 @@ class _QtyDialogState extends State<_QtyDialog> {
                   label: Text('коробка (${p.perBox} ${p.unit})'),
                 ),
               ),
-            ],
-            if (_reason case final reason?) ...[
-              const SizedBox(height: 12),
-              ReasonChips(
-                  reasons: ReturnItem.reasons, value: reason, height: 34, onChanged: (r) => setState(() => _reason = r)),
             ],
             const SizedBox(height: 12),
             Row(children: [

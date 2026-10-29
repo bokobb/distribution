@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/agent_data.dart';
-import '../data/defect_return.dart';
 import '../data/expeditor_data.dart';
 import '../deliveries.dart';
 import '../format.dart';
 import '../theme.dart';
 
-/// «Возврат» негодного товара у магазина: причина (брак, просрочка, упаковка — одна на возврат), товары и штуки —
-/// сначала из заказа магазина, поиск по остальным. Сумма — по ценам магазина на день данных; точную по цене дня
+/// «Возврат» негодного товара у магазина: товары и штуки — сначала из заказа магазина, поиск по остальным. Сумма — по ценам магазина на день данных; точную по цене дня
 /// возврата посчитает сервер. Записано — возвращает true.
 class ReturnScreen extends StatefulWidget {
   const ReturnScreen({super.key, required this.trip, required this.stop, required this.data, required this.deliveries});
@@ -25,7 +23,6 @@ class ReturnScreen extends StatefulWidget {
 
 class _ReturnScreenState extends State<ReturnScreen> {
   final _qty = <int, int>{};
-  String _reason = 'DEFECT';
   String _query = '';
   bool _busy = false;
 
@@ -82,7 +79,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
   Future<void> _save() async {
     setState(() => _busy = true);
     final problem =
-        await widget.deliveries.returnGoods(widget.trip, widget.stop, items: {..._qty}, reason: _reason, total: _total);
+        await widget.deliveries.returnGoods(widget.trip, widget.stop, items: {..._qty}, total: _total);
     if (!mounted) return;
     setState(() => _busy = false);
     if (problem == null) {
@@ -113,21 +110,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                for (final e in DefectReturn.reasons.entries)
-                  ChoiceChip(
-                    label: Text(e.value),
-                    selected: _reason == e.key,
-                    onSelected: (_) => setState(() => _reason = e.key),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Поиск товара'),
               onChanged: (v) => setState(() => _query = v),

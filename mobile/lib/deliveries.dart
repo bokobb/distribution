@@ -199,20 +199,17 @@ class DeliveryBook extends ChangeNotifier {
     return true;
   }
 
-  /// Принять негодный товар: [items] — id товара → штук, [reason] — одна на весь возврат; [total] — сумма по ценам
-  /// на телефоне (точную посчитает сервер по цене дня); [plan] — по списку торгового. Не получилось — текст для
-  /// человека.
+  /// Принять негодный товар: [items] — id товара → штук; [total] — сумма по ценам на телефоне (точную посчитает
+  /// сервер по цене дня); [plan] — по списку торгового. Не получилось — текст для человека.
   Future<String?> returnGoods(TripInfo trip, Stop stop,
-      {required Map<int, int> items, required String reason, required int total, bool plan = false}) async {
+      {required Map<int, int> items, required int total, bool plan = false}) async {
     final chosen = {for (final e in items.entries) if (e.value > 0) e.key: e.value};
     if (chosen.isEmpty) return 'Выберите товар';
-    if (!DefectReturn.reasons.containsKey(reason)) return 'Укажите причину';
     final r = DefectReturn(
         uuid: const Uuid().v4(),
         outletId: stop.outlet.id,
         tripId: trip.id,
         returnedAt: _now(),
-        reason: reason,
         items: chosen,
         total: total,
         plan: plan);
@@ -224,22 +221,11 @@ class DeliveryBook extends ChangeNotifier {
     return null;
   }
 
-  /// Забрать у магазина всё, что торговый записал с заказом: по возврату на каждую причину. Не получилось — текст.
-  Future<String?> takePlannedReturns(TripInfo trip, Stop stop) async {
-    final byReason = <String, List<PlannedReturn>>{};
-    for (final r in stop.order.returns) {
-      byReason.putIfAbsent(r.reason, () => []).add(r);
-    }
-    for (final e in byReason.entries) {
-      final problem = await returnGoods(trip, stop,
-          items: {for (final r in e.value) r.productId: r.qty},
-          reason: e.key,
-          total: e.value.fold(0, (a, r) => a + r.sum),
-          plan: true);
-      if (problem != null) return problem;
-    }
-    return null;
-  }
+  /// Забрать у магазина всё, что торговый записал с заказом, — одним возвратом. Не получилось — текст.
+  Future<String?> takePlannedReturns(TripInfo trip, Stop stop) => returnGoods(trip, stop,
+      items: {for (final r in stop.order.returns) r.productId: r.qty},
+      total: stop.order.returns.fold(0, (a, r) => a + r.sum),
+      plan: true);
 
   /// Список торгового уже забран; сервер не принял — снова виден.
   bool plannedTaken(TripInfo trip, Stop stop) =>

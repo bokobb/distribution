@@ -202,16 +202,14 @@ class TripOrder {
       );
 }
 
-/// Строка возврата, который торговый записал с заказом; reason — EXPIRED, DEFECT или PACKAGING.
+/// Строка возврата, который торговый записал с заказом.
 class PlannedReturn {
-  const PlannedReturn(
-      {required this.productId, required this.name, required this.qty, required this.price, required this.reason});
+  const PlannedReturn({required this.productId, required this.name, required this.qty, required this.price});
 
   final int productId;
   final String name;
   final int qty;
   final int price;
-  final String reason;
 
   int get sum => qty * price;
 
@@ -220,7 +218,6 @@ class PlannedReturn {
         name: j['name'] as String,
         qty: j['qty'] as int,
         price: j['price'] as int,
-        reason: j['reason'] as String,
       );
 }
 

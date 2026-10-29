@@ -1,5 +1,3 @@
-import 'order.dart';
-
 /// Карточка магазина с сервера (/api/mobile/agent/outlets/{id}/card): что он берёт за 90 дней и история визитов с
 /// заказами и возвратами. Долг — в данных агента (только у своих), сюда не входит. Берётся при открытии карточки,
 /// на телефоне не хранится.
@@ -10,7 +8,6 @@ class OutletCard {
     required this.orders8w,
     required this.ordered,
     required this.returned,
-    this.returnReason,
     this.stopped,
     this.stoppedSince,
     required this.history,
@@ -22,10 +19,9 @@ class OutletCard {
   final int avgOrder;
   final int orders8w;
 
-  /// Заказано и возвращено за 90 дней, ₸; причина большей части возвратов (EXPIRED, DEFECT, PACKAGING).
+  /// Заказано и возвращено за 90 дней, ₸.
   final int ordered;
   final int returned;
-  final String? returnReason;
 
   /// Товар, который магазин брал, но перестал, и когда брал последний раз.
   final String? stopped;
@@ -56,7 +52,6 @@ class OutletCard {
         orders8w: j['orders8w'] as int,
         ordered: j['ordered'] as int,
         returned: j['returned'] as int,
-        returnReason: j['returnReason'] as String?,
         stopped: j['stopped'] as String?,
         stoppedSince: j['stoppedSince'] == null ? null : DateTime.parse(j['stoppedSince'] as String),
         history: [for (final h in j['history'] as List) HistoryItem.fromJson(h as Map<String, dynamic>)],
@@ -71,7 +66,6 @@ class HistoryItem {
     required this.order,
     this.orderTotal = 0,
     this.returnTotal = 0,
-    this.returnReason,
     this.status,
     this.statusLabel,
     this.reason,
@@ -81,20 +75,15 @@ class HistoryItem {
   final bool order;
   final int orderTotal;
   final int returnTotal;
-  final String? returnReason;
   final String? status;
   final String? statusLabel;
   final String? reason;
-
-  /// «упаковка», «срок годности» — для строки истории.
-  String? get returnReasonText => ReturnItem.reasons[returnReason]?.toLowerCase();
 
   factory HistoryItem.fromJson(Map<String, dynamic> j) => HistoryItem(
         at: DateTime.parse(j['at'] as String),
         order: j['kind'] == 'ORDER',
         orderTotal: j['orderTotal'] as int,
         returnTotal: j['returnTotal'] as int,
-        returnReason: j['returnReason'] as String?,
         status: j['status'] as String?,
         statusLabel: j['statusLabel'] as String?,
         reason: j['reason'] as String?,

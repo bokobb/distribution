@@ -339,7 +339,7 @@ class _StopScreenState extends State<StopScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                              'Возврат (${r.reasonLabel.toLowerCase()}) ${r.qty} шт на ${money(r.total)} · '
+                              'Возврат ${r.qty} шт на ${money(r.total)} · '
                               '${time(r.returnedAt)} · ${_state(r.sent, r.error, r.debtAfter)}',
                               style: TextStyle(color: r.error != null ? AppColors.err : AppColors.ok)),
                         ),

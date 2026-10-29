@@ -243,28 +243,27 @@ void main() {
     expect(store.debtPaymentsByUuid, isEmpty);
   });
 
-  test('возврат негодного: одна причина на все строки, сервер посчитал сумму и долг; отмена до отправки', () async {
-    expect(await book.returnGoods(trip(), arai(), items: {1: 0}, reason: 'DEFECT', total: 0), 'Выберите товар');
-    expect(await book.returnGoods(trip(), arai(), items: {1: 1}, reason: 'ДРУГОЕ', total: 500), 'Укажите причину');
+  test('возврат негодного без причины: сервер посчитал сумму и долг; отмена до отправки', () async {
+    expect(await book.returnGoods(trip(), arai(), items: {1: 0}, total: 0), 'Выберите товар');
 
     server.offline = true;
-    await book.returnGoods(trip(), arai(), items: {1: 1}, reason: 'DEFECT', total: 500);
+    await book.returnGoods(trip(), arai(), items: {1: 1}, total: 500);
     await settle();
     expect((await store.pending()).returns, 1);
     expect(await book.cancelReturn(book.returnsAt(1).single), isTrue);
     expect(book.returnsAt(1), isEmpty);
 
     server.offline = false;
-    await book.returnGoods(trip(), arai(), items: {1: 3, 2: 2, 3: 0}, reason: 'EXPIRED', total: 1);
+    await book.returnGoods(trip(), arai(), items: {1: 3, 2: 2, 3: 0}, total: 1);
     await settle();
     final sent = server.returns.values.single;
     expect(sent['returnedAt'], '2026-10-28T11:20:00');
     expect(sent['lines'], [
-      {'productId': 1, 'qty': 3, 'reason': 'EXPIRED'},
-      {'productId': 2, 'qty': 2, 'reason': 'EXPIRED'},
+      {'productId': 1, 'qty': 3},
+      {'productId': 2, 'qty': 2},
     ]);
     final r = book.returnsAt(1).single;
-    expect([r.sent, r.total, r.debtAfter, r.qty, r.reasonLabel], [true, 2100, 42900, 5, 'Просрочка']);
+    expect([r.sent, r.total, r.debtAfter, r.qty], [true, 2100, 42900, 5]);
     expect(await book.cancelReturn(r), isFalse);
     expect(outbox.expeditorSent, 1);
   });
@@ -281,14 +280,14 @@ void main() {
 
     db = await SqliteStore.open(path: path, factory: databaseFactoryFfi);
     final r = DefectReturn(
-        uuid: 'в1', outletId: 1, tripId: 1, returnedAt: DateTime(2026, 10, 28, 11, 40), reason: 'PACKAGING',
-        items: {2: 4}, total: 1200);
+        uuid: 'в1', outletId: 1, tripId: 1, returnedAt: DateTime(2026, 10, 28, 11, 40), items: {2: 4},
+        total: 1200);
     await db.saveReturn(r);
     expect(await db.unsentCount(), 1);
     expect((await db.pending()).returns, 1);
     final back = (await db.returns()).single;
     expect(back.toJson(), r.toJson());
-    expect([back.reasonLabel, back.qty, back.total], ['Упаковка', 4, 1200]);
+    expect([back.qty, back.total], [4, 1200]);
 
     back
       ..sent = true
@@ -299,7 +298,7 @@ void main() {
     expect((await db.returns()).single.total, 1180);
 
     await db.saveReturn(DefectReturn(
-        uuid: 'в2', outletId: 2, tripId: 1, returnedAt: DateTime(2026, 10, 28, 12), reason: 'DEFECT', items: {1: 1},
+        uuid: 'в2', outletId: 2, tripId: 1, returnedAt: DateTime(2026, 10, 28, 12), items: {1: 1},
         total: 500)
       ..error = 'Нет цены');
     expect((await db.pending()).rejectedReturns.single.error, 'Нет цены');

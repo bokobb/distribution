@@ -358,7 +358,7 @@ class _GoodsScreenState extends State<GoodsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(r.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                    Text('${r.qty} шт · ${(DefectReturn.reasons[r.reason] ?? r.reason).toLowerCase()}',
+                    Text('${r.qty} шт',
                         style: const TextStyle(fontSize: 13, color: Color(0xFF8A5000))),
                   ],
                 ),
@@ -391,8 +391,8 @@ class _GoodsScreenState extends State<GoodsScreen> {
     final note = r.error != null
         ? 'сервер не принял: ${r.error}'
         : r.sent
-            ? r.reasonLabel.toLowerCase()
-            : '${r.reasonLabel.toLowerCase()} · ждёт отправки';
+            ? null
+            : 'ждёт отправки';
     return InkWell(
       onTap: r.sent ? null : () => _cancelReturn(r),
       child: Container(
@@ -405,7 +405,7 @@ class _GoodsScreenState extends State<GoodsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                Text('$qty шт · $note',
+                Text(['$qty шт', ?note].join(' · '),
                     style: TextStyle(fontSize: 13, color: r.error != null ? AppColors.err : AppColors.text2)),
               ],
             ),

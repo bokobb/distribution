@@ -195,20 +195,12 @@ class Order {
 /// Строка возврата, который торговый записал с заказом: магазин отдаёт негодный товар, экспедитор заберёт его при
 /// доставке. Долг уменьшится, когда экспедитор запишет, сколько забрал.
 class ReturnItem {
-  const ReturnItem({required this.productId, required this.qty, required this.reason});
+  const ReturnItem({required this.productId, required this.qty});
 
   final int productId;
   final int qty;
 
-  /// EXPIRED, DEFECT или PACKAGING.
-  final String reason;
+  Map<String, dynamic> toJson() => {'productId': productId, 'qty': qty};
 
-  static const reasons = {'EXPIRED': 'Срок годности', 'DEFECT': 'Брак', 'PACKAGING': 'Упаковка'};
-
-  String get reasonLabel => reasons[reason] ?? reason;
-
-  Map<String, dynamic> toJson() => {'productId': productId, 'qty': qty, 'reason': reason};
-
-  factory ReturnItem.fromJson(Map<String, dynamic> j) =>
-      ReturnItem(productId: j['productId'] as int, qty: j['qty'] as int, reason: j['reason'] as String);
+  factory ReturnItem.fromJson(Map<String, dynamic> j) => ReturnItem(productId: j['productId'] as int, qty: j['qty'] as int);
 }

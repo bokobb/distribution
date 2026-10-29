@@ -379,11 +379,11 @@ void main() {
     expect(find.text(money(45000)), findsOneWidget);
     expect(find.text('Просрочено ${money(12000)}'), findsOneWidget);
     expect(find.text('${money(30400)} · раз в неделю'), findsOneWidget);
-    expect(find.text('3% от заказов · в основном срок годности'), findsOneWidget);
+    expect(find.text('3% от заказов'), findsOneWidget);
     expect(find.textContaining('Вафли сливочные · '), findsOneWidget);
     await t.scrollUntilVisible(find.text('30 сен · без заказа'), 200);
     expect(find.text('21 окт · заказ ${money(31680)}'), findsOneWidget);
-    expect(find.text('возврат ${money(1240)} · упаковка'), findsOneWidget);
+    expect(find.text('возврат ${money(1240)}'), findsOneWidget);
     expect(find.text('без возврата'), findsOneWidget);
     expect(find.text('Доставлен'), findsNWidgets(2));
     expect(find.text('товар ещё есть'), findsOneWidget);
@@ -518,7 +518,7 @@ void main() {
     expect(server.visits.values.single['result'], 'NO_ORDER');
   });
 
-  testWidgets('заказ и возврат на одном экране: «Как 21 октября», коробки, возврат с причиной — к оплате меньше',
+  testWidgets('заказ и возврат на одном экране: «Как 21 октября», коробки, возврат без причины — к оплате меньше',
       (t) async {
     final server = FakeServer();
     // долг ближе к лимиту: в долг заказ уйдёт руководителю
@@ -575,7 +575,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('60 шт · ${money(18000)}'), findsOneWidget);
 
-    // возврат: печенье, 3 штуки, брак → упаковка
+    // возврат: печенье, 3 штуки — без причины
     await t.tap(find.text('Возврат · 0'));
     await t.pumpAndSettle();
     expect(find.text('Возврата нет — если магазин отдаёт негодный товар, добавьте его'), findsOneWidget);
@@ -585,15 +585,13 @@ void main() {
     await t.pumpAndSettle();
     expect(t.widget<FilledButton>(find.widgetWithText(FilledButton, 'В возврат')).onPressed, isNull); // пусто
     await t.enterText(inDialog(find.byType(TextField)), '3');
-    await t.tap(find.text('Брак'));
     await t.pump();
     expect(find.text('−${money(1500)}'), findsOneWidget);
+    expect(find.text('Брак'), findsNothing);
     await t.tap(find.widgetWithText(FilledButton, 'В возврат'));
     await t.pumpAndSettle();
     expect(find.text('Возврат · 1'), findsOneWidget);
     expect(find.text('3 шт × ${money(500)} = −${money(1500)}'), findsOneWidget);
-    await t.tap(find.text('Упаковка'));
-    await t.pump();
     expect(find.text('Заказ ${amount(36000)} − возврат ${amount(1500)}'), findsOneWidget);
     expect(find.text(money(34500)), findsOneWidget);
 
@@ -601,7 +599,12 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Оформление'), findsOneWidget);
     expect(find.text(money(36000)), findsOneWidget);
-    expect(find.text('−${money(1500)}'), findsOneWidget);
+    // весь состав: печенье 36 × 500 и вафли 60 × 300, в возврате — печенье 3 × 500
+    expect(find.text('36 шт'), findsOneWidget);
+    expect(find.text('60 шт'), findsOneWidget);
+    expect(find.text(money(18000)), findsNWidgets(2));
+    expect(find.text('3 шт'), findsOneWidget);
+    expect(find.text('−${money(1500)}'), findsNWidgets(2));
     expect(find.text(money(34500)), findsOneWidget);
     expect(find.text('Доставка и сбор возврата'), findsOneWidget);
     expect(find.textContaining('Есть просрочка ${money(12000)}'), findsOneWidget);
@@ -612,6 +615,7 @@ void main() {
         find.text('Долг станет ${money(124500)} при лимите ${money(100000)}\n'
             'Заказ уйдёт руководителю на подтверждение. Предупредите магазин.'),
         findsOneWidget);
+    await t.scrollUntilVisible(find.byType(TextField), 200, scrollable: find.byType(Scrollable).first);
     await t.enterText(find.byType(TextField), 'вход со двора');
     await tapVisible(t, find.text('Отправить заказ и возврат'));
     await t.pumpAndSettle();
@@ -624,7 +628,7 @@ void main() {
     expect(find.text('Заказ ${money(48000)} · возврат ${money(1500)}'), findsOneWidget);
     final sent = server.orders.values.single;
     expect(sent['items'], [{'productId': 1, 'qty': 36}, {'productId': 2, 'qty': 60}]);
-    expect(sent['returns'], [{'productId': 1, 'qty': 3, 'reason': 'PACKAGING'}]);
+    expect(sent['returns'], [{'productId': 1, 'qty': 3}]);
     expect([sent['payment'], sent['comment']], ['CREDIT', 'вход со двора']);
     expect(sent['visitUuid'], server.visits.keys.single);
   });
@@ -707,7 +711,7 @@ void main() {
     await settleIo(t);
     expect(find.text('Заказ изменён'), findsOneWidget);
     expect(server.orders[uuid]!['items'], [{'productId': 1, 'qty': 13}]);
-    expect(server.orders[uuid]!['returns'], [{'productId': 2, 'qty': 2, 'reason': 'EXPIRED'}]);
+    expect(server.orders[uuid]!['returns'], [{'productId': 2, 'qty': 2}]);
     expect(find.text('Заказ ${money(6500)} · возврат ${money(1000)}'), findsOneWidget);
 
     // отменить — с причиной; в итогах дня его нет
@@ -1350,7 +1354,7 @@ void main() {
     expect(find.text('нет цены'), findsOneWidget);
     expect(t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Принять')).onPressed, isNull);
 
-    await t.tap(find.text('Просрочка'));
+    expect(find.text('Просрочка'), findsNothing);
     await t.tap(find.byTooltip('Вернуть Печенье овсяное'));
     await t.pump();
     await t.tap(find.byTooltip('Больше'));
@@ -1363,12 +1367,12 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text('Возврат сохранён'), findsOneWidget);
-    expect(find.text('2 шт · просрочка'), findsOneWidget);
+    expect(find.text('2 шт'), findsOneWidget);
     expect(find.text('−${money(1000)}'), findsOneWidget);
-    expect(find.text('1 шт · просрочка'), findsOneWidget);
+    expect(find.text('1 шт'), findsOneWidget);
     expect(find.text('${amount(13500)} − возврат ${amount(1300)}'), findsOneWidget);
     expect(find.text(money(12200)), findsOneWidget);
-    expect((server.returns.values.single['lines'] as List).map((l) => (l as Map)['reason']), ['EXPIRED', 'EXPIRED']);
+    expect(server.returns.values.single['lines'], [{'productId': 1, 'qty': 2}, {'productId': 2, 'qty': 1}]);
 
     await tapVisible(t, find.text('Готово'));
     await t.pumpAndSettle();
@@ -1394,8 +1398,8 @@ void main() {
     await tapVisible(t, find.text('Состав'));
     await t.pumpAndSettle();
     expect(find.text('Торговый Айгерим записал с заказом:'), findsOneWidget);
-    expect(find.text('2 шт · просрочка'), findsOneWidget);
-    expect(find.text('3 шт · брак'), findsOneWidget);
+    expect(find.text('2 шт'), findsOneWidget); // причину со старого сервера не показываем
+    expect(find.text('3 шт'), findsOneWidget);
     await tapVisible(t, find.text('Забрать по списку · −${money(1900)}'));
     await t.pumpAndSettle();
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
@@ -1404,9 +1408,8 @@ void main() {
     expect(find.text('Возврат по списку торгового записан'), findsOneWidget);
     expect(find.text('Торговый Айгерим записал с заказом:'), findsNothing);
     expect(find.text('${amount(13500)} − возврат ${amount(1900)}'), findsOneWidget);
-    // по возврату на причину
-    final sent = server.returns.values.map((r) => [for (final l in r['lines'] as List) '${(l as Map)['productId']}:${l['qty']}:${l['reason']}']);
-    expect(sent, unorderedEquals([['1:2:EXPIRED'], ['2:3:DEFECT']]));
+    // одним возвратом, без причины
+    expect(server.returns.values.single['lines'], [{'productId': 1, 'qty': 2}, {'productId': 2, 'qty': 3}]);
 
     await tapVisible(t, find.text('Готово'));
     await t.pumpAndSettle();

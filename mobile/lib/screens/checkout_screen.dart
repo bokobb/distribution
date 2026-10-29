@@ -9,10 +9,10 @@ import '../widgets/layout.dart';
 import '../widgets/message_box.dart';
 import '../widgets/shelf_photo.dart';
 
-/// «Оформление» по макету AgentCheckout: заказ, возврат и к оплате; день доставки (тогда же экспедитор заберёт
-/// возврат) — «Изменить»; оплата при доставке — что разрешено в настройках; у своего магазина — предупреждение о
-/// лимите долга (заказ уйдёт руководителю) или о просрочке; фото полки, если обязательно; комментарий складу и
-/// экспедитору. «Отправить» заканчивает визит заказом — без сети он уйдёт сам. Отправили — возвращает true.
+/// «Оформление» по макету AgentCheckout: заказ и возврат — итог и весь состав (товар, штук, сумма), к оплате; день
+/// доставки (тогда же экспедитор заберёт возврат) — «Изменить»; оплата при доставке — что разрешено в настройках; у
+/// своего магазина — предупреждение о лимите долга (заказ уйдёт руководителю) или о просрочке; фото полки, если
+/// обязательно; комментарий складу и экспедитору. «Отправить» заканчивает визит заказом — без сети он уйдёт сам. Отправили — возвращает true.
 /// С [editing] — правка уже взятого заказа: его оплата, день и комментарий, «Сохранить изменения» (отправленный
 /// заказ меняется на сервере сразу — нужна сеть), фото полки не нужно.
 class CheckoutScreen extends StatefulWidget {
@@ -177,11 +177,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 children: [
                   _sumRow('Заказ',
                       '${plural(widget.items.length, 'позиция', 'позиции', 'позиций')}, $pieces шт', money(widget.total)),
+                  _lines([for (final e in widget.items.entries) (e.key, e.value)]),
                   if (withReturn) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     _sumRow('Возврат', '${plural(widget.returns.length, 'позиция', 'позиции', 'позиций')}, $backPieces шт',
                         '−${money(widget.returnTotal)}',
                         color: AppColors.warn),
+                    _lines([for (final r in widget.returns) (r.productId, r.qty)], back: true),
                   ],
                   const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider()),
                   Row(
@@ -306,6 +308,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Состав столбцами: товар (длинное название переносится), штук, сумма по прайсу магазина.
+  Widget _lines(List<(int, int)> lines, {bool back = false}) {
+    const cell = EdgeInsets.only(left: 12, top: 4);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Table(
+        columnWidths: const {0: FlexColumnWidth(), 1: IntrinsicColumnWidth(), 2: IntrinsicColumnWidth()},
+        defaultVerticalAlignment: TableCellVerticalAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          for (final (id, qty) in lines)
+            if (widget.data.product(id) case final p?)
+              TableRow(children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(p.name, style: const TextStyle(fontSize: 14, height: 18 / 14, color: AppColors.label)),
+                ),
+                Padding(
+                  padding: cell,
+                  child: Text('$qty ${p.unit}',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 14, color: AppColors.text2, fontFeatures: tabular)),
+                ),
+                Padding(
+                  padding: cell,
+                  child: Text(
+                      back
+                          ? '−${money(p.priceFor(widget.outlet.priceKind) * qty)}'
+                          : money(p.priceFor(widget.outlet.priceKind) * qty),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: back ? AppColors.warn : AppColors.text,
+                          fontFeatures: tabular)),
+                ),
+              ]),
+        ],
       ),
     );
   }

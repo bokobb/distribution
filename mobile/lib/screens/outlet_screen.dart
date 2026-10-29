@@ -207,7 +207,6 @@ class _OutletScreenState extends State<OutletScreen> {
 
   Widget _habits(OutletCard c) {
     final share = c.returnShare;
-    final reason = c.returnReason == null ? null : _reasonWord[c.returnReason];
     final since = c.stoppedSince;
     final weeks = since == null ? 0 : (DateUtils.dateOnly(DateTime.now()).difference(since).inDays / 7).floor();
     return _Section(
@@ -216,15 +215,13 @@ class _OutletScreenState extends State<OutletScreen> {
         _line('Средний заказ', c.avgOrder > 0 ? '${money(c.avgOrder)} · ${c.frequency}' : 'заказов за 90 дней не было'),
         if (share != null)
           _line('Возвраты',
-              c.returned == 0 ? 'не было' : ['$share% от заказов', if (reason != null) 'в основном $reason'].join(' · ')),
+              c.returned == 0 ? 'не было' : '$share% от заказов'),
         if (c.stopped != null)
           _line('Перестал брать', [c.stopped!, if (weeks > 0) plural(weeks, 'неделя', 'недели', 'недель')].join(' · '),
               alarm: true),
       ],
     );
   }
-
-  static const _reasonWord = {'EXPIRED': 'срок годности', 'DEFECT': 'брак', 'PACKAGING': 'упаковка'};
 
   /// Подпись сверху, значение под ней — длинное не рвётся по краю.
   Widget _line(String label, String value, {bool alarm = false}) => Padding(
@@ -266,7 +263,7 @@ class _OutletScreenState extends State<OutletScreen> {
                     Text(
                         h.order
                             ? h.returnTotal > 0
-                                ? ['возврат ${money(h.returnTotal)}', ?h.returnReasonText].join(' · ')
+                                ? 'возврат ${money(h.returnTotal)}'
                                 : 'без возврата'
                             : (h.reason ?? 'причина не указана').toLowerCase(),
                         style: const TextStyle(fontSize: 13, color: AppColors.text2, fontFeatures: tabular)),

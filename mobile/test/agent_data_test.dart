@@ -207,14 +207,14 @@ void main() {
     final o = Order(
         uuid: 'з1', visitUuid: 'в1', outletId: 2, createdAt: DateTime(2026, 10, 28, 10, 5),
         deliveryDate: DateTime(2026, 10, 29), payment: 'KASPI', comment: 'после обеда', items: {1: 12, 2: 20},
-        total: 12000, returns: const [ReturnItem(productId: 2, qty: 3, reason: 'EXPIRED')], returnTotal: 1500);
+        total: 12000, returns: const [ReturnItem(productId: 2, qty: 3)], returnTotal: 1500);
     await store.saveOrder(o);
     expect(await store.unsentCount(), 1);
     final back = (await store.ordersToSend()).single;
     expect(back.toJson(), {
       'uuid': 'з1', 'visitUuid': 'в1', 'outletId': 2, 'createdAt': '2026-10-28T10:05:00', 'deliveryDate': '2026-10-29',
       'payment': 'KASPI', 'comment': 'после обеда', 'items': [{'productId': 1, 'qty': 12}, {'productId': 2, 'qty': 20}],
-      'returns': [{'productId': 2, 'qty': 3, 'reason': 'EXPIRED'}],
+      'returns': [{'productId': 2, 'qty': 3}],
     });
     expect([back.returnTotal, back.toPay], [1500, 10500]);
 
@@ -223,8 +223,8 @@ void main() {
     await store.saveOrder(back);
     expect(await store.unsentCount(), 0);
     final saved = (await store.ordersSince(DateTime(2026, 10, 28))).single;
-    expect([saved.number, saved.statusLabel, saved.total, saved.returnTotal, saved.returns.single.reasonLabel],
-        ['З-281026-4', 'Принят', 12500, 1600, 'Срок годности']);
+    expect([saved.number, saved.statusLabel, saved.total, saved.returnTotal, saved.returns.single.qty],
+        ['З-281026-4', 'Принят', 12500, 1600, 3]);
 
     await store.pruneOrders(DateTime(2026, 10, 28));
     expect(await store.ordersSince(DateTime(2000)), hasLength(1));
@@ -298,9 +298,9 @@ void main() {
     expect([old.uuid, old.returns, old.returnTotal], ['старый', isEmpty, 0]);
     await store.saveOrder(Order(
         uuid: 'новый', outletId: 1, createdAt: DateTime(2026, 10, 29, 9), deliveryDate: DateTime(2026, 10, 30),
-        payment: 'CASH', items: {1: 1}, total: 500, returns: const [ReturnItem(productId: 1, qty: 1, reason: 'DEFECT')],
+        payment: 'CASH', items: {1: 1}, total: 500, returns: const [ReturnItem(productId: 1, qty: 1)],
         returnTotal: 500));
-    expect((await store.ordersToSend()).last.returns.single.reason, 'DEFECT');
+    expect((await store.ordersToSend()).last.returns.single.toJson(), {'productId': 1, 'qty': 1});
     await store.close();
   });
 

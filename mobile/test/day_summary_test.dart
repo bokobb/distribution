@@ -46,7 +46,7 @@ void main() {
     server.offline = true;
     await book.deliver(trip, trip.stops.first, items: {1: 22, 2: 5}, cash: 10000, settings: before.settings);
     await book.payDebt(trip, trip.stops.last, kaspi: 3000, settings: before.settings);
-    await book.returnGoods(trip, trip.stops.last, items: {1: 2}, reason: 'DEFECT', total: 1000);
+    await book.returnGoods(trip, trip.stops.last, items: {1: 2}, total: 1000);
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
     var s = summary(before);

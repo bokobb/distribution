@@ -9,7 +9,6 @@ class DefectReturn {
     required this.outletId,
     required this.tripId,
     required this.returnedAt,
-    required this.reason,
     required this.items,
     required this.total,
     this.sent = false,
@@ -22,9 +21,6 @@ class DefectReturn {
   final int outletId;
   final int tripId;
   final DateTime returnedAt;
-
-  /// EXPIRED, DEFECT или PACKAGING — одна на весь возврат.
-  final String reason;
 
   /// Сколько штук по товарам: id → штук.
   final Map<int, int> items;
@@ -43,9 +39,6 @@ class DefectReturn {
   /// Забран по списку, который торговый записал с заказом.
   final bool plan;
 
-  static const reasons = {'DEFECT': 'Брак', 'EXPIRED': 'Просрочка', 'PACKAGING': 'Упаковка'};
-
-  String get reasonLabel => reasons[reason] ?? reason;
   int get qty => items.values.fold(0, (a, b) => a + b);
 
   /// Для сервера.
@@ -54,7 +47,7 @@ class DefectReturn {
         'outletId': outletId,
         'tripId': tripId,
         'returnedAt': returnedAt.toIso8601String().split('.').first,
-        'lines': [for (final e in items.entries) {'productId': e.key, 'qty': e.value, 'reason': reason}],
+        'lines': [for (final e in items.entries) {'productId': e.key, 'qty': e.value}],
       };
 
   /// Всё, что нужно хранить на телефоне, — одной строкой JSON.
@@ -63,7 +56,6 @@ class DefectReturn {
         'outletId': outletId,
         'tripId': tripId,
         'returnedAt': returnedAt.toIso8601String(),
-        'reason': reason,
         'items': {for (final e in items.entries) '${e.key}': e.value},
         'total': total,
         'sent': sent,
@@ -79,7 +71,6 @@ class DefectReturn {
       outletId: j['outletId'] as int,
       tripId: j['tripId'] as int,
       returnedAt: DateTime.parse(j['returnedAt'] as String),
-      reason: j['reason'] as String,
       items: {for (final e in (j['items'] as Map<String, dynamic>).entries) int.parse(e.key): e.value as int},
       total: j['total'] as int,
       sent: j['sent'] as bool? ?? false,

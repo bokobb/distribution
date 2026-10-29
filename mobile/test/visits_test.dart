@@ -182,16 +182,16 @@ void main() {
     server.needsApproval = true;
     await book.start(outlet(1), routeId: 1, radius: 200, confirmFar: yes);
     final visit = book.current!.uuid;
-    await book.saveDraft({1: 3}, const [ReturnItem(productId: 2, qty: 4, reason: 'PACKAGING')]);
+    await book.saveDraft({1: 3}, const [ReturnItem(productId: 2, qty: 4)]);
     final draft = await book.draft();
     expect(draft.items, {1: 3});
-    expect([draft.returns.single.qty, draft.returns.single.reason], [4, 'PACKAGING']);
+    expect(draft.returns.single.qty, 4);
 
     expect(
         await book.finishWithOrder(
             items: {1: 12, 2: 20},
             total: 12000,
-            returns: const [ReturnItem(productId: 2, qty: 4, reason: 'PACKAGING')],
+            returns: const [ReturnItem(productId: 2, qty: 4)],
             returnTotal: 1200,
             payment: 'CREDIT',
             deliveryDate: DateTime(2026, 10, 29, 15),
@@ -208,7 +208,7 @@ void main() {
     expect(sent['payment'], 'CREDIT');
     expect(sent['comment'], 'после обеда');
     expect(sent['items'], [{'productId': 1, 'qty': 12}, {'productId': 2, 'qty': 20}]);
-    expect(sent['returns'], [{'productId': 2, 'qty': 4, 'reason': 'PACKAGING'}]);
+    expect(sent['returns'], [{'productId': 2, 'qty': 4}]);
     expect(server.visits[visit]!['result'], 'ORDER');
 
     final o = book.ordersAt(1).single;
