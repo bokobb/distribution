@@ -21,7 +21,10 @@ public class AdminModelAdvice {
     private final CompanyService companies;
     private final Clock clock;
     private final AdminIcons icons;
-    private Map<String, String> i20, i16;
+    private final MenuBadges badges;
+    @org.springframework.beans.factory.annotation.Value("${distribution.crm.url:}")
+    private String crmUrl;
+    private Map<String, String> i20, i18, i16;
 
     @ModelAttribute
     public void common(Model model, HttpSession session, jakarta.servlet.http.HttpServletRequest request) {
@@ -38,10 +41,15 @@ public class AdminModelAdvice {
         model.addAttribute("today", LocalDate.now(clock));
         if (i20 == null) {
             i20 = icons.all(20);
+            i18 = icons.all(18);
             i16 = icons.all(16);
         }
         model.addAttribute("i", i20);
+        model.addAttribute("i18", i18);
         model.addAttribute("i16", i16);
+        model.addAttribute("badges", v == null ? Map.of() : badges.of(v.companyId()));
+        model.addAttribute("crmUrl", crmUrl == null || crmUrl.isBlank() ? null : crmUrl.replaceAll("/+$", "") + "/admin");
+        model.addAttribute("crmPass", Boolean.TRUE.equals(session.getAttribute(AdminContext.CRM_PASS)));
         Object toast = session.getAttribute(AdminContext.TOAST);
         if (toast != null) {
             session.removeAttribute(AdminContext.TOAST);

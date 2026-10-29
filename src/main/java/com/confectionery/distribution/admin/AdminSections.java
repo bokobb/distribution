@@ -20,7 +20,12 @@ public final class AdminSections {
     private AdminSections() {
     }
 
-    public record Section(String key, String title, String group, Set<Role> roles) {
+    /** inMenu = false — раздел открывается по ссылке (например, из «Настроек»), но в меню его нет. */
+    public record Section(String key, String title, String group, Set<Role> roles, boolean inMenu) {
+        Section(String key, String title, String group, Set<Role> roles) {
+            this(key, title, group, roles, true);
+        }
+
         public String href() {
             return "/admin/" + key;
         }
@@ -33,17 +38,18 @@ public final class AdminSections {
     public static final List<Section> ALL = List.of(
             new Section("dashboard", "Дашборд", "", EnumSet.of(DIRECTOR, OPERATOR, STOREKEEPER)),
             new Section("map", "Карта", "", EnumSet.of(DIRECTOR, OPERATOR)),
+            new Section("approvals", "Разрешения", "", EnumSet.of(DIRECTOR, OPERATOR)),
             new Section("orders", "Заказы", "Продажи", EnumSet.of(DIRECTOR, OPERATOR, STOREKEEPER)),
             new Section("outlets", "Магазины", "Продажи", EnumSet.of(DIRECTOR, OPERATOR)),
             new Section("debts", "Долги магазинов", "Продажи", EnumSet.of(DIRECTOR, OPERATOR)),
-            new Section("routes", "Маршруты и регионы", "Продажи", EnumSet.of(DIRECTOR)),
+            new Section("assign", "Закрепление магазинов", "Продажи", EnumSet.of(DIRECTOR, OPERATOR)),
             new Section("trips", "Рейсы", "Склад и доставка", EnumSet.of(DIRECTOR, OPERATOR, STOREKEEPER)),
             new Section("cash", "Приём кассы", "Склад и доставка", EnumSet.of(DIRECTOR, OPERATOR, STOREKEEPER)),
             new Section("stock", "Склад и приходы", "Склад и доставка", EnumSet.of(DIRECTOR, STOREKEEPER)),
             new Section("products", "Товары и прайс", "Каталог", EnumSet.of(DIRECTOR, OPERATOR)),
             new Section("staff", "Сотрудники и машины", "Команда", EnumSet.of(DIRECTOR)),
             new Section("reports", "Отчёты", "|", EnumSet.of(DIRECTOR, OPERATOR)),
-            new Section("import", "Импорт из Doctor Sales", "|", EnumSet.of(DIRECTOR)),
+            new Section("import", "Импорт из Doctor Sales", "|", EnumSet.of(DIRECTOR), false),
             new Section("companies", "Компании", "|", EnumSet.noneOf(Role.class)),
             new Section("settings", "Настройки", "|", EnumSet.of(DIRECTOR)));
 
@@ -63,7 +69,7 @@ public final class AdminSections {
     public static List<Group> menu(Role role) {
         Map<String, List<Section>> groups = new LinkedHashMap<>();
         for (Section s : ALL) {
-            if (s.visibleTo(role)) groups.computeIfAbsent(s.group(), g -> new ArrayList<>()).add(s);
+            if (s.inMenu() && s.visibleTo(role)) groups.computeIfAbsent(s.group(), g -> new ArrayList<>()).add(s);
         }
         return groups.entrySet().stream()
                 .map(e -> new Group("|".equals(e.getKey()) ? "" : e.getKey(), "|".equals(e.getKey()), e.getValue()))

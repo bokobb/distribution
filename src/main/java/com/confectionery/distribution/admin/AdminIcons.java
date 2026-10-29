@@ -34,7 +34,7 @@ public class AdminIcons {
 
     public String svg(String name, int size) {
         return "<svg class=\"i\" viewBox=\"0 0 24 24\" width=\"" + size + "\" height=\"" + size
-                + "\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" "
+                + "\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" "
                 + "stroke-linejoin=\"round\" aria-hidden=\"true\">" + icons.getOrDefault(name, "") + "</svg>";
     }
 }

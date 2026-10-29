@@ -19,7 +19,7 @@
     </table></div>
 </section>
 
-<p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
+<p class="note note--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
 <form class="card" th:action="@{/admin/companies}" method="post">
     <div class="card-h"><h2>Новая компания</h2><p>склад-дилер получит свою отдельную админку и приложение для команды</p></div>
     <div class="card-b form">

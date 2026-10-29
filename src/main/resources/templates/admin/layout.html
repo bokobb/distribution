@@ -8,25 +8,27 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title th:text="${(title != null ? title + ' — ' : '') + 'Дистрибуция'}">Дистрибуция</title>
     <link rel="icon" href="/admin/assets/favicon.svg" type="image/svg+xml">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vollkorn:wght@600;700;800&family=Golos+Text:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="/admin/assets/admin.css?v=4">
+    <link rel="preload" href="/admin/assets/fonts/inter-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=5">
 </head>
 <body>
 <div class="app" id="app">
     <aside class="side" id="side" aria-label="Меню админки">
         <div class="side-brand">
-            <a href="/admin"><b>Дистрибуция</b><span th:text="${v.scopeName()}">Все компании</span></a>
+            <a href="/admin"><span class="side-logo" th:utext="${i18['logo']}"></span><span><b>Дистрибуция</b><span class="s" th:text="${v.scopeName()}">Все компании</span></span></a>
             <button class="side-x" type="button" id="side-x" aria-label="Закрыть меню" th:utext="${i['x']}"></button>
         </div>
         <nav class="nav" aria-label="Разделы">
             <th:block th:each="g : ${menu}">
                 <hr class="nav-sep" th:if="${g.separator}">
                 <p class="nav-g" th:if="${!g.separator and !#strings.isEmpty(g.title)}" th:text="${g.title}">Продажи</p>
-                <a th:each="s : ${g.items}" class="nav-a" th:href="${s.href()}" th:attr="aria-current=${s.key == sec} ? 'page' : null"><th:block th:utext="${i[s.key]}"></th:block><span th:text="${s.title}">Раздел</span></a>
+                <a th:each="s : ${g.items}" class="nav-a" th:href="${s.href()}" th:attr="aria-current=${s.key == sec} ? 'page' : null"><th:block th:utext="${i18[s.key]}"></th:block><span th:text="${s.title}">Раздел</span><b class="nav-n" th:if="${badges.get(s.key) != null and badges.get(s.key) > 0}" th:text="${badges.get(s.key)}">0</b></a>
             </th:block>
         </nav>
+        <div class="side-foot" th:if="${crmUrl != null}">
+            <a th:href="${crmUrl}"><th:block th:utext="${i16['arrow-left']}"></th:block>Вернуться в CRM</a>
+            <span th:text="${crmPass ? 'вход из CRM · пропуск владельца' : 'админка производства'}"></span>
+        </div>
     </aside>
     <div class="scrim" id="scrim"></div>
 
@@ -44,8 +46,12 @@
                 <noscript><button class="btn btn-soft btn-sm" type="submit">Показать</button></noscript>
             </form>
             <span class="tag" th:unless="${v.owner()}" th:text="${v.scopeName()}">Компания</span>
+            <form class="bar-search" action="/admin/find" method="get" role="search">
+                <th:block th:utext="${i16['search']}"></th:block>
+                <input type="search" name="q" placeholder="Магазин, № заказа, телефон" aria-label="Магазин, № заказа, телефон">
+            </form>
             <details class="me">
-                <summary><span class="ava" aria-hidden="true" th:text="${v.me().initial}">В</span><span class="me-n"><b th:text="${v.me().name}">Владелец</b><span th:text="${v.role().label}">роль</span></span><span class="sr">Меню пользователя</span></summary>
+                <summary><span class="ava" aria-hidden="true" th:text="${v.me().initial}">В</span><span class="me-n"><b th:text="${v.me().name}">Владелец</b><th:block th:text="${v.owner() ? 'все компании' : v.role().label.toLowerCase()}">роль</th:block></span><span class="sr">Меню пользователя</span></summary>
                 <div class="me-pop">
                     <th:block th:if="${v.owner()}">
                         <p>Чтобы проверить, что видит каждая роль, откройте админку её глазами. Действия всё равно записываются на вас.</p>
@@ -64,7 +70,7 @@
     </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden th:text="${toast}"></div>
-<script src="/admin/assets/admin.js?v=2"></script>
+<script src="/admin/assets/admin.js?v=3"></script>
 <th:block th:replace="${scripts}"></th:block>
 </body>
 </html>

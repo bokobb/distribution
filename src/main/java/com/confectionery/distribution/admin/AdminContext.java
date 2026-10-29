@@ -30,6 +30,8 @@ public class AdminContext {
     static final String ROLE = "ADM_ROLE";
     static final String COMPANY = "ADM_COMPANY";
     static final String TOAST = "ADM_TOAST";
+    /** Вошёл из CRM по пропуску владельца (а не паролем) — подпись внизу меню. */
+    public static final String CRM_PASS = "ADM_CRM_PASS";
     static final String VIEWER = AdminContext.class.getName() + ".viewer";
 
     private final CompanyRepository companies;

@@ -2,7 +2,7 @@
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
+<p class="note note--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
 <form th:action="@{/admin/settings}" method="post" style="display:flex;flex-direction:column;gap:18px">
     <section class="card">
         <div class="card-h"><h2>Визиты агентов</h2></div>

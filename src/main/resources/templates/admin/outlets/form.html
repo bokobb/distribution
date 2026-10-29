@@ -3,7 +3,7 @@
 <body>
 <th:block th:fragment="content">
 <a class="back" th:href="${f.id == null ? '/admin/outlets' : '/admin/outlets/' + f.id}"><th:block th:utext="${i16['back']}"></th:block>Назад</a>
-<p class="al al--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
+<p class="note note--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
 <form class="card" th:action="@{/admin/outlets/save}" method="post">
     <input type="hidden" name="id" th:if="${f.id != null}" th:value="${f.id}">
     <div class="card-h"><h2>Магазин</h2></div>

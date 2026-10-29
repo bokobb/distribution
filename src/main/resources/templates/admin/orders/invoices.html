@@ -7,13 +7,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title th:text="${total ? 'Общая накладная' : (orders.size() == 1 ? 'Накладная № ' + orders[0].number : 'Накладные по магазинам')}">Накладные</title>
     <link rel="icon" href="/admin/assets/favicon.svg" type="image/svg+xml">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600;700&display=swap">
+    <link rel="stylesheet" href="/admin/assets/inter.css">
     <style>
         :root{color-scheme:light;--ink:#1d1d1d;--soft:#5c5c5c;--line:#9a9a9a;--paper:#e9e8e3}
         *{box-sizing:border-box}
-        body{margin:0;background:var(--paper);color:var(--ink);font:400 12.5px/1.4 "Golos Text","Segoe UI",system-ui,sans-serif}
+        body{margin:0;background:var(--paper);color:var(--ink);font:400 12.5px/1.4 "Inter","Segoe UI",system-ui,sans-serif}
         h1{font-size:17px;margin:0 0 2px}
         h2{font-size:13.5px;margin:14px 0 6px}
         p{margin:0}
