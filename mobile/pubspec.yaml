@@ -3,7 +3,7 @@ description: "Приложение торгового агента и экспе
 publish_to: 'none'
 
 # Версия приложения: 1.0.0 — versionName, +1 — versionCode на Android. Сервер пишет её в журнал приложения.
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.13.1

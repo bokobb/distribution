@@ -108,23 +108,24 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     final picked = await pickProduct(context,
         data: widget.data, outlet: widget.outlet, toReturn: _tab == 1, inOrder: _qty, inReturn: _ret);
     if (picked == null || !mounted) return;
-    final id = picked.product.id;
-    if (picked.toReturn) {
-      _setRet(id, (_ret[id]?.qty ?? 0) + picked.qty, picked.reason!);
-      setState(() => _tab = 1);
-    } else {
-      _setQty(id, (_qty[id] ?? 0) + picked.qty);
-      setState(() => _tab = 0);
-    }
+    setState(() => _tab = picked.toReturn ? 1 : 0);
+    await _enter(picked.product, toReturn: picked.toReturn);
   }
 
+  /// Сколько штук — окном с цифровой клавиатурой; у возврата там же причина.
   Future<void> _enter(Product p, {required bool toReturn}) async {
-    final n = await showDialog<int>(
+    final r = _ret[p.id];
+    final got = await showDialog<(int, String?)>(
         context: context,
-        builder: (_) => _QtyDialog(product: p, qty: toReturn ? _ret[p.id]?.qty ?? 0 : _qty[p.id] ?? 0, byBox: !toReturn));
-    if (n == null) return;
-    if (toReturn) {
-      _setRet(p.id, n, _ret[p.id]?.reason ?? 'EXPIRED');
+        builder: (_) => _QtyDialog(
+            product: p,
+            price: _price(p),
+            qty: toReturn ? r?.qty ?? 0 : _qty[p.id] ?? 0,
+            reason: toReturn ? r?.reason ?? 'EXPIRED' : null));
+    if (got == null || !mounted) return;
+    final (n, reason) = got;
+    if (reason != null) {
+      _setRet(p.id, n, reason);
     } else {
       _setQty(p.id, n);
     }
@@ -499,13 +500,16 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
       );
 }
 
-/// Количество числом; в заказе — «+ коробка».
+/// Количество в штуках числом: товар добавляют из «Добавить позицию» или правят касанием количества в строке.
+/// В заказе — подсказка «+ коробка» и сколько это коробок; в возврате ([reason] не null) — причина. Сумма по прайсу
+/// магазина. Было 0 — кнопка «В заказ» / «В возврат», иначе «Готово» (0 — убрать из списка).
 class _QtyDialog extends StatefulWidget {
-  const _QtyDialog({required this.product, required this.qty, required this.byBox});
+  const _QtyDialog({required this.product, required this.price, required this.qty, this.reason});
 
   final Product product;
+  final int price;
   final int qty;
-  final bool byBox;
+  final String? reason;
 
   @override
   State<_QtyDialog> createState() => _QtyDialogState();
@@ -513,6 +517,7 @@ class _QtyDialog extends StatefulWidget {
 
 class _QtyDialogState extends State<_QtyDialog> {
   late final _c = TextEditingController(text: widget.qty == 0 ? '' : '${widget.qty}');
+  late String? _reason = widget.reason;
 
   @override
   void dispose() {
@@ -522,32 +527,115 @@ class _QtyDialogState extends State<_QtyDialog> {
 
   int get _value => int.tryParse(_c.text) ?? 0;
 
+  bool get _return => widget.reason != null;
+
+  bool get _ok => _value > 0 || widget.qty > 0;
+
+  void _done() {
+    if (_ok) Navigator.pop(context, (_value, _reason));
+  }
+
+  void _box() {
+    _c.text = '${_value + widget.product.perBox}';
+    _c.selection = TextSelection.collapsed(offset: _c.text.length);
+    setState(() {});
+  }
+
+  /// «24 шт · 2 кор» или «30 шт · 2 кор + 6 шт».
+  String _pieces(Product p, int n) {
+    if (p.perBox <= 1 || n < p.perBox) return '$n ${p.unit}';
+    final rest = n % p.perBox;
+    return '$n ${p.unit} · ${n ~/ p.perBox} кор${rest > 0 ? ' + $rest ${p.unit}' : ''}';
+  }
+
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.product.name),
-        content: Column(
+  Widget build(BuildContext context) {
+    final p = widget.product, n = _value, sum = n * widget.price;
+    final label = widget.qty > 0 ? 'Готово' : (_return ? 'В возврат' : 'В заказ');
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(children: [
+              ProductAvatar(id: p.id, name: p.name),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(
+                        [
+                          '${money(widget.price)} / ${p.unit}',
+                          if (p.perBox > 1) '${p.perBox} ${p.unit} в кор',
+                        ].join(' · '),
+                        style: const TextStyle(fontSize: 13, color: AppColors.text2, fontFeatures: tabular)),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 16),
             TextField(
               controller: _c,
               autofocus: true,
               keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
-              decoration: InputDecoration(labelText: 'Количество, ${widget.product.unit}'),
-              onSubmitted: (_) => Navigator.pop(context, _value),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, fontFeatures: tabular),
+              decoration: InputDecoration(labelText: 'Количество, ${p.unit}', suffixText: p.unit),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _done(),
             ),
-            if (widget.byBox && widget.product.perBox > 1) ...[
+            if (!_return && p.perBox > 1) ...[
               const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () => setState(() => _c.text = '${_value + widget.product.perBox}'),
-                child: Text('+ коробка (${widget.product.perBox} ${widget.product.unit})'),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _box,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text('коробка (${p.perBox} ${p.unit})'),
+                ),
               ),
             ],
+            if (_reason case final reason?) ...[
+              const SizedBox(height: 12),
+              ReasonChips(
+                  reasons: ReturnItem.reasons, value: reason, height: 34, onChanged: (r) => setState(() => _reason = r)),
+            ],
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: Text(n == 0 && widget.qty > 0 ? (_return ? 'убрать из возврата' : 'убрать из заказа') : _pieces(p, n),
+                    style: const TextStyle(fontSize: 13, color: AppColors.text2, fontFeatures: tabular)),
+              ),
+              Text(_return ? '−${money(sum)}' : money(sum),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: _return ? AppColors.warn : AppColors.text,
+                      fontFeatures: tabular)),
+            ]),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  style: _return ? FilledButton.styleFrom(backgroundColor: AppColors.warn) : null,
+                  onPressed: _ok ? _done : null,
+                  child: Text(label),
+                ),
+              ),
+            ]),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-          TextButton(onPressed: () => Navigator.pop(context, _value), child: const Text('Готово')),
-        ],
-      );
+      ),
+    );
+  }
 }

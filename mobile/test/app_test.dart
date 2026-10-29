@@ -42,6 +42,8 @@ Finder moneyField(String label) => find.byWidgetPredicate((w) => w is MoneyInput
 /// Внутри листа снизу («Добавить товар»), а не на экране под ним.
 Finder inSheet(Finder f) => find.descendant(of: find.byType(BottomSheet), matching: f);
 
+Finder inDialog(Finder f) => find.descendant(of: find.byType(Dialog), matching: f);
+
 /// Шапка раздела с этим заголовком на экране.
 Finder header(String title) => find.widgetWithText(PageHeader, title);
 
@@ -520,20 +522,26 @@ void main() {
     await t.pump();
     expect(find.text('36 шт · ${money(18000)}'), findsOneWidget);
 
-    // «Добавить позицию»: торт без цены не выбрать, вафли — ещё коробка
+    // «Добавить позицию»: торт без цены не выбрать; вафли — список закрывается, в окне штуки, ещё коробка
     await tapVisible(t, find.text('Добавить позицию'));
     await t.pumpAndSettle();
     expect(find.text('нет цены'), findsOneWidget);
     await t.tap(find.text('Торт «Наполеон»'));
-    await t.pump();
-    expect(find.text('Выберите товар в списке'), findsOneWidget);
+    await t.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
     await t.enterText(find.widgetWithText(TextField, 'Поиск товара'), '4870001');
     await t.pump();
     expect(inSheet(find.text('Печенье овсяное')), findsNothing);
-    expect(find.text('в заказе 2 кор'), findsOneWidget);
+    expect(find.text('в заказе 40 шт'), findsOneWidget);
     await t.tap(inSheet(find.text('Вафли сливочные')));
+    await t.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(inDialog(find.text('40')), findsOneWidget); // сколько уже в заказе
+    await t.tap(find.text('коробка (20 шт)'));
     await t.pump();
-    await t.tap(find.text('В заказ · 1 кор'));
+    expect(find.text('60 шт · 3 кор'), findsOneWidget);
+    await t.tap(find.text('Готово'));
     await t.pumpAndSettle();
     expect(find.text('60 шт · ${money(18000)}'), findsOneWidget);
 
@@ -544,13 +552,13 @@ void main() {
     await tapVisible(t, find.text('Добавить в возврат'));
     await t.pumpAndSettle();
     await t.tap(inSheet(find.text('Печенье овсяное')));
-    await t.pump();
+    await t.pumpAndSettle();
+    expect(t.widget<FilledButton>(find.widgetWithText(FilledButton, 'В возврат')).onPressed, isNull); // пусто
+    await t.enterText(inDialog(find.byType(TextField)), '3');
     await t.tap(find.text('Брак'));
-    await t.tap(find.byTooltip('Больше'));
-    await t.tap(find.byTooltip('Больше'));
     await t.pump();
     expect(find.text('−${money(1500)}'), findsOneWidget);
-    await t.tap(find.text('В возврат · 3 шт'));
+    await t.tap(find.widgetWithText(FilledButton, 'В возврат'));
     await t.pumpAndSettle();
     expect(find.text('Возврат · 1'), findsOneWidget);
     expect(find.text('3 шт × ${money(500)} = −${money(1500)}'), findsOneWidget);
@@ -610,8 +618,10 @@ void main() {
     await t.pumpAndSettle();
     expect(inSheet(find.text('${money(600)} / шт · 12 шт в кор')), findsOneWidget); // розница
     await t.tap(inSheet(find.text('Печенье овсяное')));
+    await t.pumpAndSettle();
+    await t.enterText(inDialog(find.byType(TextField)), '12');
     await t.pump();
-    await t.tap(find.text('В заказ · 1 кор'));
+    await t.tap(find.widgetWithText(FilledButton, 'В заказ'));
     await t.pumpAndSettle();
     expect(find.text(money(7200)), findsOneWidget);
 
@@ -767,8 +777,10 @@ void main() {
     await t.pumpAndSettle();
     expect(inSheet(find.text('${money(600)} / шт · 12 шт в кор')), findsOneWidget); // розница
     await t.tap(inSheet(find.text('Печенье овсяное')));
+    await t.pumpAndSettle();
+    await t.enterText(inDialog(find.byType(TextField)), '12');
     await t.pump();
-    await t.tap(find.text('В заказ · 1 кор'));
+    await t.tap(find.widgetWithText(FilledButton, 'В заказ'));
     await t.pumpAndSettle();
     await tapVisible(t, find.text('Далее'));
     await t.pumpAndSettle();
