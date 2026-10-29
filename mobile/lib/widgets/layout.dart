@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme.dart';
 
@@ -79,13 +80,15 @@ class InfoRow extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16, 8, onTap != null ? 12 : 16, 8),
         child: Row(
           children: [
-            Expanded(child: Text(label)),
+            // подпись шире значения: «Невыданный товар — на склад · 29 шт» в одну строку
+            Expanded(flex: 3, child: Text(label)),
             if (dot != null) ...[
               Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
               const SizedBox(width: 8),
             ],
             if (value != null)
               Flexible(
+                flex: 2,
                 child: Text(value!, textAlign: TextAlign.end, style: const TextStyle(color: AppColors.text2)),
               ),
             if (onTap != null) ...[
@@ -202,6 +205,156 @@ class _HomeShellState extends State<HomeShell> {
           setState(() => _index = i);
           widget.onIndex?.call(i);
         },
+      ),
+    );
+  }
+}
+
+/// Переключатель из двух-трёх вариантов на серой подложке, выбранный — белый («Новые · 9 / Доставлены · 5»).
+class PillTabs extends StatelessWidget {
+  const PillTabs({super.key, required this.labels, required this.index, required this.onChanged});
+
+  final List<String> labels;
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 40,
+        padding: const EdgeInsets.all(3),
+        decoration: const BoxDecoration(color: Color(0xFFE9EBEF), borderRadius: BorderRadius.all(Radius.circular(12))),
+        child: Row(
+          children: [
+            for (final (i, label) in labels.indexed) ...[
+              if (i > 0) const SizedBox(width: 3),
+              Expanded(
+                child: Semantics(
+                  selected: i == index,
+                  button: true,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onChanged(i),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: i == index ? AppColors.card : Colors.transparent,
+                        borderRadius: const BorderRadius.all(Radius.circular(9)),
+                        boxShadow: i == index
+                            ? const [BoxShadow(color: Color(0x24101318), blurRadius: 3, offset: Offset(0, 1))]
+                            : null,
+                      ),
+                      child: Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: i == index ? AppColors.text : AppColors.text2)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+/// Небольшая метка в строке: «Наличные», «В долг», «Частично».
+class Tag extends StatelessWidget {
+  const Tag(this.text, {super.key, this.color = AppColors.label, this.background = AppColors.fill});
+
+  /// Янтарная — долг, частично.
+  const Tag.warn(this.text, {super.key})
+      : color = const Color(0xFF8A5000),
+        background = AppColors.warnBg;
+
+  /// Красная — отказ.
+  const Tag.err(this.text, {super.key})
+      : color = const Color(0xFFA3241A),
+        background = AppColors.errBg;
+
+  final String text;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: background, borderRadius: const BorderRadius.all(Radius.circular(6))),
+        child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      );
+}
+
+/// Поле суммы в тенге: крупные цифры, «₸» и кнопка справа («Вся сумма», «Весь долг»).
+class MoneyInput extends StatelessWidget {
+  const MoneyInput(
+      {super.key,
+      required this.controller,
+      required this.fillLabel,
+      required this.onFill,
+      this.onChanged,
+      this.strong = true,
+      this.semanticLabel});
+
+  final TextEditingController controller;
+  final String fillLabel;
+  final VoidCallback onFill;
+  final VoidCallback? onChanged;
+
+  /// Главное поле карточки — индиго рамка и цифры крупнее.
+  final bool strong;
+
+  /// Что это за сумма — для чтения с экрана (подпись видна над полем).
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = strong ? 22.0 : 20.0;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(strong ? 14 : 12)),
+      borderSide: strong
+          ? const BorderSide(color: AppColors.accent, width: 2)
+          : const BorderSide(color: Color(0xFFD5D9E0)),
+    );
+    return Semantics(
+      label: semanticLabel,
+      child: TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(9)],
+      onChanged: (_) => onChanged?.call(),
+      style: TextStyle(fontSize: size, fontWeight: FontWeight.w600, fontFeatures: tabular),
+      decoration: InputDecoration(
+        hintText: '0',
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: strong ? 16 : 14),
+        enabledBorder: border,
+        focusedBorder: border.copyWith(borderSide: const BorderSide(color: AppColors.accent, width: 2)),
+        suffixIcon: Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('₸', style: TextStyle(fontSize: size - 2, fontWeight: FontWeight.w600, color: AppColors.icon)),
+              const SizedBox(width: 10),
+              TextButton(
+                onPressed: onFill,
+                style: TextButton.styleFrom(
+                  backgroundColor: strong ? AppColors.accentSoft : AppColors.fill,
+                  foregroundColor: strong ? AppColors.accentPressed : AppColors.text,
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                child: Text(fillLabel),
+              ),
+            ],
+          ),
+        ),
+      ),
       ),
     );
   }

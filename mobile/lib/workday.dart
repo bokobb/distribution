@@ -38,8 +38,9 @@ class Workday extends ChangeNotifier {
   DateTime? get endedAt => _endedAt;
   bool get open => _startedAt != null;
 
-  /// Последняя сохранённая точка GPS.
+  /// Последняя сохранённая точка GPS: когда и где (где — для расстояний до магазинов в списках).
   DateTime? lastFix;
+  Fix? lastPlace;
 
   /// Записей на телефоне ждут отправки.
   int get unsent => outbox.unsent;
@@ -144,6 +145,7 @@ class Workday extends ChangeNotifier {
     if (_lastSaved != null && f.at.difference(_lastSaved!) < interval * 0.9) return;
     _lastSaved = f.at;
     lastFix = f.at;
+    lastPlace = f;
     await store.addPoint(
         TrackPoint(at: f.at, lat: f.lat, lng: f.lng, accuracy: f.accuracy, battery: await location.battery()));
     _changed();

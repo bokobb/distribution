@@ -183,6 +183,10 @@ class FakeServer {
       case '/api/mobile/expeditor/data':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         if (role != 'EXPEDITOR') return _json({'message': 'Нет доступа'}, 403);
+        // как на сервере: касса рейса посчитана на сейчас — что ушло с телефона, уже в ней
+        if (requests.where((r) => r.url.path == '/api/mobile/expeditor/data').length > 1) {
+          expeditorData['syncedAt'] = DateTime.now().toIso8601String();
+        }
         return _json(expeditorData, 200);
     }
     return http.Response('', 404);

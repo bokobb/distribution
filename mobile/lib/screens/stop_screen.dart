@@ -15,6 +15,9 @@ import 'deliver_screen.dart';
 import 'invoice_screen.dart';
 import 'return_screen.dart';
 
+/// Подсказка, если рабочий день не начат, а надо выдать, отказать, принять деньги или возврат.
+const startDayFirst = 'Сначала начните рабочий день на главном экране';
+
 /// Точка рейса: что везём (заказ с составом и суммой, как оплачивает), магазин — долг, телефон, адрес;
 /// «Позвонить» и «Маршрут» (карты на телефоне). «Выдать» (всё или часть, с деньгами), «Отказ» с причиной,
 /// «Оплата долга» и «Возврат» негодного — в открытый рабочий день; что ещё не ушло на сервер, можно отменить.
@@ -53,7 +56,7 @@ class _StopScreenState extends State<StopScreen> {
 
   bool _canAct() {
     if (!widget.workday.open) {
-      _say('Сначала начните рабочий день на главном экране');
+      _say(startDayFirst);
       return false;
     }
     return true;
@@ -71,7 +74,7 @@ class _StopScreenState extends State<StopScreen> {
 
   Future<void> _refuse() async {
     if (!_canAct()) return;
-    final reason = await showDialog<String>(context: context, builder: (_) => const _RefuseDialog());
+    final reason = await showDialog<String>(context: context, builder: (_) => const RefuseDialog());
     if (reason == null || !mounted) return;
     setState(() => _busy = true);
     final problem = await widget.deliveries.refuse(widget.trip, widget.stop, reason);
@@ -529,14 +532,15 @@ class _DebtDialogState extends State<_DebtDialog> {
 }
 
 /// Причина отказа: частая — одним касанием, или своя.
-class _RefuseDialog extends StatefulWidget {
-  const _RefuseDialog();
+/// «Магазин отказался»: частые причины одним касанием или своя; возвращает причину.
+class RefuseDialog extends StatefulWidget {
+  const RefuseDialog({super.key});
 
   @override
-  State<_RefuseDialog> createState() => _RefuseDialogState();
+  State<RefuseDialog> createState() => _RefuseDialogState();
 }
 
-class _RefuseDialogState extends State<_RefuseDialog> {
+class _RefuseDialogState extends State<RefuseDialog> {
   final _c = TextEditingController();
 
   @override

@@ -27,6 +27,13 @@ Future<void> openTab(WidgetTester t, String label) async {
   await t.pumpAndSettle();
 }
 
+/// Кнопка с этой надписью (а не такой же текст рядом: «Доставлено» — и итог, и кнопка).
+Finder button(String label) =>
+    find.descendant(of: find.byWidgetPredicate((w) => w is ButtonStyleButton), matching: find.text(label));
+
+/// Поле суммы с этой подписью («Получено наличными», «В счёт старого долга»).
+Finder moneyField(String label) => find.byWidgetPredicate((w) => w is MoneyInput && w.semanticLabel == label);
+
 /// Шапка раздела с этим заголовком на экране.
 Finder header(String title) => find.widgetWithText(PageHeader, title);
 
@@ -512,30 +519,26 @@ void main() {
     expect(find.text('Начать визит'), findsOneWidget);
   });
 
-  testWidgets('экспедитор: рейс по точкам, карточка точки — состав, долг, звонок и маршрут', (t) async {
+  testWidgets('экспедитор: «Доставки» — следующая точка раскрыта, звонок и «Поехали», доставленные и завтрашний рейс',
+      (t) async {
     final server = FakeServer(role: 'EXPEDITOR');
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
 
     expect(header('Доставки'), findsOneWidget);
-    expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02 · пройдено 1 из 2'), findsOneWidget);
-    expect(find.text('З-271026-1 · ${money(13500)} · Наличные'), findsOneWidget);
-    expect(find.text('Доставлен'), findsOneWidget);
-    expect(find.text('долг ${money(45000)}, просрочено ${money(12000)}'), findsOneWidget);
-    await t.scrollUntilVisible(find.text('Магазин «Сайрам»'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.textContaining('· Р-291026-1 · 245 AKS 02 · 1 точка'), findsOneWidget);
-    await t.scrollUntilVisible(find.text('Магазин «Арай»'), -200, scrollable: find.byType(Scrollable).first);
-
-    await t.tap(find.text('Магазин «Арай»'));
-    await t.pumpAndSettle();
-    expect(find.text('Заказ З-271026-1'), findsOneWidget);
+    expect(find.textContaining('245\u00a0AKS\u00a002'), findsOneWidget); // номер машины не рвётся
+    expect(find.text('Маршрут'), findsOneWidget);
+    expect(find.text('Новые · 1'), findsOneWidget);
+    expect(find.text('Доставлены · 1'), findsOneWidget);
+    expect(find.text('Следующая'), findsOneWidget);
+    expect(find.text('ул. Байтурсынова, 1 · 2 позиции'), findsOneWidget);
     expect(find.text('Комментарий: после обеда'), findsOneWidget);
-    expect(find.text('24 шт × ${money(500)} · 2 кор.'), findsOneWidget);
-    expect(find.text(money(12000)), findsOneWidget);
-    expect(find.text('Долг ${money(45000)}'), findsOneWidget);
-    expect(find.text('Позвонить'), findsOneWidget);
-    expect(find.byTooltip('Накладная'), findsOneWidget);
+    expect(find.text('К оплате · Наличные'), findsOneWidget);
+    expect(find.text(money(13500)), findsOneWidget);
+    expect(find.text('Введите сумму, которую передал магазин'), findsOneWidget);
+    expect(find.text('Принять старый долг'), findsOneWidget);
+    expect(find.text(money(45000)), findsOneWidget);
 
     final opened = <String>[];
     t.binding.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/url_launcher'),
@@ -543,69 +546,154 @@ void main() {
       opened.add((call.arguments as Map)['url'] as String);
       return opened.length == 1; // звонок открылся, карт на телефоне нет
     });
-    await t.tap(find.text('Позвонить'));
+    await tapVisible(t, find.text('Звонок'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Маршрут'));
+    await tapVisible(t, find.text('Поехали'));
     await t.pumpAndSettle();
     expect(opened, ['tel:+77010000000', 'geo:42.3,69.6?q=42.3,69.6(${Uri.encodeComponent('Магазин «Арай»')})']);
     expect(find.text('На телефоне нет приложения карт'), findsOneWidget);
+
+    await t.scrollUntilVisible(find.text('Магазин «Сайрам»'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('· Р-291026-1 · 1 точка'), findsOneWidget);
+    expect(find.text('${money(12000)} · Kaspi'), findsOneWidget);
+
+    await t.scrollUntilVisible(find.text('Доставлены · 1'), -200, scrollable: find.byType(Scrollable).first);
+    await t.tap(find.text('Доставлены · 1'));
+    await t.pumpAndSettle();
+    expect(find.text('Магазин «Арай»'), findsNothing);
+    expect(find.text('В долг · ${money(5000)}'), findsOneWidget);
+    await t.tap(find.text('Магазин «Береке»'));
+    await t.pumpAndSettle();
+    expect(find.text('Заказ З-271026-2'), findsOneWidget);
+    expect(find.byTooltip('Накладная'), findsOneWidget);
   });
 
-  testWidgets('экспедитор: выдача частично — меньше товара, часть денег, остаток в долг; точка пройдена', (t) async {
+  testWidgets('экспедитор: «Маршрут» — точки на карте, следующая внизу, «Открыть» раскрывает её', (t) async {
     final server = FakeServer(role: 'EXPEDITOR');
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
 
-    await t.tap(find.text('Магазин «Арай»'));
+    await t.tap(find.text('Маршрут'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Выдать'));
+    expect(find.text('1 точка'), findsOneWidget);
+    expect(find.text('Следующая точка · 1'), findsOneWidget);
+    expect(find.text('Магазин «Арай»'), findsOneWidget);
+    expect(find.text(money(13500)), findsOneWidget);
+    await t.tap(find.text('Открыть'));
     await t.pumpAndSettle();
+    expect(header('Доставки'), findsOneWidget);
+    expect(find.text('Следующая'), findsOneWidget);
+  });
+
+  testWidgets('экспедитор: «Состав» — выдать меньше, часть денег, остаток в долг; все доставлены — к кассе', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+
+    await tapVisible(t, button('Доставлено'));
+    await t.pump();
     expect(find.text('Сначала начните рабочий день на главном экране'), findsOneWidget);
-    await t.pageBack();
+    await t.scrollUntilVisible(find.text('Начать рабочий день'), -200, scrollable: find.byType(Scrollable).first);
+    await tapVisible(t, find.text('Начать рабочий день'));
     await t.pumpAndSettle();
 
-    await t.tap(find.text('Начать рабочий день'));
+    await tapVisible(t, find.text('Состав'));
     await t.pumpAndSettle();
-    await t.tap(find.text('Магазин «Арай»'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Выдать'));
-    await t.pumpAndSettle();
-    expect(find.text('Выдача З-271026-1'), findsOneWidget);
-    expect(find.text('Выдать на ${money(13500)}'), findsOneWidget);
-    expect(find.widgetWithText(TextField, '13500'), findsOneWidget); // наличные — вся сумма
-
-    await t.tap(find.byTooltip('Меньше').first);
+    expect(find.text('Заказ З-271026-1'), findsOneWidget);
+    expect(find.text('Отдаём магазину'), findsOneWidget);
+    expect(find.text('2 кор'), findsOneWidget); // 24 печенья по 12 в коробке
+    expect(find.text('5 шт'), findsOneWidget); // вафель меньше коробки — по штуке
+    expect(find.byTooltip('Больше на коробку'), findsOneWidget);
+    await t.tap(find.byTooltip('Больше на коробку')); // больше заказанного нельзя
     await t.pump();
-    await t.tap(find.byTooltip('Меньше').first);
-    await t.pump();
-    expect(find.text('Выдать на ${money(12500)}'), findsOneWidget);
-    expect(find.text('по заказу ${money(13500)}'), findsOneWidget);
-    expect(find.widgetWithText(TextField, '12500'), findsOneWidget); // деньги идут за суммой
+    expect(find.text('2 кор'), findsOneWidget);
 
-    await t.enterText(find.widgetWithText(TextField, 'Наличными'), '10000');
+    await t.tap(find.byTooltip('Меньше на коробку'));
     await t.pump();
-    expect(find.text('Остаток ${money(2500)} — в долг магазина'), findsOneWidget);
-    await tapVisible(t, find.text('Выдать на ${money(12500)}'));
+    await t.tap(find.byTooltip('Меньше на штуку'));
+    await t.pump();
+    expect(find.text('было 2 кор · сейчас 12 шт · ${money(6000)}'), findsOneWidget);
+    expect(find.text('было 5 шт · сейчас 4 шт · ${money(1200)}'), findsOneWidget);
+    expect(find.text(money(7200)), findsOneWidget);
+    await t.tap(find.text('Готово'));
     await t.pumpAndSettle();
 
-    expect(find.text('Выдача сохранена'), findsOneWidget);
-    expect(find.text('Выдано частично на ${money(12500)}'), findsOneWidget);
-    expect(find.text('наличными ${money(10000)} · в долг ${money(2500)}'), findsOneWidget);
-    expect(find.textContaining('Отправлено'), findsOneWidget);
-    expect(find.text('Выдать'), findsNothing);
+    expect(find.text('К оплате · Наличные · выдаётся не всё'), findsOneWidget);
+    expect(find.text(money(7200)), findsOneWidget);
+    await t.enterText(moneyField('Получено наличными'), '9000');
+    await t.pump();
+    expect(find.text('Больше суммы заказа на ${money(1800)}'), findsOneWidget);
+    await tapVisible(t, button('Доставлено'));
+    await t.pump();
+    expect(find.text('Получено больше, чем к оплате, на ${money(1800)}'), findsOneWidget);
+    expect(server.deliveries, isEmpty);
+
+    await t.enterText(moneyField('Получено наличными'), '5000');
+    await t.pump();
+    expect(find.text('Не хватает ${money(2200)} — останется долгом'), findsOneWidget);
+    await tapVisible(t, button('Доставлено'));
+    await t.pumpAndSettle();
+
     final sent = server.deliveries.values.single;
     expect(sent['items'], [
-      {'productId': 1, 'qty': 22},
-      {'productId': 2, 'qty': 5},
+      {'productId': 1, 'qty': 12},
+      {'productId': 2, 'qty': 4},
     ]);
-    expect([for (final p in sent['payments'] as List) p['amount']], [10000]);
+    expect([for (final p in sent['payments'] as List) p['amount']], [5000]);
+    expect(server.count('/api/mobile/expeditor/data'), 2); // после отправки данные обновились
+    expect(find.text('Новые · 0'), findsOneWidget);
+    expect(find.text('Все доставки выполнены'), findsOneWidget);
+    expect(button('Доставлено'), findsNothing); // все пройдены
 
-    await t.pageBack();
+    await t.tap(find.text('Доставлены · 2'));
     await t.pumpAndSettle();
-    expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02 · пройдено 2 из 2'), findsOneWidget);
-    expect(find.text('Частично'), findsOneWidget); // данные с сервера обновились после отправки
-    expect(server.count('/api/mobile/expeditor/data'), 2);
+    expect(find.text('Наличные · ${money(5000)}'), findsOneWidget);
+    expect(find.text('Частично'), findsOneWidget);
+
+    await t.tap(find.text('Новые · 0'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Перейти к сдаче кассы'));
+    await t.pumpAndSettle();
+    expect(header('Касса'), findsOneWidget);
+  });
+
+  testWidgets('экспедитор: «Вся сумма» и старый долг вместе с выдачей', (t) async {
+    final server = FakeServer(role: 'EXPEDITOR');
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await tapVisible(t, find.text('Начать рабочий день'));
+    await t.pumpAndSettle();
+
+    await tapVisible(t, find.text('Вся сумма'));
+    await t.pump();
+    expect(find.widgetWithText(TextField, '13500'), findsOneWidget);
+    expect(find.text('Сумма совпадает с заказом'), findsOneWidget);
+
+    await tapVisible(t, find.text('Принять старый долг'));
+    await t.pump();
+    expect(find.text('В счёт старого долга'), findsWidgets);
+    await tapVisible(t, find.text('Весь долг'));
+    await t.pump();
+    expect(find.text('Долг закрыт полностью'), findsOneWidget);
+    await t.enterText(moneyField('В счёт старого долга'), '50000');
+    await t.pump();
+    expect(find.text('Больше долга на ${money(5000)} — уйдёт авансом'), findsOneWidget);
+    await t.enterText(moneyField('В счёт старого долга'), '20000');
+    await t.pump();
+    expect(find.text('Останется долг ${money(25000)}'), findsOneWidget);
+    expect(find.text('всего ${money(33500)}'), findsOneWidget);
+    await tapVisible(t, button('Доставлено'));
+    await t.pumpAndSettle();
+
+    expect([for (final p in server.deliveries.values.single['payments'] as List) p['amount']], [13500]);
+    expect([for (final p in server.debtPayments.values) p['amount']], [20000]);
+    await openTab(t, 'Касса');
+    expect(find.text(money(33500)), findsOneWidget);
+    expect(find.text('из них в счёт долгов ${money(20000)}'), findsOneWidget);
+    expect(find.textContaining('в счёт долга · наличные'), findsOneWidget);
   });
 
   testWidgets('экспедитор: отказ без сети ждёт отправки, его можно отменить', (t) async {
@@ -613,13 +701,11 @@ void main() {
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать рабочий день'));
+    await tapVisible(t, find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     server.offline = true;
 
-    await t.tap(find.text('Магазин «Арай»'));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Отказ'));
+    await tapVisible(t, find.widgetWithText(TextButton, 'Магазин отказался'));
     await t.pumpAndSettle();
     expect(t.widget<TextButton>(find.widgetWithText(TextButton, 'Отказ')).onPressed, isNull); // без причины
     await t.tap(find.text('Магазин закрыт'));
@@ -627,77 +713,45 @@ void main() {
     await t.tap(find.widgetWithText(TextButton, 'Отказ'));
     await t.pumpAndSettle();
 
-    expect(find.text('Отказ: Магазин закрыт'), findsOneWidget);
-    expect(find.textContaining('Ждёт отправки'), findsOneWidget);
-    expect(find.byTooltip('Накладная'), findsNothing); // отказ — накладной нет
-    await t.pageBack();
+    expect(find.text('Магазин «Арай» — отказ сохранён'), findsOneWidget);
+    expect(find.text('Все доставки выполнены'), findsOneWidget);
+    await t.tap(find.text('Доставлены · 2'));
     await t.pumpAndSettle();
-    expect(find.text('Отказ · ждёт отправки'), findsOneWidget);
-    expect(find.textContaining('пройдено 2 из 2'), findsOneWidget);
+    expect(find.text('Отказ: Магазин закрыт'), findsOneWidget);
+    expect(find.text('ждёт отправки'), findsOneWidget);
 
     await t.tap(find.text('Магазин «Арай»'));
     await t.pumpAndSettle();
+    expect(find.byTooltip('Накладная'), findsNothing); // отказ — накладной нет
     await tapVisible(t, find.text('Отменить отказ'));
     await t.pumpAndSettle();
     await t.tap(find.widgetWithText(TextButton, 'Отменить'));
     await t.pumpAndSettle();
-    expect(find.text('Отказ: Магазин закрыт'), findsNothing);
-    await t.scrollUntilVisible(find.text('Выдать'), -200, scrollable: find.byType(Scrollable).first); // кнопки выше
-    expect(find.text('Выдать'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.text('Доставлены · 1'), findsOneWidget);
+    await t.tap(find.text('Новые · 1'));
+    await t.pumpAndSettle();
+    expect(button('Доставлено'), findsOneWidget);
     expect(server.deliveries, isEmpty);
   });
 
-  testWidgets('экспедитор: оплата старого долга — наличные и Kaspi, долг на сервере уменьшился', (t) async {
+  testWidgets('экспедитор: «Состав» → возврат брака — товары из заказа сначала, к оплате меньше', (t) async {
     final server = FakeServer(role: 'EXPEDITOR');
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать рабочий день'));
+    await tapVisible(t, find.text('Начать рабочий день'));
     await t.pumpAndSettle();
 
-    await t.tap(find.text('Магазин «Арай»'));
+    await tapVisible(t, find.text('Состав'));
     await t.pumpAndSettle();
-    await tapVisible(t, find.text('Оплата долга'));
+    expect(find.text('Забираем негодный товар'), findsOneWidget);
+    await t.tap(find.text('Добавить'));
     await t.pumpAndSettle();
-    expect(find.widgetWithText(TextField, '45000'), findsOneWidget); // весь долг наличными
-    expect(find.text('Останется долг ${money(0)}'), findsOneWidget);
-
-    await t.enterText(find.widgetWithText(TextField, 'Наличными'), '50000');
-    await t.pump();
-    expect(find.text('Больше долга на ${money(5000)} — останется у магазина авансом'), findsOneWidget);
-    await t.enterText(find.widgetWithText(TextField, 'Наличными'), '20000');
-    await t.enterText(find.widgetWithText(TextField, 'Kaspi'), '5000');
-    await t.pump();
-    expect(find.text('Останется долг ${money(20000)}'), findsOneWidget);
-    await t.tap(find.text('Принять ${money(25000)}'));
-    await t.pumpAndSettle();
-
-    expect(find.text('Оплата долга сохранена'), findsOneWidget);
-    expect(find.textContaining('Принято в счёт долга ${money(20000)} наличными'), findsOneWidget);
-    expect(find.textContaining('Принято в счёт долга ${money(5000)} Kaspi'), findsOneWidget);
-    expect(find.textContaining('долг теперь ${money(20000)}'), findsOneWidget);
-    expect(server.debtPayments, hasLength(2));
-
-    await t.pageBack();
-    await t.pumpAndSettle();
-    expect(find.text('долг ${money(20000)}, просрочено ${money(12000)}'), findsOneWidget);
-  });
-
-  testWidgets('экспедитор: возврат брака — товары из заказа сначала, причина, долг меньше', (t) async {
-    final server = FakeServer(role: 'EXPEDITOR');
-    await t.pumpWidget(DistributionApp(
-        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
-    await logIn(t);
-    await t.tap(find.text('Начать рабочий день'));
-    await t.pumpAndSettle();
-
-    await t.tap(find.text('Магазин «Береке»'));
-    await t.pumpAndSettle();
-    await tapVisible(t, find.text('Возврат'));
-    await t.pumpAndSettle();
-    expect(find.text('Магазин «Береке» · опт'), findsOneWidget);
+    expect(find.text('Магазин «Арай» · опт'), findsOneWidget);
     final names = t.widgetList<Text>(find.textContaining(RegExp('^(Печенье|Вафли|Торт)'))).map((w) => w.data).toList();
-    expect(names, ['Печенье овсяное', 'Вафли сливочные', 'Торт «Наполеон»']); // из заказа — первым
+    expect(names, ['Вафли сливочные', 'Печенье овсяное', 'Торт «Наполеон»']); // из заказа — первыми
     expect(find.text('нет цены'), findsOneWidget);
     expect(t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Принять')).onPressed, isNull);
 
@@ -714,19 +768,29 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text('Возврат сохранён'), findsOneWidget);
-    expect(find.textContaining('Возврат (просрочка) 3 шт на ${money(1300)}'), findsOneWidget);
-    expect(find.textContaining('аванс ${money(1300)}'), findsOneWidget); // долга не было
+    expect(find.text('2 шт · просрочка'), findsOneWidget);
+    expect(find.text('−${money(1000)}'), findsOneWidget);
+    expect(find.text('1 шт · просрочка'), findsOneWidget);
+    expect(find.text('${amount(13500)} − возврат ${amount(1300)}'), findsOneWidget);
+    expect(find.text(money(12200)), findsOneWidget);
     expect((server.returns.values.single['lines'] as List).map((l) => (l as Map)['reason']), ['EXPIRED', 'EXPIRED']);
+
+    await tapVisible(t, find.text('Готово'));
+    await t.pumpAndSettle();
+    expect(find.text('К оплате · Наличные'), findsOneWidget);
+    expect(find.text(money(12200)), findsOneWidget);
   });
 
-  testWidgets('экспедитор: «Итог дня» — что сдать в кассу, долг магазинам, товар в машине', (t) async {
+  testWidgets('экспедитор: «Касса» — наличные, в счёт долгов, товар в машине; «Сдача кассы» по купюрам', (t) async {
     final server = FakeServer(role: 'EXPEDITOR');
     await t.pumpWidget(DistributionApp(
         location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
     await logIn(t);
-    await t.tap(find.text('Начать рабочий день'));
+    await tapVisible(t, find.text('Начать рабочий день'));
     await t.pumpAndSettle();
     server.offline = true;
+    await t.tap(find.text('Доставлены · 1'));
+    await t.pumpAndSettle();
     await t.tap(find.text('Магазин «Береке»'));
     await t.pumpAndSettle();
     await tapVisible(t, find.text('Оплата долга'));
@@ -739,11 +803,11 @@ void main() {
     await t.pumpAndSettle();
 
     await openTab(t, 'Касса');
-    expect(find.text('Сегодня · Р-281026-1 · 245 AKS 02'), findsOneWidget);
-    expect(find.text('Пройдено 1 из 2'), findsOneWidget);
-    expect(find.text('выдано 1 · не пройдено 1'), findsOneWidget);
-    expect(find.text(money(4000)), findsWidgets); // наличные и из них в счёт долгов
-    expect(find.text('из них в счёт долгов'), findsOneWidget);
+    expect(find.textContaining('доставлено 1 из 2'), findsOneWidget);
+    expect(find.text(money(4000)), findsWidgets); // на руках и в «Получено по заказам»
+    expect(find.text('из них в счёт долгов ${money(4000)}'), findsOneWidget);
+    expect(find.text('ожидается ${money(17500)}'), findsOneWidget); // 4 000 + 13 500 у «Арая»
+    expect(find.text('Магазин «Береке»'), findsOneWidget);
     expect(find.text('29 шт'), findsOneWidget);
     expect(find.textContaining('Не отправлено на сервер: 1 запись'), findsOneWidget);
 
@@ -752,5 +816,24 @@ void main() {
     await t.pumpAndSettle();
     expect(find.textContaining('Не отправлено'), findsNothing);
     expect(server.debtPayments, hasLength(1));
+
+    await tapVisible(t, find.text('Сдать кассу оператору'));
+    await t.pumpAndSettle();
+    expect(find.text('Нужно сдать'), findsOneWidget);
+    expect(find.text('Не хватает ${money(4000)} — пересчитайте'), findsOneWidget);
+    await t.tap(find.byTooltip('Добавить купюру ${amount(2000)}'));
+    await t.pump();
+    await t.tap(find.byTooltip('Добавить купюру ${amount(2000)}'));
+    await t.pump();
+    expect(find.text('Сходится с суммой к сдаче'), findsOneWidget);
+    expect(find.text('2 купюры'), findsOneWidget);
+    await t.enterText(find.byType(TextField).last, '50');
+    await t.pump();
+    expect(find.text('Лишние ${money(50)} — проверьте купюры'), findsOneWidget);
+    expect(find.text('Расхождение ${money(50)} попадёт в акт приёма'), findsOneWidget);
+    await tapVisible(t, find.text('Сбросить'));
+    await t.pump();
+    expect(find.text('Сдать ${money(0)}'), findsOneWidget); // внизу всегда видно
+    expect(find.text('Расхождение ${money(4000)} попадёт в акт приёма'), findsOneWidget);
   });
 }

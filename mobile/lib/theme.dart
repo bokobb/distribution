@@ -77,6 +77,8 @@ ThemeData appTheme() {
   // 15/21 — основной текст, 13/18 — подписи, 11/14 — нижнее меню.
   TextStyle s(double size, double height, FontWeight weight, [Color color = AppColors.text, double spacing = 0]) =>
       TextStyle(
+          // явно: стили кнопок, шапок и чипов берутся отсюда мимо ThemeData.fontFamily
+          fontFamily: 'Inter',
           fontSize: size,
           height: height / size,
           fontWeight: weight,
