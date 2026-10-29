@@ -13,6 +13,8 @@ import '../widgets/shelf_photo.dart';
 /// возврат) — «Изменить»; оплата при доставке — что разрешено в настройках; у своего магазина — предупреждение о
 /// лимите долга (заказ уйдёт руководителю) или о просрочке; фото полки, если обязательно; комментарий складу и
 /// экспедитору. «Отправить» заканчивает визит заказом — без сети он уйдёт сам. Отправили — возвращает true.
+/// С [editing] — правка уже взятого заказа: его оплата, день и комментарий, «Сохранить изменения» (отправленный
+/// заказ меняется на сервере сразу — нужна сеть), фото полки не нужно.
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen(
       {super.key,
@@ -22,7 +24,8 @@ class CheckoutScreen extends StatefulWidget {
       required this.items,
       required this.returns,
       required this.total,
-      required this.returnTotal});
+      required this.returnTotal,
+      this.editing});
 
   final Outlet outlet;
   final AgentData data;
@@ -33,16 +36,28 @@ class CheckoutScreen extends StatefulWidget {
   /// Заказ и возврат по ценам на телефоне, ₸.
   final int total;
   final int returnTotal;
+  final Order? editing;
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String _payment = 'CASH';
-  late DateTime _delivery = _today().add(Duration(days: widget.data.settings.deliveryDays));
-  final _comment = TextEditingController();
+  late String _payment = _payments.contains(widget.editing?.payment) ? widget.editing!.payment : 'CASH';
+  late DateTime _delivery = switch (widget.editing) {
+    // прошедший день доставки при правке — сегодня
+    final e? => e.deliveryDate.isBefore(_today()) ? _today() : e.deliveryDate,
+    null => _today().add(Duration(days: widget.data.settings.deliveryDays)),
+  };
+  late final _comment = TextEditingController(text: widget.editing?.comment);
   bool _busy = false;
+
+  /// Доставка — не дальше двух недель от дня заказа (при правке — от дня, когда его взяли).
+  DateTime get _lastDay {
+    final from = widget.editing?.createdAt ?? _today();
+    final last = DateTime(from.year, from.month, from.day).add(const Duration(days: 14));
+    return last.isBefore(_delivery) ? _delivery : last;
+  }
 
   static DateTime _today() {
     final n = DateTime.now();
@@ -73,7 +88,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       context: context,
       initialDate: _delivery,
       firstDate: _today(),
-      lastDate: _today().add(const Duration(days: 14)),
+      lastDate: _lastDay,
       helpText: 'Дата доставки',
     );
     if (d != null) setState(() => _delivery = d);
@@ -82,7 +97,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _send() async {
     setState(() => _busy = true);
     try {
-      final problem = await widget.visits.finishWithOrder(
+      final problem = widget.editing != null
+          ? await widget.visits.editOrder(widget.editing!,
+              items: widget.items,
+              total: widget.total,
+              returns: widget.returns,
+              returnTotal: widget.returnTotal,
+              payment: _payment,
+              deliveryDate: _delivery,
+              comment: _comment.text)
+          : await widget.visits.finishWithOrder(
         items: widget.items,
         total: widget.total,
         returns: widget.returns,
@@ -135,7 +159,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Оформление'),
+            Text(widget.editing == null ? 'Оформление' : 'Изменение заказа'),
             Text([o.name, ?(o.address ?? o.landmark)].join(' · '),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -221,7 +245,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onChanged: (i) => setState(() => _payment = payments[i]),
           ),
           if (note != null) ...[const SizedBox(height: 12), note],
-          if (widget.data.settings.shelfPhotoRequired) ...[
+          if (widget.data.settings.shelfPhotoRequired && widget.editing == null) ...[
             const SizedBox(height: 12),
             ShelfPhotoButton(visits: widget.visits, required: true),
           ],
@@ -251,19 +275,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.cloud_queue, size: 16, color: AppColors.text2),
-                    SizedBox(width: 6),
-                    Text('Без сети заказ сохранится и уйдёт сам', style: TextStyle(fontSize: 13, color: AppColors.text2)),
+                    const Icon(Icons.cloud_queue, size: 16, color: AppColors.text2),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                          switch (widget.editing) {
+                            null => 'Без сети заказ сохранится и уйдёт сам',
+                            final e when e.sent => 'Заказ уже на сервере — изменение уйдёт сразу, нужна сеть',
+                            _ => 'Заказ ещё не отправлен — уйдёт уже изменённым',
+                          },
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 13, color: AppColors.text2)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 FilledButton(
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
                   onPressed: _busy ? null : _send,
-                  child: Text(withReturn ? 'Отправить заказ и возврат' : 'Отправить заказ'),
+                  child: Text(widget.editing != null
+                      ? 'Сохранить изменения'
+                      : withReturn
+                          ? 'Отправить заказ и возврат'
+                          : 'Отправить заказ'),
                 ),
               ],
             ),

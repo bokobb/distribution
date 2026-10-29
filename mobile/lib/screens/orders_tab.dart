@@ -7,11 +7,12 @@ import '../theme.dart';
 import '../visits.dart';
 import '../widgets/layout.dart';
 import '../workday.dart';
+import 'order_actions.dart';
 import 'outlet_screen.dart';
 
 /// «Заказы» торгового по макету AgentOrders: сегодняшние (с телефона и с сервера) и прошлого рабочего дня — с
-/// отметкой «Новый» (ещё не доставлен) или «Доставлен» (экспедитор отдал товар, во сколько). Строка открывает
-/// карточку магазина.
+/// отметкой «Новый» (ещё не доставлен) или «Доставлен» (экспедитор отдал товар, во сколько). Строка — что можно с
+/// заказом: изменить или отменить, пока его не отгрузили, и карточка магазина.
 class OrdersTab extends StatefulWidget {
   const OrdersTab(
       {super.key,
@@ -156,6 +157,7 @@ class _OrdersTabState extends State<OrdersTab> {
         positions,
         _payments[o.payment] ?? o.payment,
         if (delivered != null) DateUtils.isSameDay(delivered, today) ? 'в ${time(delivered)}' : '${dayMon(delivered)} в ${time(delivered)}',
+        if (_dropped(o) && o.note != null) o.note!,
       ].join(' · ');
     } else {
       meta = [
@@ -165,6 +167,7 @@ class _OrdersTabState extends State<OrdersTab> {
         if (o.status == 'NEEDS_APPROVAL') 'сверх лимита',
         if (o.returnTotal > 0) 'возврат ${money(o.returnTotal)}',
         if (o.error != null) 'сервер не принял: ${o.error}' else if (!o.sent) 'ждёт отправки',
+        if (o.error == null && _dropped(o) && o.note != null) o.note!,
       ].join(' · ');
     }
     final badge = switch (o) {
@@ -176,13 +179,18 @@ class _OrdersTabState extends State<OrdersTab> {
       _ => const _Badge.brand('Новый'),
     };
     return InkWell(
-      onTap: outlet == null
-          ? null
-          : () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) =>
-                      OutletScreen(outlet: outlet, data: widget.data, visits: widget.visits, workday: widget.workday))),
+      onTap: () => showOrderActions(context,
+          order: o,
+          data: widget.data,
+          visits: widget.visits,
+          onChanged: widget.onRefresh,
+          onOutlet: outlet == null
+              ? null
+              : () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          OutletScreen(outlet: outlet, data: widget.data, visits: widget.visits, workday: widget.workday)))),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 60),
         child: Padding(

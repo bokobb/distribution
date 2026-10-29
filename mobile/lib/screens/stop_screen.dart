@@ -531,8 +531,8 @@ class _DebtDialogState extends State<_DebtDialog> {
   }
 }
 
-/// Причина отказа: частая — одним касанием, или своя.
-/// «Магазин отказался»: частые причины одним касанием или своя; возвращает причину.
+/// «Отказ магазина» — закрыт, нет денег, не заказывали…: частые причины одним касанием или своя; возвращает причину.
+/// Заказ закрывается, товар едет обратно на склад, торговый и оператор видят причину.
 class RefuseDialog extends StatefulWidget {
   const RefuseDialog({super.key});
 
@@ -551,12 +551,15 @@ class _RefuseDialogState extends State<RefuseDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Магазин отказался'),
+        title: const Text('Отказ магазина'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Text('Заказ закроется, товар вернётся на склад со сдачей кассы. Торговый увидит причину.',
+                  style: TextStyle(fontSize: 14, color: AppColors.label)),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
@@ -579,6 +582,7 @@ class _RefuseDialogState extends State<RefuseDialog> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Назад')),
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.err),
             onPressed: _c.text.trim().isEmpty ? null : () => Navigator.pop(context, _c.text.trim()),
             child: const Text('Отказ'),
           ),

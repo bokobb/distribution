@@ -44,6 +44,12 @@ class FakeServer {
   final orders = <String, Map<String, dynamic>>{};
   bool needsApproval = false;
 
+  /// Заказ уже отгрузили — правку и отмену сервер не примет с этим текстом; null — примет.
+  String? lockOrders;
+
+  /// Отменённые заказы: uuid → причина.
+  final cancelled = <String, String>{};
+
   /// Новые магазины по uuid и фото фасада — что пришло; принятый сразу попадает в данные агента «на проверке».
   final outlets = <String, Map<String, dynamic>>{};
   final facades = <String, List<int>>{};
@@ -111,6 +117,19 @@ class FakeServer {
       return http.Response('', 204);
     }
     final body = r.body.isEmpty ? <String, dynamic>{} : jsonDecode(r.body) as Map<String, dynamic>;
+    final change = RegExp(r'^/api/mobile/agent/orders/([^/]+)(/cancel)?$').firstMatch(r.url.path);
+    if (change != null) {
+      if (!authed) return _json({'message': 'Войдите заново'}, 401);
+      final uuid = change[1]!;
+      if (!orders.containsKey(uuid)) return _json({'message': 'Заказ ещё не дошёл до сервера — попробуйте через минуту'}, 400);
+      if (lockOrders != null) return _json({'message': lockOrders}, 400);
+      if (change[2] != null) {
+        cancelled[uuid] = body['reason'] as String;
+      } else {
+        orders[uuid] = {...orders[uuid]!, ...body};
+      }
+      return _json(_orderOut(uuid), 200);
+    }
     switch (r.url.path) {
       case '/api/mobile/auth/login':
         if (body['password'] != 'пароль') return _json({'message': 'Неверный телефон, логин или пароль'}, 401);
@@ -146,17 +165,7 @@ class FakeServer {
       case '/api/mobile/agent/orders':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         orders.putIfAbsent(body['uuid'] as String, () => body);
-        final n = orders.keys.toList().indexOf(body['uuid'] as String) + 1;
-        final qty = (body['items'] as List).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
-        final back = (body['returns'] as List? ?? const []).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
-        return _json({
-          'uuid': body['uuid'], 'outletId': body['outletId'], 'number': 'З-281026-$n', 'createdAt': body['createdAt'],
-          'deliveryDate': body['deliveryDate'], 'payment': body['payment'],
-          'status': needsApproval ? 'NEEDS_APPROVAL' : 'ACCEPTED',
-          'statusLabel': needsApproval ? 'Нужно разрешение' : 'Принят',
-          'note': needsApproval ? 'Долг сверх лимита — ждёт разрешения оператора' : null,
-          'total': qty * 500, 'lines': [], 'returnTotal': back * 500, 'returns': body['returns'] ?? [],
-        }, 200);
+        return _json(_orderOut(body['uuid'] as String), 200);
       case '/api/mobile/agent/outlets':
         if (!authed) return _json({'message': 'Войдите заново'}, 401);
         if (rejectOutlets != null) return _json({'message': rejectOutlets}, 400);
@@ -222,6 +231,27 @@ class FakeServer {
   });
 
   /// Магазин «на проверке» в конец маршрута агента — как сервер.
+  /// Заказ, как его вернёт сервер: номер по порядку, 500 ₸ за штуку, отменённый — с причиной.
+  Map<String, dynamic> _orderOut(String uuid) {
+    final body = orders[uuid]!;
+    final n = orders.keys.toList().indexOf(uuid) + 1;
+    final qty = (body['items'] as List).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
+    final back = (body['returns'] as List? ?? const []).fold<int>(0, (a, i) => a + ((i as Map)['qty'] as int));
+    final why = cancelled[uuid];
+    return {
+      'uuid': uuid, 'outletId': body['outletId'], 'number': 'З-281026-$n', 'createdAt': body['createdAt'],
+      'deliveryDate': body['deliveryDate'], 'payment': body['payment'], 'comment': body['comment'],
+      'status': why != null ? 'CANCELLED' : needsApproval ? 'NEEDS_APPROVAL' : 'ACCEPTED',
+      'statusLabel': why != null ? 'Отменён' : needsApproval ? 'Нужно разрешение' : 'Принят',
+      'note': why != null
+          ? 'Отменён торговым: $why'
+          : needsApproval ? 'Долг сверх лимита — ждёт разрешения оператора' : null,
+      'total': qty * 500,
+      'lines': [for (final i in body['items'] as List) {...(i as Map<String, dynamic>), 'price': 500}],
+      'returnTotal': back * 500, 'returns': body['returns'] ?? [],
+    };
+  }
+
   Map<String, dynamic> _addOutlet(Map<String, dynamic> body) {
     final all = agentData['outlets'] as List;
     final routes = (agentData['routes'] as List).cast<Map<String, dynamic>>();

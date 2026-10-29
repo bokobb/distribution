@@ -534,10 +534,16 @@ class _DeliveriesTabState extends State<DeliveriesTab> {
               icon: const Icon(Icons.check),
               label: const Text('Доставлено'),
             ),
-            TextButton(
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
               onPressed: _busy ? null : () => _refuse(t, s),
-              style: TextButton.styleFrom(foregroundColor: AppColors.err),
-              child: const Text('Магазин отказался'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.err,
+                side: const BorderSide(color: AppColors.err, width: 1.5),
+                minimumSize: const Size.fromHeight(48),
+              ),
+              icon: const Icon(Icons.block, size: 20),
+              label: const Text('Отказ магазина'),
             ),
           ],
         ),

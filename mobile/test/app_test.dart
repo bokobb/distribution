@@ -48,6 +48,27 @@ Finder inDialog(Finder f) => find.descendant(of: find.byType(Dialog), matching: 
 /// Шапка раздела с этим заголовком на экране.
 Finder header(String title) => find.widgetWithText(PageHeader, title);
 
+/// У магазина рядом («Заказ здесь»): печенье, [qty] штук, отправить — снова на «Сегодня».
+Future<void> quickOrder(WidgetTester t, {int qty = 12}) async {
+  await tapVisible(t, find.text('Создать заказ'));
+  await t.pumpAndSettle();
+  await t.tap(find.text('Заказ здесь'));
+  await t.pumpAndSettle();
+  await tapVisible(t, find.text('Добавить позицию'));
+  await t.pumpAndSettle();
+  await t.tap(find.descendant(of: find.byType(BottomSheet), matching: find.text('Печенье овсяное')));
+  await t.pumpAndSettle();
+  await t.enterText(find.descendant(of: find.byType(Dialog), matching: find.byType(TextField)), '$qty');
+  await t.pump();
+  await t.tap(find.widgetWithText(FilledButton, 'В заказ'));
+  await t.pumpAndSettle();
+  await tapVisible(t, find.text('Далее'));
+  await t.pumpAndSettle();
+  await tapVisible(t, find.text('Отправить заказ'));
+  await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+  await t.pumpAndSettle();
+}
+
 /// «Профиль» → «Выйти из аккаунта» → «Выйти» в вопросе.
 Future<void> logOut(WidgetTester t, {String? warning}) async {
   await openTab(t, 'Профиль');
@@ -646,6 +667,157 @@ void main() {
     expect(find.text(money(7200)), findsOneWidget);
   });
 
+  testWidgets('«Визиты сегодня»: изменить отправленный заказ и возврат, потом отменить с причиной', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await tapVisible(t, find.text('Начать рабочий день'));
+    await t.pumpAndSettle();
+    await quickOrder(t);
+    final uuid = server.orders.keys.single;
+    expect(find.text('Заказ ${money(6000)}'), findsOneWidget);
+
+    // строка визита — изменить: 13 штук и возврат 2 вафель
+    await tapVisible(t, find.text('Заказ ${money(6000)}'));
+    await t.pumpAndSettle();
+    expect(find.text('З-281026-1 · 1 позиция · ${money(6000)}'), findsOneWidget);
+    await t.tap(find.text('Изменить заказ и возврат'));
+    await t.pumpAndSettle();
+    expect(find.text('Изменение заказа З-281026-1'), findsOneWidget);
+    expect(find.text('Без заказа'), findsNothing);
+    expect(find.text('12 шт'), findsOneWidget);
+    await t.tap(find.byTooltip('Добавить штуку'));
+    await t.pump();
+    await t.tap(find.text('Возврат · 0'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Добавить в возврат'));
+    await t.pumpAndSettle();
+    await t.tap(inSheet(find.text('Вафли сливочные')));
+    await t.pumpAndSettle();
+    await t.enterText(inDialog(find.byType(TextField)), '2');
+    await t.pump();
+    await t.tap(find.widgetWithText(FilledButton, 'В возврат'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Далее'));
+    await t.pumpAndSettle();
+    expect(find.text('Изменение заказа'), findsOneWidget);
+    expect(find.text('Заказ уже на сервере — изменение уйдёт сразу, нужна сеть'), findsOneWidget);
+    await tapVisible(t, find.text('Сохранить изменения'));
+    await settleIo(t);
+    expect(find.text('Заказ изменён'), findsOneWidget);
+    expect(server.orders[uuid]!['items'], [{'productId': 1, 'qty': 13}]);
+    expect(server.orders[uuid]!['returns'], [{'productId': 2, 'qty': 2, 'reason': 'EXPIRED'}]);
+    expect(find.text('Заказ ${money(6500)} · возврат ${money(1000)}'), findsOneWidget);
+
+    // отменить — с причиной; в итогах дня его нет
+    await tapVisible(t, find.text('Заказ ${money(6500)} · возврат ${money(1000)}'));
+    await t.pumpAndSettle();
+    expect(find.text('Останется в истории как «Отменён»'), findsOneWidget);
+    await t.tap(find.text('Отменить заказ'));
+    await t.pumpAndSettle();
+    final confirm = find.widgetWithText(TextButton, 'Отменить заказ');
+    expect(t.widget<TextButton>(confirm).onPressed, isNull); // без причины
+    await t.tap(find.text('Клиент передумал'));
+    await t.pump();
+    await t.tap(confirm);
+    await settleIo(t);
+    expect(server.cancelled[uuid], 'Клиент передумал');
+    expect(find.text('Заказ ${money(6500)} · возврат ${money(1000)} · отменён торговым: Клиент передумал'), findsOneWidget);
+    expect(find.text('0 заказов'), findsOneWidget);
+
+    // отменённый больше не изменить
+    await tapVisible(t, find.textContaining('отменён торговым'));
+    await t.pumpAndSettle();
+    expect(find.text('Изменить заказ и возврат'), findsNothing);
+    expect(find.text('Отменён торговым: Клиент передумал'), findsOneWidget);
+  });
+
+  testWidgets('без сети: неотправленный заказ меняется на телефоне, отмена стирает его — визит «без заказа»', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await tapVisible(t, find.text('Начать рабочий день'));
+    await t.pumpAndSettle();
+    server.offline = true;
+    await quickOrder(t);
+    expect(find.text('Заказ ${money(6000)} · ждёт отправки'), findsOneWidget);
+
+    await tapVisible(t, find.text('Заказ ${money(6000)} · ждёт отправки'));
+    await t.pumpAndSettle();
+    expect(find.text('не отправлен · 1 позиция · ${money(6000)}'), findsOneWidget);
+    await t.tap(find.text('Изменить заказ и возврат'));
+    await t.pumpAndSettle();
+    expect(find.text('Изменение заказа (ещё не отправлен)'), findsOneWidget);
+    await t.tap(find.text('12 шт'));
+    await t.pumpAndSettle();
+    await t.enterText(inDialog(find.byType(TextField)), '20');
+    await t.pump();
+    await t.tap(find.text('Готово'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Далее'));
+    await t.pumpAndSettle();
+    expect(find.text('Заказ ещё не отправлен — уйдёт уже изменённым'), findsOneWidget);
+    await tapVisible(t, find.text('Сохранить изменения'));
+    await settleIo(t);
+    expect(find.text('Заказ ${money(10000)} · ждёт отправки'), findsOneWidget);
+
+    await tapVisible(t, find.text('Заказ ${money(10000)} · ждёт отправки'));
+    await t.pumpAndSettle();
+    expect(find.text('Ещё не отправлен — сотрётся с телефона'), findsOneWidget);
+    await t.tap(find.text('Отменить заказ'));
+    await t.pumpAndSettle();
+    await t.enterText(find.widgetWithText(TextField, 'Причина'), 'Ошибся магазином');
+    await t.pump();
+    await t.tap(find.widgetWithText(TextButton, 'Отменить заказ'));
+    await settleIo(t);
+    expect(find.text('Без заказа · заказ отменён: Ошибся магазином'), findsOneWidget);
+
+    server.offline = false;
+    await openSend(t);
+    await t.tap(find.text('Отправить сейчас'));
+    await settleIo(t, rounds: 2);
+    expect(server.orders, isEmpty);
+    expect(server.visits.values.single['result'], 'NO_ORDER');
+    expect(server.visits.values.single['refuseReason'], 'Заказ отменён: Ошибся магазином');
+  });
+
+  testWidgets('«Заказы»: отгруженный не изменить — объяснение; доставленный вчера — только карточка магазина', (t) async {
+    final server = FakeServer();
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await tapVisible(t, find.text('Начать рабочий день'));
+    await t.pumpAndSettle();
+    await quickOrder(t);
+
+    // оператор успел отгрузить — сервер не даёт отменить
+    server.lockOrders = 'Заказ З-281026-1 уже «В рейсе» — изменить или отменить его может только оператор';
+    await openTab(t, 'Заказы');
+    await t.tap(find.text(money(6000)).last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Отменить заказ'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Ошибка в заказе'));
+    await t.pump();
+    await t.tap(find.widgetWithText(TextButton, 'Отменить заказ'));
+    await settleIo(t);
+    expect(find.text(server.lockOrders!), findsOneWidget);
+    expect(server.cancelled, isEmpty);
+
+    // вчера доставленный: изменить нельзя, карточка магазина — да
+    await tapVisible(t, find.text('Вчера · 2'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('2 позиции · наличные · в 09:12'));
+    await t.pumpAndSettle();
+    expect(find.text('Изменить заказ и возврат'), findsNothing);
+    expect(find.text('Заказ уже доставлен'), findsOneWidget);
+    await t.tap(find.text('Карточка магазина'));
+    await t.pumpAndSettle();
+    expect(find.text('Магазин «Арай»'), findsWidgets);
+  });
+
   testWidgets('«Заказы»: сегодня — новый, вчера — доставлен во сколько; «Мой путь» — путь, визиты, начало дня',
       (t) async {
     final gps = FakeLocation();
@@ -943,7 +1115,7 @@ void main() {
     expect(find.text('${money(12000)} · Kaspi'), findsOneWidget);
 
     await t.scrollUntilVisible(find.text('Доставлены · 1'), -200, scrollable: find.byType(Scrollable).first);
-    await t.tap(find.text('Доставлены · 1'));
+    await tapVisible(t, find.text('Доставлены · 1'));
     await t.pumpAndSettle();
     expect(find.text('Магазин «Арай»'), findsNothing);
     expect(find.text('В долг · ${money(5000)}'), findsOneWidget);
@@ -1117,7 +1289,7 @@ void main() {
     await t.pumpAndSettle();
     server.offline = true;
 
-    await tapVisible(t, find.widgetWithText(TextButton, 'Магазин отказался'));
+    await tapVisible(t, find.widgetWithText(OutlinedButton, 'Отказ магазина'));
     await t.pumpAndSettle();
     expect(t.widget<TextButton>(find.widgetWithText(TextButton, 'Отказ')).onPressed, isNull); // без причины
     await t.tap(find.text('Магазин закрыт'));

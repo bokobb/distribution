@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'api/api_client.dart';
 import 'camera.dart';
 import 'data/agent_data.dart';
 import 'data/local_store.dart';
@@ -16,7 +17,8 @@ import 'outbox.dart';
 /// Визиты и заказы агента за сегодня: начать визит в магазине (по GPS; дальше радиуса из настроек компании —
 /// только подтвердив, директор увидит пометку «далеко»), фото полки, закончить заказом или без заказа с
 /// причиной, отменить. Всё пишется на телефон и уходит через [outbox]; визиты и заказы с сервера (из данных
-/// агента) показываются вместе с телефонными — отметки «был» переживают переустановку.
+/// агента) показываются вместе с телефонными — отметки «был» переживают переустановку. Заказ, пока его не
+/// отгрузили, можно изменить или отменить.
 
 class VisitBook extends ChangeNotifier {
   VisitBook({
@@ -124,7 +126,7 @@ class VisitBook extends ChangeNotifier {
   /// Визиты и заказы за сегодня из данных агента с сервера.
   void serverVisits(AgentData data) {
     _server = data.visits;
-    _serverOrders = data.orders;
+    _serverOrders = [...data.orders]; // правка заказа меняет свой список, не данные агента
     notifyListeners();
   }
 
@@ -236,6 +238,94 @@ class VisitBook extends ChangeNotifier {
     unawaited(outbox.flush());
     return null;
   }
+
+  /// Изменить заказ: товары, возврат, оплату, день доставки, комментарий. Заказ ещё на телефоне — переписать его там
+  /// (уйдёт уже изменённым); уже на сервере — сразу туда: нужна сеть, и заказ не должен быть отгружен. Не
+  /// получилось — текст для человека.
+  Future<String?> editOrder(Order old,
+      {required Map<int, int> items,
+      required int total,
+      List<ReturnItem> returns = const [],
+      int returnTotal = 0,
+      required String payment,
+      required DateTime deliveryDate,
+      String? comment}) async {
+    if (items.isEmpty) return 'В заказе нет товаров';
+    Order change(Order o) => o.edited(
+        items: items,
+        total: total,
+        returns: returns,
+        returnTotal: returnTotal,
+        payment: payment,
+        deliveryDate: DateTime(deliveryDate.year, deliveryDate.month, deliveryDate.day),
+        comment: comment == null || comment.trim().isEmpty ? null : comment.trim());
+    return outbox.paused(() async {
+      final stored = await _stored(old.uuid);
+      if (stored != null && !stored.sent && stored.error == null) {
+        final o = change(stored);
+        await store.saveOrder(o);
+        _put(o);
+        return null;
+      }
+      final o = change(stored ?? old);
+      try {
+        o.takeServer(await outbox.api.editOrder(o.uuid, o.editJson()));
+      } on ApiException catch (e) {
+        return _offline(e);
+      }
+      if (stored != null) await store.saveOrder(o);
+      _put(o);
+      return null;
+    });
+  }
+
+  /// Отменить заказ. Ещё на телефоне — стереть его (визит, если тоже не ушёл, — «без заказа» с этой причиной); уже на
+  /// сервере — отменить там: заказ останется в истории «Отменён». Не получилось — текст для человека.
+  Future<String?> cancelOrder(Order old, String reason) async {
+    final why = reason.trim();
+    if (why.isEmpty) return 'Укажите, почему отменяете заказ';
+    return outbox.paused(() async {
+      final stored = await _stored(old.uuid);
+      if (stored != null && !stored.sent && stored.error == null) {
+        await store.deleteOrder(stored.uuid);
+        _localOrders.removeWhere((o) => o.uuid == stored.uuid);
+        final v = _local.where((v) => v.uuid == stored.visitUuid && !v.sent).firstOrNull;
+        if (v != null) {
+          v
+            ..result = 'NO_ORDER'
+            ..reason = 'Заказ отменён: $why';
+          await store.saveVisit(v);
+        }
+        notifyListeners();
+        await outbox.count();
+        return null;
+      }
+      final o = (stored ?? old).copy();
+      try {
+        o.takeServer(await outbox.api.cancelOrder(o.uuid, why));
+      } on ApiException catch (e) {
+        return _offline(e);
+      }
+      if (stored != null) await store.saveOrder(o);
+      _put(o);
+      return null;
+    });
+  }
+
+  Future<Order?> _stored(String uuid) async =>
+      (await store.ordersSince(DateTime(2000))).where((o) => o.uuid == uuid).firstOrNull;
+
+  /// Заказ после правки — вместо прежнего и среди телефонных, и среди серверных за сегодня.
+  void _put(Order o) {
+    for (final list in [_localOrders, _serverOrders]) {
+      final i = list.indexWhere((x) => x.uuid == o.uuid);
+      if (i >= 0) list[i] = o;
+    }
+    notifyListeners();
+  }
+
+  static String _offline(ApiException e) =>
+      e.status == null ? 'Нет связи с сервером — заказ уже отправлен, изменить его можно только со связью' : e.message;
 
   /// Ключ черновика заказа на телефоне: товары не теряются, если приложение закрылось посреди заказа.
   static const draftKey = 'order-draft';

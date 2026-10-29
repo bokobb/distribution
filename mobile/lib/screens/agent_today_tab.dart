@@ -14,6 +14,7 @@ import '../workday.dart';
 import 'agent_order_screen.dart';
 import 'home_parts.dart';
 import 'my_path_screen.dart';
+import 'order_actions.dart';
 import 'pick_shop_screen.dart';
 
 /// «Сегодня» торгового по макету AgentToday: «Создать заказ» (магазин по GPS из всей базы; идёт визит —
@@ -315,12 +316,18 @@ class AgentTodayTab extends StatelessWidget {
         child: Column(children: [
           for (final (i, v) in list.indexed) ...[
             if (i > 0) const Divider(height: 1, indent: 0, endIndent: 0),
-            _VisitRow(
-              visit: v,
-              outlet: data.outlet(v.outletId),
-              order: visits.orderOf(v),
-              onTap: v.open ? () => _create(context, data) : null,
-            ),
+            if (visits.orderOf(v) case final order)
+              _VisitRow(
+                visit: v,
+                outlet: data.outlet(v.outletId),
+                order: order,
+                onTap: v.open
+                    ? () => _create(context, data)
+                    : order == null
+                        ? null
+                        : () => showOrderActions(context,
+                            order: order, data: data, visits: visits, onChanged: onRefresh),
+              ),
           ],
         ]),
       ),
@@ -328,7 +335,9 @@ class AgentTodayTab extends StatelessWidget {
   }
 }
 
-/// Визит за сегодня: кружок с итогом, магазин, что вышло, время.
+String _lower(String s) => s.isEmpty ? s : '${s[0].toLowerCase()}${s.substring(1)}';
+
+/// Визит за сегодня: кружок с итогом, магазин, что вышло, время. С заказом — нажать: изменить или отменить.
 class _VisitRow extends StatelessWidget {
   const _VisitRow({required this.visit, required this.outlet, required this.order, this.onTap});
 
@@ -343,6 +352,7 @@ class _VisitRow extends StatelessWidget {
     final (Color bg, IconData icon, Color fg) = switch (v) {
       _ when v.error != null || o?.error != null => (AppColors.errBg, Icons.error_outline, AppColors.err),
       _ when v.open => (AppColors.warnBg, Icons.more_horiz, AppColors.warn),
+      _ when o?.status == 'CANCELLED' || o?.status == 'REFUSED' => (AppColors.fill, Icons.close, AppColors.text2),
       _ when v.result == 'ORDER' => (AppColors.okBg, Icons.check, AppColors.ok),
       _ => (AppColors.fill, Icons.remove, AppColors.text2),
     };
@@ -363,7 +373,7 @@ class _VisitRow extends StatelessWidget {
         else if (o.status == 'NEEDS_APPROVAL')
           'ждёт руководителя'
         else if (o.status == 'CANCELLED' || o.status == 'REFUSED')
-          (o.statusLabel ?? 'отменён').toLowerCase(),
+          _lower(o.note ?? o.statusLabel ?? 'отменён'),
       ].join(' · ');
     } else if (v.result == 'ORDER') {
       line = isNew ? 'заказ' : 'Заказ';
@@ -410,6 +420,10 @@ class _VisitRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(time(v.startedAt), style: const TextStyle(fontSize: 13, color: AppColors.text2, fontFeatures: tabular)),
+            if (o != null && !v.open) ...[
+              const SizedBox(width: 2),
+              const Icon(Icons.more_vert, size: 18, color: AppColors.icon, semanticLabel: 'Изменить или отменить'),
+            ],
           ]),
         ),
       ),

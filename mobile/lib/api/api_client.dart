@@ -93,6 +93,14 @@ class ApiClient {
   Future<Map<String, dynamic>> order(Map<String, dynamic> order) =>
       _authed('POST', '/api/mobile/agent/orders', body: order);
 
+  /// Правка своего заказа, пока его не отгрузили: всё целиком (товары, возврат, оплата, доставка, комментарий).
+  Future<Map<String, dynamic>> editOrder(String uuid, Map<String, dynamic> order) =>
+      _authed('PUT', '/api/mobile/agent/orders/$uuid', body: order);
+
+  /// Отмена своего заказа, пока его не отгрузили: заказ остаётся «Отменён» с причиной.
+  Future<Map<String, dynamic>> cancelOrder(String uuid, String reason) =>
+      _authed('POST', '/api/mobile/agent/orders/$uuid/cancel', body: {'reason': reason});
+
   /// Карточка магазина: что берёт и история визитов (OutletCard).
   Future<Map<String, dynamic>> outletCard(int id) => _authed('GET', '/api/mobile/agent/outlets/$id/card');
 

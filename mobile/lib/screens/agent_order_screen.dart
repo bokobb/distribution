@@ -17,13 +17,15 @@ import 'product_pick_sheet.dart';
 /// позицию». «Возврат · N»: негодный товар, который магазин отдаёт, по штукам с причиной — экспедитор заберёт при
 /// доставке, сумма вычтется. Внизу — заказ минус возврат и «Далее» к оформлению. Всё сразу пишется черновиком на
 /// телефон: приложение закрылось — товары на месте. «Без заказа» — закончить визит с причиной. Отправили заказ
-/// или закончили без заказа — возвращает true.
+/// или закончили без заказа — возвращает true. С [editing] — правка уже взятого заказа (из «Визитов сегодня» или
+/// «Заказов»): его товары и возврат, без визита и черновика; сохранили — true.
 class AgentOrderScreen extends StatefulWidget {
-  const AgentOrderScreen({super.key, required this.outlet, required this.data, required this.visits});
+  const AgentOrderScreen({super.key, required this.outlet, required this.data, required this.visits, this.editing});
 
   final Outlet outlet;
   final AgentData data;
   final VisitBook visits;
+  final Order? editing;
 
   @override
   State<AgentOrderScreen> createState() => _AgentOrderScreenState();
@@ -40,6 +42,13 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.editing case final o?) {
+      _qty.addAll(o.items);
+      for (final r in o.returns) {
+        _ret[r.productId] = r;
+      }
+      return;
+    }
     widget.visits.draft().then((d) {
       if (!mounted || d.items.isEmpty && d.returns.isEmpty) return;
       setState(() {
@@ -67,7 +76,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
 
   void _changed() {
     setState(() {});
-    widget.visits.saveDraft(_qty, _ret.values.toList());
+    if (widget.editing == null) widget.visits.saveDraft(_qty, _ret.values.toList());
   }
 
   void _setQty(int id, int n) {
@@ -156,6 +165,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
           returns: _ret.values.toList(),
           total: _orderSum,
           returnTotal: _retSum,
+          editing: widget.editing,
         ),
       ),
     );
@@ -179,8 +189,10 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     if (mounted) Navigator.pop(context, false);
   }
 
-  /// «вы у магазина · ул. Абая, 41» или «340 м от магазина · …» — главное первым, адрес обрежется.
+  /// «вы у магазина · ул. Абая, 41» или «340 м от магазина · …» — главное первым, адрес обрежется. При правке —
+  /// какой заказ правится.
   String get _where {
+    if (widget.editing case final e?) return 'Изменение заказа ${e.number ?? '(ещё не отправлен)'}';
     final o = widget.outlet, v = widget.visits.current;
     final place = o.address ?? o.landmark;
     final d = v?.distance;
@@ -204,7 +216,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
           children: [
             Text(o.name, maxLines: 1, overflow: TextOverflow.ellipsis),
             Row(children: [
-              if (widget.visits.current?.distance != null) ...[
+              if (widget.editing == null && widget.visits.current?.distance != null) ...[
                 Container(
                     width: 7,
                     height: 7,
@@ -221,17 +233,19 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: _noOrder,
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.text2,
-                textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600)),
-            child: const Text('Без заказа'),
-          ),
-          PopupMenuButton<void>(
-            tooltip: 'Ещё',
-            itemBuilder: (_) => [PopupMenuItem(onTap: _cancelVisit, child: const Text('Отменить визит'))],
-          ),
+          if (widget.editing == null) ...[
+            TextButton(
+              onPressed: _noOrder,
+              style: TextButton.styleFrom(
+                  foregroundColor: AppColors.text2,
+                  textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600)),
+              child: const Text('Без заказа'),
+            ),
+            PopupMenuButton<void>(
+              tooltip: 'Ещё',
+              itemBuilder: (_) => [PopupMenuItem(onTap: _cancelVisit, child: const Text('Отменить визит'))],
+            ),
+          ],
         ],
       ),
       body: Column(
@@ -350,7 +364,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
       );
 
   List<Widget> _orderTab(int sum) {
-    final last = widget.data.lastOrders[widget.outlet.id];
+    final last = widget.editing == null ? widget.data.lastOrders[widget.outlet.id] : null;
     return [
       _head('${plural(_qty.length, 'товар', 'товара', 'товаров')} в заказе', money(sum), AppColors.text2),
       if (last != null) ...[

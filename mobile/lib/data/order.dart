@@ -71,6 +71,39 @@ class Order {
   /// К оплате при доставке: заказ минус возврат.
   int get toPay => total - returnTotal;
 
+  /// Торговый может изменить или отменить: заказ ещё на телефоне или на сервере «Принят» / «Нужно разрешение» — не
+  /// отгружен экспедитору. Сервер не принял — нет.
+  bool get editable => error == null && (!sent || status == 'ACCEPTED' || status == 'NEEDS_APPROVAL');
+
+  /// Тот же заказ (uuid, визит, магазин, время, номер) с новым составом и условиями — после правки.
+  Order edited(
+          {required Map<int, int> items,
+          required int total,
+          required List<ReturnItem> returns,
+          required int returnTotal,
+          required String payment,
+          required DateTime deliveryDate,
+          String? comment}) =>
+      Order(
+        uuid: uuid,
+        visitUuid: visitUuid,
+        outletId: outletId,
+        createdAt: createdAt,
+        deliveryDate: deliveryDate,
+        payment: payment,
+        comment: comment,
+        items: {...items},
+        total: total,
+        returns: [...returns],
+        returnTotal: returnTotal,
+        sent: sent,
+        number: number,
+        status: status,
+        statusLabel: statusLabel,
+        note: note,
+        deliveredAt: deliveredAt,
+      );
+
   Order copy() => Order(
         uuid: uuid,
         visitUuid: visitUuid,
@@ -91,6 +124,15 @@ class Order {
         note: note,
         deliveredAt: deliveredAt,
       );
+
+  /// Для сервера: правка — то же, что при отправке, без uuid, визита, магазина и времени.
+  Map<String, dynamic> editJson() => {
+        'deliveryDate': _day(deliveryDate),
+        'payment': payment,
+        'comment': comment,
+        'items': [for (final e in items.entries) {'productId': e.key, 'qty': e.value}],
+        'returns': [for (final r in returns) r.toJson()],
+      };
 
   /// Для сервера.
   Map<String, dynamic> toJson() => {
@@ -124,6 +166,7 @@ class Order {
         createdAt: DateTime.parse(j['createdAt'] as String),
         deliveryDate: DateTime.parse(j['deliveryDate'] as String),
         payment: j['payment'] as String,
+        comment: j['comment'] as String?,
         items: {for (final l in j['lines'] as List? ?? const []) (l as Map)['productId'] as int: l['qty'] as int},
         total: (j['total'] as num).toInt(),
         returns: [for (final r in j['returns'] as List? ?? const []) ReturnItem.fromJson(r as Map<String, dynamic>)],

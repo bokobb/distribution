@@ -50,6 +50,9 @@ class Outbox extends ChangeNotifier {
   static const keep = Duration(days: 3);
 
   bool _sending = false;
+
+  /// Идёт отправка или правка на телефоне ([paused]) — завершится, когда закончат.
+  Completer<void>? _busy;
   bool _again = false;
   bool _disposed = false;
   Timer? _timer;
@@ -64,10 +67,11 @@ class Outbox extends ChangeNotifier {
   /// Отправить всё накопленное. Попросили отправить, пока отправка уже идёт, — она пройдёт ещё круг и
   /// заберёт новое.
   Future<void> flush() async {
-    if (_sending) {
+    if (_busy != null) {
       _again = true;
       return;
     }
+    _busy = Completer();
     _sending = true;
     if (!_disposed) notifyListeners();
     try {
@@ -88,8 +92,30 @@ class Outbox extends ChangeNotifier {
       lastError = e.message;
     } finally {
       _sending = false;
+      _release();
       await count();
     }
+  }
+
+  /// Сделать [f], пока отправка стоит: заказ правят на телефоне — старый вариант не уйдёт поверх нового. Идёт
+  /// отправка — сначала дождаться её; просили отправить, пока стояла, — отправка пойдёт после.
+  Future<T> paused<T>(Future<T> Function() f) async {
+    while (_busy != null) {
+      await _busy!.future;
+    }
+    _busy = Completer();
+    try {
+      return await f();
+    } finally {
+      _release();
+      if (_again) unawaited(flush());
+    }
+  }
+
+  void _release() {
+    final done = _busy;
+    _busy = null;
+    done?.complete();
   }
 
   /// Пересчитать, сколько ждёт отправки (записали новое на телефон).
