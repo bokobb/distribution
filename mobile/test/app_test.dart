@@ -517,9 +517,17 @@ void main() {
     await t.tap(find.text('Как 21 октября'));
     await t.pumpAndSettle();
     expect(find.text('2 товара в заказе\nна сумму ${money(24000)}'), findsOneWidget); // 24 × 500 + 40 × 300
-    expect(find.text('2 кор'), findsNWidgets(2));
-    await t.tap(find.byTooltip('Добавить коробку').first);
+    expect(find.text('24 шт'), findsOneWidget); // в строке только штуки
+    expect(find.text('40 шт'), findsOneWidget);
+    await t.tap(find.byTooltip('Добавить штуку').first);
     await t.pump();
+    expect(find.text('25 шт · ${money(12500)}'), findsOneWidget);
+    await t.tap(find.text('25 шт')); // число — окно с клавиатурой
+    await t.pumpAndSettle();
+    await t.enterText(inDialog(find.byType(TextField)), '36');
+    await t.pump();
+    await t.tap(find.text('Готово'));
+    await t.pumpAndSettle();
     expect(find.text('36 шт · ${money(18000)}'), findsOneWidget);
 
     // «Добавить позицию»: торт без цены не выбрать; вафли — список закрывается, в окне штуки, ещё коробка

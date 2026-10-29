@@ -13,7 +13,7 @@ import 'no_order_screen.dart';
 import 'product_pick_sheet.dart';
 
 /// Заказ и возврат на одном экране по макету AgentOrder — во время визита в магазин. Вверху долг своего магазина
-/// (лимит, просрочка). «Заказ · N»: товары по коробкам, «Как 21 октября» — повторить прошлый заказ, «Добавить
+/// (лимит, просрочка). «Заказ · N»: товары по штукам, «Как 21 октября» — повторить прошлый заказ, «Добавить
 /// позицию». «Возврат · N»: негодный товар, который магазин отдаёт, по штукам с причиной — экспедитор заберёт при
 /// доставке, сумма вычтется. Внизу — заказ минус возврат и «Далее» к оформлению. Всё сразу пишется черновиком на
 /// телефон: приложение закрылось — товары на месте. «Без заказа» — закончить визит с причиной. Отправили заказ
@@ -377,9 +377,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
 
   Widget _orderRow(Product p, int qty) {
     final price = _price(p);
-    final byBox = p.perBox > 1 && qty % p.perBox == 0;
-    final step = byBox ? p.perBox : 1;
-    final last = qty <= step;
+    final last = qty <= 1;
     return _card(
       child: Row(children: [
         ProductAvatar(id: p.id, name: p.name),
@@ -402,12 +400,12 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
         ),
         const SizedBox(width: 8),
         PillStepper(
-          text: byBox ? '${qty ~/ p.perBox} кор' : '$qty ${p.unit}',
+          text: '$qty ${p.unit}',
           removes: last,
-          decLabel: last ? 'Убрать из заказа' : (byBox ? 'Убрать коробку' : 'Убрать штуку'),
-          incLabel: byBox ? 'Добавить коробку' : 'Добавить штуку',
-          onDec: () => _setQty(p.id, qty - step),
-          onInc: () => _setQty(p.id, qty + step),
+          decLabel: last ? 'Убрать из заказа' : 'Убрать штуку',
+          incLabel: 'Добавить штуку',
+          onDec: () => _setQty(p.id, qty - 1),
+          onInc: () => _setQty(p.id, qty + 1),
           onText: () => _enter(p, toReturn: false),
         ),
       ]),
