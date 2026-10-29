@@ -6,7 +6,6 @@ import com.confectionery.distribution.domain.Visit;
 import com.confectionery.distribution.domain.VisitResult;
 import com.confectionery.distribution.repository.EmployeeRepository;
 import com.confectionery.distribution.repository.OutletRepository;
-import com.confectionery.distribution.repository.RouteRepository;
 import com.confectionery.distribution.repository.VisitRepository;
 import com.confectionery.distribution.service.GpsTrack.At;
 import lombok.RequiredArgsConstructor;
@@ -36,12 +35,12 @@ public class VisitService {
     private final VisitRepository visits;
     private final EmployeeRepository employees;
     private final OutletRepository outlets;
-    private final RouteRepository routes;
     private final SettingsService settings;
     private final FileStore files;
     private final Clock clock;
 
     /** result — ORDER или NO_ORDER; lat/lng — где агент отметился в магазине. */
+    /** routeId — от старых версий приложения, не читается: маршрутов больше нет. */
     public record VisitIn(UUID uuid, Long outletId, Long routeId, LocalDateTime startedAt, LocalDateTime finishedAt,
                           Double lat, Double lng, String result, String refuseReason) {
     }
@@ -73,7 +72,6 @@ public class VisitService {
             throw new FormException("Укажите, почему без заказа");
 
         Visit v = new Visit().setUuid(in.uuid()).setAgent(agent).setOutlet(outlet)
-                .setRoute(in.routeId() == null ? null : routes.findById(in.routeId()).orElse(null))
                 .setStartedAt(in.startedAt()).setFinishedAt(in.finishedAt()).setResult(result).setRefuseReason(reason);
         if (in.lat() != null && in.lng() != null && Math.abs(in.lat()) <= 90 && Math.abs(in.lng()) <= 180
                 && !(in.lat() == 0 && in.lng() == 0)) {

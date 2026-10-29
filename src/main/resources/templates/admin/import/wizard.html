@@ -26,7 +26,7 @@
     <section class="card">
         <div class="card-h"><h2>Что выгрузить из Doctor Sales</h2></div>
         <div class="card-b"><ul style="list-style:disc;padding-left:20px;display:flex;flex-direction:column;gap:6px">
-            <li>Регионы и маршруты (с днями обхода и агентом)</li>
+            <li>Районы и закрепление магазинов за торговыми</li>
             <li>Торговые точки: название, ИП/ТОО, БИН, владелец, телефоны, адрес, координаты</li>
             <li>Агенты и экспедиторы (ФИО, телефон)</li>
             <li>Товары и цены, если есть</li>
@@ -48,7 +48,7 @@
             <tr><td>Контрагент</td><td><select class="sel" aria-label="Поле"><option selected>ИП / ТОО</option><option>Не загружать</option></select></td><td class="muted">ИП «Асель»</td></tr>
             <tr><td>Телефон</td><td><select class="sel" aria-label="Поле"><option selected>Телефон</option><option>Не загружать</option></select></td><td class="muted">+7 701 000 00 00</td></tr>
             <tr><td>Адрес</td><td><select class="sel" aria-label="Поле"><option selected>Адрес</option><option>Не загружать</option></select></td><td class="muted">ул. Абая, 24</td></tr>
-            <tr><td>Маршрут</td><td><select class="sel" aria-label="Поле"><option selected>Маршрут</option><option>Не загружать</option></select></td><td class="muted">Центр-1</td></tr>
+            <tr><td>Торговый</td><td><select class="sel" aria-label="Поле"><option selected>Торговый</option><option>Не загружать</option></select></td><td class="muted">Центр-1</td></tr>
             <tr><td>Долг</td><td><select class="sel" aria-label="Поле"><option selected>Начальный долг</option><option>Не загружать</option></select></td><td class="muted">58 000</td></tr>
         </tbody>
     </table></div>
@@ -68,8 +68,8 @@
 <section class="card">
     <div class="card-h"><h2>Импорт завершён (пример)</h2></div>
     <div class="card-b" style="display:flex;flex-direction:column;gap:12px">
-        <p class="muted">Здесь будет итог: сколько регионов, маршрутов, магазинов и долгов загружено, что пропущено и почему. Долги запишутся документом «Ввод начальных долгов» на дату перехода.</p>
-        <div class="acts"><a class="btn btn-soft" href="/admin/outlets">К магазинам</a><a class="btn btn-soft" href="/admin/routes">К маршрутам</a></div>
+        <p class="muted">Здесь будет итог: сколько районов, магазинов и долгов загружено, что пропущено и почему. Долги запишутся документом «Ввод начальных долгов» на дату перехода.</p>
+        <div class="acts"><a class="btn btn-soft" href="/admin/outlets">К магазинам</a><a class="btn btn-soft" href="/admin/assign">К закреплению</a></div>
     </div>
 </section>
 </th:block>

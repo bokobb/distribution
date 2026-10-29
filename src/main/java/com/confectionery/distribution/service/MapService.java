@@ -5,7 +5,6 @@ import com.confectionery.distribution.repository.AppEventRepository;
 import com.confectionery.distribution.repository.DeliveryRepository;
 import com.confectionery.distribution.repository.GpsPointRepository;
 import com.confectionery.distribution.repository.OutletRepository;
-import com.confectionery.distribution.repository.RouteRepository;
 import com.confectionery.distribution.repository.VisitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,7 +33,6 @@ public class MapService {
 
     private final StaffService staff;
     private final OutletRepository outlets;
-    private final RouteRepository routes;
     private final VisitRepository visits;
     private final DeliveryRepository deliveries;
     private final GpsPointRepository gps;
@@ -137,34 +135,21 @@ public class MapService {
             if (ev.getKind() == AppEventKind.DAY_START || ev.getKind() == AppEventKind.DAY_END)
                 marks.computeIfAbsent(ev.getUser().getId(), k -> new ArrayList<>()).add(new TrackService.Mark(ev.getEventAt(), ev.getKind()));
 
-        // магазины — цветом их торгового; план визитов — по маршрутам этого дня недели
-        Map<Long, Integer> plan = new HashMap<>();
-        Map<Long, Who> agentOfOutlet = new HashMap<>();
-        Map<Long, String> routeOfOutlet = new HashMap<>();
-        for (Route r : routes.findAllByOrderByNameAsc()) {
-            if (r.getAgent() == null || !r.isActive()) continue;
-            Who w = byId.get(r.getAgent().getId());
-            if (w == null) continue;
-            if (r.visitsOn(date.getDayOfWeek())) plan.merge(w.id(), r.getStops().size(), Integer::sum);
-            for (RouteOutlet ro : r.getStops()) {
-                agentOfOutlet.put(ro.getOutlet().getId(), w);
-                routeOfOutlet.put(ro.getOutlet().getId(), r.getName());
-            }
-        }
+        // магазины — цветом их торгового
         boolean agentsChosen = only.stream().anyMatch(id -> byId.containsKey(id) && byId.get(id).role() == Role.AGENT);
         List<Shop> shops = new ArrayList<>();
         int noCoords = 0;
         for (Outlet o : outlets.findAllByOrderByNameAsc()) {
             if (companyId != null && !companyId.equals(o.getCompanyId())) continue;
             if (o.getStatus() == OutletStatus.CLOSED) continue;
-            Who w = agentOfOutlet.get(o.getId());
+            Who w = o.getAgent() == null ? null : byId.get(o.getAgent().getId());
             if (agentsChosen && (w == null || !only.contains(w.id()))) continue;
             if (o.getLat() == null || o.getLng() == null) {
                 noCoords++;
                 continue;
             }
             shops.add(new Shop(o.getId(), o.getName(), o.getAddress(), o.getLat(), o.getLng(),
-                    routeOfOutlet.get(o.getId()), w == null ? "#8A776C" : w.color()));
+                    o.getRegion() == null ? null : o.getRegion().getName(), w == null ? "#8C929C" : w.color()));
         }
 
         List<Person> people = new ArrayList<>();
@@ -183,7 +168,7 @@ public class MapService {
             String km = gpsOn ? " · " + km(track.km()) : "";
             String summary = list.isEmpty() && !gpsOn ? "за день отметок нет"
                     : w.role() == Role.AGENT
-                    ? (c[0] == 0 ? "визитов нет" : "визитов " + c[0] + (plan.containsKey(w.id()) ? " из " + plan.get(w.id()) : "") + " · с заказом " + c[1]) + when + km
+                    ? (c[0] == 0 ? "визитов нет" : "визитов " + c[0] + " · с заказом " + c[1]) + when + km
                     : (c[0] == 0 ? "выдач нет" : "выдач " + c[0] + (c[1] > 0 ? " · отказов " + c[1] : "")) + when + km;
             List<List<double[]>> path = !gpsOn ? List.of() : track.segments().stream()
                     .map(seg -> seg.stream().map(a -> new double[]{a.lat(), a.lng()}).toList()).toList();

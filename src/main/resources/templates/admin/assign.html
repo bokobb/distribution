@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<!--/* «Закрепление магазинов» (design/admin/AdmAssign): карта всех магазинов компании, список магазинов выбранного
+     торгового и торговые справа. Отмеченные в списке или на карте магазины закрепляются за торговым внизу. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
+<body>
+<th:block th:fragment="content">
+<p class="note" th:if="${p == null}">Выберите компанию в шапке — магазины закрепляются за торговыми внутри одной компании.</p>
+<div class="grid-wide" th:if="${p != null}">
+    <div class="stack">
+        <section class="card map-card">
+            <div class="card-h"><div><h2>Магазины на карте</h2><p>нажмите точку, чтобы выбрать магазин</p></div></div>
+            <div id="assign-map" class="map map--assign" role="region" aria-label="Магазины компании на карте"
+                 th:attr="data-shops=${shopsJson}, data-agent=${p.agent() == null ? 0 : p.agent().id()}"></div>
+            <ul class="map-legend" style="padding:12px 20px">
+                <li><i class="dot" style="background:var(--accent)"></i><span th:text="${p.agent() == null ? 'без торгового' : p.agent().name()}"></span></li>
+                <li><i class="dot" style="background:#fff;box-shadow:0 0 0 2px var(--accent)"></i>выбраны</li>
+                <li><i class="dot" style="background:#A9AFB8"></i>у других торговых</li>
+                <li th:unless="${none}"><i class="dot" style="background:var(--warn-dot)"></i>без торгового</li>
+                <li><small th:text="${'на карте ' + p.onMap() + ' из ' + p.total()}"></small></li>
+            </ul>
+        </section>
+
+        <form class="card" th:action="@{/admin/assign}" method="post" id="assign-form">
+            <input type="hidden" name="back" th:value="${here}">
+            <div class="card-h"><div>
+                <h2 th:text="${p.agent() == null ? 'Без торгового' : p.agent().name()}">Торговый</h2>
+                <p th:with="n=${p.agent() == null ? p.unassigned() : p.agent().count()}, st=${p.agent() == null ? p.unassignedStale() : p.agent().stale()}"
+                   th:text="${@fmt.plural(n, 'магазин', 'магазина', 'магазинов') + (st > 0 ? ' · без визита 7+ дней: ' + st : '')}"></p>
+            </div></div>
+            <div class="tbl-w"><table class="tbl tbl--sel">
+                <thead><tr><th class="c-chk"><input type="checkbox" id="assign-all" aria-label="Отметить все магазины списка"></th>
+                    <th>Магазин</th><th>Адрес</th><th>Последний визит</th><th class="r">Заказов за 30 дней</th></tr></thead>
+                <tbody>
+                <tr th:each="s : ${p.shops()}" th:with="mine=${s.agentId() == (p.agent() == null ? null : p.agent().id())}"
+                    th:attr="data-id=${s.id()}, data-mine=${mine}" th:hidden="${!mine}">
+                    <td class="c-chk"><input type="checkbox" name="ids" th:value="${s.id()}" th:attr="aria-label=${'Выбрать ' + s.name()}"></td>
+                    <td><a class="rl" th:href="${'/admin/outlets/' + s.id()}" th:text="${s.name()}">Магазин</a>
+                        <span class="sub" th:unless="${mine}" th:text="${s.agentId() == null ? 'без торгового' : 'у другого торгового'}"></span></td>
+                    <td class="muted" th:text="${s.address()}"></td>
+                    <td th:classappend="${s.stale()} ? 'warn'" th:text="${s.lastVisit() == null ? 'не было' : @fmt.day(s.lastVisit())}"></td>
+                    <td class="r num" th:text="${s.orders30()}"></td>
+                </tr>
+                </tbody>
+            </table></div>
+            <p class="empty" th:if="${p.mine().isEmpty()}">Магазинов нет — отметьте их на карте.</p>
+            <div class="bulk" style="margin:12px;position:static">
+                <span id="assign-sel">Отметьте магазины в списке или на карте</span>
+                <span class="bulk-sp"></span>
+                <label class="bulk-g" style="align-items:center;white-space:nowrap">Закрепить за
+                    <select class="sel" name="to" aria-label="Торговый">
+                        <option th:each="a : ${p.agents()}" th:value="${a.id()}" th:text="${a.name()}" th:selected="${p.agent() != null and a.id() == p.agent().id()}"></option>
+                        <option value="none">без торгового</option>
+                    </select></label>
+                <button class="btn btn-primary btn-sm" type="submit">Закрепить</button>
+            </div>
+        </form>
+    </div>
+
+    <aside class="card">
+        <div class="card-h"><div><h2>Торговые</h2><p th:text="${v.scopeName() + ' · ' + @fmt.plural(p.total(), 'магазин', 'магазина', 'магазинов')}"></p></div></div>
+        <ul class="people">
+            <li th:each="a : ${p.agents()}">
+                <a th:href="@{/admin/assign(agent=${a.id()})}" th:attr="aria-current=${p.agent() != null and a.id() == p.agent().id()} ? 'true' : null">
+                    <span class="ava" aria-hidden="true" th:text="${a.initials()}">ЕТ</span>
+                    <span><b th:text="${a.name()}">Торговый</b><small th:text="${(a.region() ?: 'район не задан') + (a.stale() > 0 ? ' · без визита 7+: ' + a.stale() : '')}"></small></span>
+                    <b class="num" th:text="${a.count()}">0</b>
+                </a>
+            </li>
+            <li>
+                <a href="/admin/assign?agent=none" th:attr="aria-current=${none} ? 'true' : null">
+                    <span class="ava" aria-hidden="true" style="background:var(--warn-soft);color:var(--warn-ink)">—</span>
+                    <span><b>Без торгового</b><small>заказ всё равно можно оформить</small></span>
+                    <b class="num" th:text="${p.unassigned()}">0</b>
+                </a>
+            </li>
+        </ul>
+        <p class="note" style="margin:4px 20px 20px">Магазин закреплён за торговым без дней и порядка обхода. Заказ можно оформить в любом магазине — он попадёт в продажи того, кто оформил.</p>
+    </aside>
+</div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
+<script src="/admin/assets/leaflet/leaflet.js"></script>
+<script src="/admin/assets/assign.js?v=2"></script>
+</th:block>
+</body>
+</html>

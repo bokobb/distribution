@@ -40,9 +40,7 @@ public class Employee extends CompanyEntity {
     /** Экспедитор: закреплённая машина (заполняет сервис для списка сотрудников). */
     @Transient
     private Vehicle vehicle;
-    /** Агент: магазинов на маршрутах сегодня и сколько посещено (заполняет сервис дашборда). */
-    @Transient
-    private int planToday;
+    /** Агент: сколько магазинов посещено сегодня (заполняет сервис дашборда). */
     @Transient
     private int visitedToday;
 
@@ -53,5 +51,12 @@ public class Employee extends CompanyEntity {
 
     public String getInitial() {
         return name == null || name.isEmpty() ? "?" : name.substring(0, 1);
+    }
+
+    /** Две буквы для кружка: «Ержан Т.» → «ЕТ», «Сауле Ким» → «СК». */
+    public String getInitials() {
+        if (name == null || name.isBlank()) return "?";
+        String[] w = name.strip().split("\\s+");
+        return (w[0].substring(0, 1) + (w.length > 1 ? w[1].substring(0, 1) : "")).toUpperCase();
     }
 }

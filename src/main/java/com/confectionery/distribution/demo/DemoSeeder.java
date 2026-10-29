@@ -39,8 +39,6 @@ public class DemoSeeder implements ApplicationRunner {
     private final CompanySettingsRepository settings;
     private final EmployeeRepository employees;
     private final RegionRepository regions;
-    private final RouteRepository routes;
-    private final RouteOutletRepository routeOutlets;
     private final PriceTypeRepository priceTypes;
     private final OutletRepository outlets;
     private final OutletOpeningDebtRepository openingDebts;
@@ -83,7 +81,7 @@ public class DemoSeeder implements ApplicationRunner {
         final List<Product> products = new ArrayList<>();
         final List<Employee> agents = new ArrayList<>();
         final List<Employee> expeditors = new ArrayList<>();
-        final Map<Employee, List<Route>> routesOf = new LinkedHashMap<>();
+        final Map<Employee, List<Group>> groupsOf = new LinkedHashMap<>();
         final Map<Outlet, Long> opening = new HashMap<>();
     }
 
@@ -238,7 +236,11 @@ public class DemoSeeder implements ApplicationRunner {
         return Math.round(v / 10.0) * 10;
     }
 
-    /** Регионы, агенты, по два маршрута на агента: первый обходят сегодня, второй обходили вчера. */
+    /** Пачка магазинов торгового в районе — для раскладки точек на карте и демо-заказов. */
+    private record Group(Region region, String name, Employee agent, List<Outlet> outlets) {
+    }
+
+    /** Районы, агенты, по две пачки магазинов на агента: первую обходят сегодня, вторую обходили вчера. */
     private int network(Co co, String[] regionNames, String[] agentNames, int shop) {
         List<Region> rs = new ArrayList<>();
         for (String rn : regionNames) {
@@ -246,35 +248,25 @@ public class DemoSeeder implements ApplicationRunner {
             r.setCompany(co.c);
             rs.add(regions.save(r));
         }
-        int[] routeNo = new int[rs.size()];
-        DayOfWeek[] first = {today.getDayOfWeek(), today.getDayOfWeek().minus(1)};
+        int[] groupNo = new int[rs.size()];
         for (int i = 0; i < agentNames.length; i++) {
             Employee a = person(co, agentNames[i], Role.AGENT);
             a.setLastSync(now.minusMinutes(5 + rnd.nextInt(80)));
             co.agents.add(a);
             Region r = rs.get(i % rs.size());
-            List<Route> mine = new ArrayList<>();
+            List<Group> mine = new ArrayList<>();
             for (int k = 0; k < 2; k++) {
-                Route route = new Route().setRegion(r).setAgent(a).setName(r.getName() + "-" + (++routeNo[i % rs.size()]))
-                        .setDaysMask(Route.bit(first[k]) | Route.bit(first[k].plus(3)));
-                route.setCompany(co.c);
-                routes.save(route);
-                r.getRoutes().add(route);
+                Group g = new Group(r, r.getName() + "-" + (++groupNo[i % rs.size()]), a, new ArrayList<>());
                 int count = 5 + rnd.nextInt(3);
-                for (int j = 0; j < count; j++) {
-                    Outlet o = outlet(co, route, shop++);
-                    RouteOutlet ro = new RouteOutlet().setRoute(route).setOutlet(o).setPosition(j);
-                    ro.setCompany(co.c);
-                    route.getStops().add(routeOutlets.save(ro));
-                }
-                mine.add(route);
+                for (int j = 0; j < count; j++) g.outlets().add(outlet(co, g, shop++));
+                mine.add(g);
             }
-            co.routesOf.put(a, mine);
+            co.groupsOf.put(a, mine);
         }
         return shop;
     }
 
-    private Outlet outlet(Co co, Route route, int n) {
+    private Outlet outlet(Co co, Group group, int n) {
         String name = n < SHOPS.length ? "Магазин «" + SHOPS[n] + "»" : "Магазин №" + (n + 1);
         boolean retail = rnd.nextInt(5) == 0;
         long limit = retail ? 50_000 : (rnd.nextBoolean() ? 100_000 : 150_000);
@@ -288,14 +280,14 @@ public class DemoSeeder implements ApplicationRunner {
                 .setPriceType(retail ? co.retail : co.wholesale).setCreditLimit(limit)
                 .setPaymentDays(retail ? 3 : 7).setCreatedAt(today.minusDays(30 + rnd.nextInt(400))).setCreatedBy("импорт Doctor Sales");
         if (n % 23 == 7) {
-            o.setStatus(OutletStatus.PENDING).setCreatedAt(today).setCreatedBy(route.getAgent().getName());
+            o.setStatus(OutletStatus.PENDING).setCreatedAt(today).setCreatedBy(group.agent().getName());
             debt = 0;
         } else if (n % 37 == 11) {
             o.setStatus(OutletStatus.CLOSED);
             debt = 0;
         }
-        double[] g = DemoGeo.outlet(route.getRegion().getName(), route.getName(), route.getStops().size(), n);
-        o.setLat(g[0]).setLng(g[1]);
+        double[] g = DemoGeo.outlet(group.region().getName(), group.name(), group.outlets().size(), n);
+        o.setLat(g[0]).setLng(g[1]).setAgent(group.agent()).setRegion(group.region());
         o.setCompany(co.c);
         outlets.save(o);
         if (debt > 0) {
@@ -380,8 +372,8 @@ public class DemoSeeder implements ApplicationRunner {
         return orders.save(order);
     }
 
-    private Visit visit(Co co, Employee agent, Outlet o, Route route, LocalDateTime at, VisitResult result) {
-        Visit v = new Visit().setAgent(agent).setOutlet(o).setRoute(route).setStartedAt(at).setFinishedAt(at.plusMinutes(6 + rnd.nextInt(10)))
+    private Visit visit(Co co, Employee agent, Outlet o, LocalDateTime at, VisitResult result) {
+        Visit v = new Visit().setAgent(agent).setOutlet(o).setStartedAt(at).setFinishedAt(at.plusMinutes(6 + rnd.nextInt(10)))
                 .setDistance(rnd.nextInt(120)).setResult(result)
                 .setRefuseReason(result == VisitResult.NO_ORDER ? NO_ORDER[rnd.nextInt(NO_ORDER.length)] : null);
         visitPlace(v);
@@ -406,16 +398,15 @@ public class DemoSeeder implements ApplicationRunner {
     }
 
     /**
-     * Демо-база, созданная до карты: магазинам без координат — точки по их маршрутам, визитам и выдачам
+     * Демо-база, созданная до карты: магазинам без координат — точки по их районам, визитам и выдачам
      * без отметки места — рядом с магазином. Возвращает, сколько магазинов получили координаты.
      */
     private int fillCoordinates() {
         int n = 0;
         for (Outlet o : outlets.findAll()) {
             if (o.getLat() != null && o.getLng() != null) continue;
-            Route r = o.getRoute();
-            int pos = r == null ? 0 : Math.max(0, r.getOutlets().indexOf(o));
-            double[] g = DemoGeo.outlet(r == null ? null : r.getRegion().getName(), r == null ? null : r.getName(), pos, o.getId());
+            String region = o.getRegion() == null ? null : o.getRegion().getName();
+            double[] g = DemoGeo.outlet(region, region == null ? null : region + "-1", (int) (o.getId() % 7), o.getId());
             o.setLat(g[0]).setLng(g[1]);
             n++;
         }
@@ -427,23 +418,23 @@ public class DemoSeeder implements ApplicationRunner {
     private void ordersAndTrips(Co co) {
         List<Order> forToday = new ArrayList<>();
         for (Employee a : co.agents) {
-            List<Route> rs = co.routesOf.get(a);
+            List<Group> rs = co.groupsOf.get(a);
             // вчерашние заказы (второй маршрут агента) — сегодня их развозят экспедиторы
-            for (Outlet o : rs.get(1).getOutlets()) {
+            for (Outlet o : rs.get(1).outlets()) {
                 if (o.getStatus() != OutletStatus.ACTIVE) continue;
                 LocalDateTime at = today.minusDays(1).atTime(9 + rnd.nextInt(8), rnd.nextInt(60));
                 if (rnd.nextInt(10) < 3) {
-                    visit(co, a, o, rs.get(1), at, VisitResult.NO_ORDER);
+                    visit(co, a, o, at, VisitResult.NO_ORDER);
                     continue;
                 }
-                Order ord = newOrder(co, o, a, visit(co, a, o, rs.get(1), at, VisitResult.ORDER), at.plusMinutes(4), today);
+                Order ord = newOrder(co, o, a, visit(co, a, o, at, VisitResult.ORDER), at.plusMinutes(4), today);
                 ord.setStatus(OrderStatus.IN_TRIP);
                 ord.event(today.atTime(7, 40), null, "Склад", "Собран и загружен в машину");
                 forToday.add(ord);
             }
             // сегодняшние заказы (первый маршрут) — доставка завтра
             int taken = 0;
-            for (Outlet o : rs.get(0).getOutlets()) {
+            for (Outlet o : rs.get(0).outlets()) {
                 if (o.getStatus() == OutletStatus.CLOSED) continue;
                 LocalDateTime at = today.atTime(9, 0).plusMinutes(25L * taken + rnd.nextInt(20));
                 if (at.isAfter(now)) {
@@ -451,10 +442,10 @@ public class DemoSeeder implements ApplicationRunner {
                     at = now.minusMinutes(5);
                 }
                 if (rnd.nextInt(10) < 3) {
-                    visit(co, a, o, rs.get(0), at, VisitResult.NO_ORDER);
+                    visit(co, a, o, at, VisitResult.NO_ORDER);
                     continue;
                 }
-                Order ord = newOrder(co, o, a, visit(co, a, o, rs.get(0), at, VisitResult.ORDER), at.plusMinutes(4), today.plusDays(1));
+                Order ord = newOrder(co, o, a, visit(co, a, o, at, VisitResult.ORDER), at.plusMinutes(4), today.plusDays(1));
                 taken++;
                 long debt = co.opening.getOrDefault(o, 0L);
                 if (ord.getPayment() == PaymentMethod.CREDIT && debt + ord.getTotal() > o.getCreditLimit()) {

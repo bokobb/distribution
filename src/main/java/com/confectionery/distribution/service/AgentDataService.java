@@ -3,7 +3,6 @@ package com.confectionery.distribution.service;
 import com.confectionery.distribution.domain.*;
 import com.confectionery.distribution.repository.OutletRepository;
 import com.confectionery.distribution.repository.ProductRepository;
-import com.confectionery.distribution.repository.RouteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,7 @@ import java.util.*;
 
 /**
  * Всё, что нужно торговому агенту на телефоне для работы без сети: настройки компании, товары с ценами на
- * сегодня, его маршруты с магазинами по порядку обхода, долги магазинов, его визиты и заказы за сегодня, остальные
+ * сегодня, закреплённые за ним магазины, долги магазинов, его визиты и заказы за сегодня, остальные
  * магазины компании (заказ можно принять в любом — магазин ищут по GPS и поиском; у чужих только название, адрес,
  * владелец, прайс и точка, без долгов и телефонов), последний заказ каждого магазина — «повторить», и сводка по
  * магазинам для карты (последний визит, средний заказ). Телефон
@@ -28,7 +27,6 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AgentDataService {
 
-    private final RouteRepository routes;
     private final OutletRepository allOutlets;
     private final ProductRepository products;
     private final CatalogService catalog;
@@ -49,7 +47,10 @@ public class AgentDataService {
                              long wholesale, long retail) {
     }
 
-    /** days — дни обхода по ISO: 1 — понедельник … 7 — воскресенье; outlets — id магазинов по порядку. */
+    /**
+     * Для старых версий приложения: маршрутов больше нет — закреплённые магазины приходят одним «маршрутом» с id 0 на
+     * все дни недели. days — дни по ISO: 1 — понедельник … 7 — воскресенье; outlets — id магазинов.
+     */
     public record RouteDto(Long id, String name, String region, List<Integer> days, List<Long> outlets) {
     }
 
@@ -60,7 +61,7 @@ public class AgentDataService {
                             long lastPaymentSum) {
     }
 
-    /** Магазин другого торгового; region — филиал его маршрута; точки может не быть. status — ACTIVE или PENDING. */
+    /** Магазин другого торгового; region — его район; точки может не быть. status — ACTIVE или PENDING. */
     public record PlaceDto(Long id, String name, String address, String landmark, Double lat, Double lng, String region,
                            String owner, String priceKind, String status) {
     }
@@ -73,7 +74,7 @@ public class AgentDataService {
     }
 
     /**
-     * others — магазины компании не из маршрутов агента; stats — последний визит и средний заказ всех магазинов;
+     * others — магазины компании, не закреплённые за агентом; stats — последний визит и средний заказ всех магазинов;
      * previousOrders — заказы агента за прошлый рабочий день previousDate (вкладка «Вчера»: доставлены или нет).
      */
     public record AgentData(LocalDate date, LocalDateTime syncedAt, Settings settings, List<ProductDto> products,
@@ -95,21 +96,11 @@ public class AgentDataService {
     @Transactional(readOnly = true)
     public AgentData of(Long agentId, Long companyId) {
         CompanySettings s = settings.of(companyId);
-        List<Route> mine = routes.findAllByOrderByNameAsc().stream()
-                .filter(r -> r.isActive() && r.getAgent() != null && r.getAgent().getId().equals(agentId)).toList();
-
         Map<Long, Outlet> outlets = new LinkedHashMap<>();
-        List<RouteDto> routeDtos = new ArrayList<>();
-        for (Route r : mine) {
-            List<Long> ids = new ArrayList<>();
-            for (Outlet o : r.getOutlets()) {
-                if (o.getStatus() == OutletStatus.CLOSED) continue;
-                outlets.putIfAbsent(o.getId(), o);
-                ids.add(o.getId());
-            }
-            List<Integer> days = Arrays.stream(DayOfWeek.values()).filter(r::visitsOn).map(DayOfWeek::getValue).toList();
-            routeDtos.add(new RouteDto(r.getId(), r.getName(), r.getRegion() == null ? null : r.getRegion().getName(), days, ids));
-        }
+        for (Outlet o : allOutlets.findAllByOrderByNameAsc())
+            if (o.getStatus() != OutletStatus.CLOSED && o.getAgent() != null && o.getAgent().getId().equals(agentId)) outlets.put(o.getId(), o);
+        List<RouteDto> routeDtos = outlets.isEmpty() ? List.of() : List.of(new RouteDto(0L, "Мои магазины", null,
+                Arrays.stream(DayOfWeek.values()).map(DayOfWeek::getValue).toList(), List.copyOf(outlets.keySet())));
         debts.fill(outlets.values());
 
         List<Product> active = products.findAllByOrderByNameAsc().stream().filter(Product::isActive).toList();

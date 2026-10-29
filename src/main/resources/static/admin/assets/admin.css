@@ -386,3 +386,4 @@ a.al:hover{background:var(--head);color:var(--ink)}
   .app{display:block}
   .card{border:0}
 }
+.map--assign{height:min(56vh,520px);min-height:340px}

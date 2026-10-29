@@ -53,7 +53,7 @@ class OrderSearchTest {
         o4 = data.order(a, outlet2, agent2, tomorrow, PaymentMethod.CASH, 4, 1000);
         data.trip(a, TripStatus.LOADING, o4);                                                        // уже у экспедитора
         foreign = data.order(data.world("Чужая"), tomorrow, PaymentMethod.CASH, 9, 9000);
-        region1 = a.route().getRegion();
+        region1 = a.region();
         region2 = as(() -> outlets.findById(outlet2.getId()).orElseThrow().getRegion());
     }
 

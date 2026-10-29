@@ -118,7 +118,7 @@ public class TripService {
                     .orElseGet(() -> newTrip(exp, car, day, now));
             Warehouse carStock = stock.warehouse(t.getVehicle());
             int pos = t.getTripOrders().stream().mapToInt(TripOrder::getPosition).max().orElse(-1) + 1;
-            list.sort(Comparator.comparing((Order o) -> o.getOutlet().getRoute() == null ? "" : o.getOutlet().getRoute().getName())
+            list.sort(Comparator.comparing((Order o) -> o.getOutlet().getRegion() == null ? "" : o.getOutlet().getRegion().getName())
                     .thenComparing(o -> o.getOutlet().getName()));
             for (Order o : list) {
                 TripOrder to = new TripOrder().setTrip(t).setOrder(o).setPosition(pos++);

@@ -14,10 +14,15 @@
         <label class="field">Владелец<input class="inp" name="owner" th:value="${f.owner}"></label>
         <label class="field">Телефон<input class="inp" name="phone" type="tel" th:value="${f.phone}" placeholder="+7 7__ ___ __ __"></label>
         <label class="field field--wide">Адрес<input class="inp" name="address" th:value="${f.address}"></label>
-        <label class="field">Маршрут
-            <select class="sel" name="routeId">
-                <option value="">без маршрута</option>
-                <option th:each="r : ${routes}" th:value="${r.id}" th:text="${r.name + ' · ' + r.days + ' · ' + (r.agent != null ? r.agent.name : 'без агента')}" th:selected="${r.id == f.routeId}"></option>
+        <label class="field">Торговый
+            <select class="sel" name="agentId">
+                <option value="">без торгового</option>
+                <option th:each="a : ${agents}" th:value="${a.id}" th:text="${a.name}" th:selected="${a.id == f.agentId}"></option>
+            </select></label>
+        <label class="field">Район
+            <select class="sel" name="regionId">
+                <option value="">без района</option>
+                <option th:each="r : ${regions}" th:value="${r.id}" th:text="${r.name}" th:selected="${r.id == f.regionId}"></option>
             </select></label>
         <label class="field">Тип цен
             <select class="sel" name="priceTypeId" required>

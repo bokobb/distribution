@@ -11,7 +11,6 @@ import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import org.hibernate.annotations.JoinFormula;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -50,11 +49,12 @@ public class Outlet extends CompanyEntity {
     /** Кто добавил: агент, сотрудник или «импорт Doctor Sales». */
     private String createdBy;
 
-    /** Маршрут магазина (из route_outlets; менять — через RouteOutlet). */
+    /** Торговый, за которым закреплён магазин; null — без торгового. Дней и порядка обхода нет. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinFormula("(select ro.route_id from route_outlets ro where ro.outlet_id = id)")
-    @Setter(lombok.AccessLevel.NONE)
-    private Route route;
+    private Employee agent;
+    /** Район (филиал) — для фильтров и отчётов. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Region region;
 
     /** Долг считается, а не хранится: начальный + доставлено − оплачено − возвращено (DebtService). */
     @Transient
@@ -65,14 +65,6 @@ public class Outlet extends CompanyEntity {
     private LocalDate lastPaymentDate;
     @Transient
     private long lastPaymentSum;
-
-    public Region getRegion() {
-        return route == null ? null : route.getRegion();
-    }
-
-    public Employee getAgent() {
-        return route == null ? null : route.getAgent();
-    }
 
     /** Долг в процентах от лимита (для полоски), не больше 100. */
     public int getDebtPercent() {

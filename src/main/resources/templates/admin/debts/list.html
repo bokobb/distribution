@@ -18,7 +18,7 @@
         <thead><tr><th>Магазин</th><th>Агент</th><th class="r">Долг</th><th>Лимит</th><th class="r">Просрочено</th><th>Последняя оплата</th></tr></thead>
         <tbody><tr th:each="o : ${outlets}">
             <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}"></a><span class="sub" th:text="${o.phone + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
-            <td class="hide-m"><th:block th:text="${o.agent?.name ?: '—'}"></th:block><span class="sub" th:text="${o.route?.name}"></span></td>
+            <td class="hide-m"><th:block th:text="${o.agent?.name ?: '—'}"></th:block><span class="sub" th:text="${o.region?.name}"></span></td>
             <td class="r num"><b th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt)}"></b></td>
             <td class="hide-m" style="min-width:140px"><span class="num small" th:text="${@fmt.money(o.creditLimit)}"></span><span class="meter" th:classappend="${o.overLimit} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span></td>
             <td class="r num" th:classappend="${o.overdue > 0} ? 'bad'" th:text="${o.overdue > 0 ? @fmt.money(o.overdue) : '—'}"></td>

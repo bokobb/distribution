@@ -31,7 +31,6 @@ public class WorkdayReport {
     private final AppEventRepository events;
     private final VisitRepository visits;
     private final DeliveryRepository deliveries;
-    private final RouteRepository routes;
     private final Clock clock;
 
     /** GPS пропадал: с, по, минут, почему. */
@@ -100,7 +99,6 @@ public class WorkdayReport {
             if (d.getStatus() == DeliveryStatus.REFUSED) c[1]++;
             lastMark.merge(k, d.getDeliveredAt(), (x, y) -> x.isAfter(y) ? x : y);
         }
-        List<Route> active = routes.findAllByOrderByNameAsc().stream().filter(r -> r.isActive() && r.getAgent() != null).toList();
         String latest = evs.stream().map(AppEvent::getAppVersion).filter(Objects::nonNull).max(WorkdayReport::compareVersions).orElse(null);
 
         Set<Key> keys = new HashSet<>();
@@ -134,10 +132,7 @@ public class WorkdayReport {
             int[] c = counts.get(k);
             String work;
             if (w.role() == Role.AGENT) {
-                int plan = active.stream().filter(r -> r.getAgent().getId().equals(w.id()) && r.visitsOn(k.date().getDayOfWeek()))
-                        .mapToInt(r -> r.getStops().size()).sum();
-                work = c == null ? (plan > 0 ? "визитов 0 из " + plan : "визитов нет")
-                        : "визитов " + c[0] + (plan > 0 ? " из " + plan : "") + " · с заказом " + c[1];
+                work = c == null ? "визитов нет" : "визитов " + c[0] + " · с заказом " + c[1];
             } else {
                 work = c == null ? "выдач нет" : "выдач " + c[0] + (c[1] > 0 ? " · отказов " + c[1] : "");
             }

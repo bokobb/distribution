@@ -14,13 +14,13 @@
 <section class="card" th:if="${tab == 'people'}">
     <div class="card-h"><h2>Сотрудники</h2><p th:text="${@fmt.plural(agents, 'агент', 'агента', 'агентов') + ', ' + @fmt.plural(expeditors, 'экспедитор', 'экспедитора', 'экспедиторов')}"></p></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Сотрудник</th><th>Роль</th><th>Телефон</th><th>Маршруты / машина</th><th>Связь с телефоном</th></tr></thead>
+        <thead><tr><th>Сотрудник</th><th>Роль</th><th>Телефон</th><th>Магазины или машина</th><th>Связь с телефоном</th></tr></thead>
         <tbody><tr th:each="e : ${people}">
             <td><a class="rl" th:href="${'/admin/staff/' + e.id}" th:text="${e.name}"></a><span class="sub bad" th:unless="${e.active}">отключён</span><span class="sub" th:if="${v.isAll()}" th:text="${e.company.name}"></span></td>
             <td th:text="${e.role.label}"></td>
             <td class="num hide-m" th:text="${@fmt.phone(e.phone)}"></td>
             <td class="hide-m small">
-                <th:block th:if="${e.role.name() == 'AGENT'}"><th:block th:each="r, it : ${routes}" th:if="${r.agent == e}" th:text="${r.name + ' (' + r.days + ') '}"></th:block></th:block>
+                <th:block th:if="${e.role.name() == 'AGENT'}" th:text="${@fmt.plural(outletsOf.getOrDefault(e.id, 0L), 'магазин', 'магазина', 'магазинов')}"></th:block>
                 <th:block th:if="${e.vehicle != null}" th:text="${e.vehicle.model + ' · ' + e.vehicle.plate}"></th:block>
             </td>
             <td class="small">

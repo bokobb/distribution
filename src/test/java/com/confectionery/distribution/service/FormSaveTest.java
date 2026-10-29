@@ -51,8 +51,6 @@ class FormSaveTest {
     @Autowired
     OutletRepository outletRepo;
     @Autowired
-    RouteOutletRepository routeOutletRepo;
-    @Autowired
     PasswordEncoder encoder;
     @Autowired
     TransactionTemplate tx;
@@ -158,7 +156,7 @@ class FormSaveTest {
     }
 
     @Test
-    void рольНеМеняетсяУСебяИУАгентаСМаршрутом() {
+    void рольНеМеняетсяУСебяИУАгентаСМагазинами() {
         World w = data.world("Р");
         EmployeeForm self = EmployeeForm.of(w.operator());
         self.setRole(Role.STOREKEEPER);
@@ -170,7 +168,7 @@ class FormSaveTest {
         EmployeeForm agent = EmployeeForm.of(w.agent());
         agent.setRole(Role.OPERATOR);
         assertThatThrownBy(() -> in(w.id(), () -> staff.update(agent, null)))
-                .isInstanceOf(FormException.class).hasMessageStartingWith("У агента маршруты: " + w.route().getName());
+                .isInstanceOf(FormException.class).hasMessageStartingWith("За торговым закреплено магазинов: 1");
     }
 
     @Test
@@ -219,13 +217,14 @@ class FormSaveTest {
     // ------------------------------------------------------------------ магазин
 
     @Test
-    void новыйМагазинВстаётВКонецМаршрута() {
+    void новыйМагазин_закреплёнЗаТорговым() {
         World w = data.world("М");
         OutletForm f = new OutletForm();
         f.setName("Магазин у дороги");
         f.setPhone("8 701 123 45 67");
         f.setPriceTypeId(w.wholesale().getId());
-        f.setRouteId(w.route().getId());
+        f.setAgentId(w.agent().getId());
+        f.setRegionId(w.region().getId());
         f.setCreditLimit("80 000");
         f.setPaymentDays("10");
 
@@ -238,7 +237,8 @@ class FormSaveTest {
             assertThat(saved.getPhone()).isEqualTo("+7 701 123 45 67");
             assertThat(saved.getCreditLimit()).isEqualTo(80_000);
             assertThat(saved.getCreatedBy()).isEqualTo("Директор Тестов");
-            assertThat(routeOutletRepo.findByOutlet(saved).orElseThrow().getPosition()).isEqualTo(1);
+            assertThat(saved.getAgent().getId()).isEqualTo(w.agent().getId());
+            assertThat(saved.getRegion().getId()).isEqualTo(w.region().getId());
             return null;
         });
         assertThatThrownBy(() -> in(TenantContext.ROOT, () -> outlets.save(f, null, "Владелец")))
@@ -246,7 +246,7 @@ class FormSaveTest {
     }
 
     @Test
-    void правкаМагазина_маршрутТолькоСвой_поляВнеФормыОстаются() {
+    void правкаМагазина_торговыйТолькоСвой_поляВнеФормыОстаются() {
         World a = data.world("А");
         World b = data.world("Б");
         in(TenantContext.ROOT, () -> outletRepo.findById(a.outlet().getId()).orElseThrow()
@@ -255,10 +255,10 @@ class FormSaveTest {
         f.setName("Магазин «Новый»");
         f.setCreditLimit("150 000 ₸");
 
-        f.setRouteId(b.route().getId());
+        f.setAgentId(b.agent().getId());
         assertThatThrownBy(() -> in(a.id(), () -> outlets.save(f, a.id(), "Тест")))
-                .isInstanceOf(FormException.class).hasMessage("Маршрут не найден");
-        f.setRouteId(null);
+                .isInstanceOf(FormException.class).hasMessage("Торговый не найден");
+        f.setAgentId(null);
         f.setBin("123");
         assertThatThrownBy(() -> in(a.id(), () -> outlets.save(f, a.id(), "Тест")))
                 .isInstanceOf(FormException.class).hasMessage("БИН / ИИН — 12 цифр");
@@ -272,7 +272,7 @@ class FormSaveTest {
             assertThat(o.getBin()).isNull();
             assertThat(o.getPhone2()).isEqualTo("+7 700 111 22 33");
             assertThat(o.getLandmark()).isEqualTo("напротив мечети");
-            assertThat(routeOutletRepo.findByOutlet(o)).isEmpty();
+            assertThat(o.getAgent()).isNull();
             return null;
         });
     }

@@ -51,8 +51,7 @@
                 <thead><tr><th>Агент</th><th>Посещено</th><th class="r">Заказов</th><th class="r">Сумма</th><th class="r">Отказы</th><th>Связь</th></tr></thead>
                 <tbody><tr th:each="a : ${agents}">
                     <td><b th:text="${a.agent().name}">Агент</b><span class="sub" th:if="${v.isAll()}" th:text="${a.agent().company.name}"></span></td>
-                    <td><span class="num small" th:text="${a.agent().visitedToday + ' / ' + a.agent().planToday}"></span>
-                        <span class="meter" role="img" th:attr="aria-label=${'посещено ' + a.agent().visitedToday + ' из ' + a.agent().planToday}"><i th:style="${'width:' + (a.agent().planToday == 0 ? 0 : a.agent().visitedToday * 100 / a.agent().planToday) + '%'}"></i></span></td>
+                    <td class="num" th:text="${a.agent().visitedToday}"></td>
                     <td class="r num" th:text="${a.orders()}"></td>
                     <td class="r num"><b th:text="${@fmt.money(a.sum())}"></b></td>
                     <td class="r num hide-m" th:text="${a.refusals()}"></td>

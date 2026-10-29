@@ -8,7 +8,7 @@ import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.NotFoundException;
 import com.confectionery.distribution.service.OutletForm;
 import com.confectionery.distribution.service.OutletService;
-import com.confectionery.distribution.service.RouteService;
+import com.confectionery.distribution.service.RegionService;
 import com.confectionery.distribution.service.SettingsService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +37,8 @@ public class AdminOutletController {
 
     private final AdminContext ctx;
     private final OutletService outlets;
-    private final RouteService routes;
+    private final RegionService regions;
+    private final com.confectionery.distribution.service.StaffService staff;
     private final SettingsService settings;
     private final PriceTypeRepository priceTypes;
     private final Fmt fmt;
@@ -64,7 +65,7 @@ public class AdminOutletController {
         model.addAttribute("total", all.size());
         model.addAttribute("statuses", OutletStatus.values());
         model.addAttribute("status", status);
-        model.addAttribute("regions", routes.regions());
+        model.addAttribute("regions", regions.regions());
         model.addAttribute("region", region);
         model.addAttribute("q", q);
         return "admin/outlets/list";
@@ -123,11 +124,13 @@ public class AdminOutletController {
         }
     }
 
-    /** Форма магазина: маршруты и типы цен — только компании этого магазина. */
+    /** Форма магазина: торговые, районы и типы цен — только компании этого магазина. */
     private String form(Model model, OutletForm f, Long companyId, String sub) {
         AdminPage.head(model, "outlets", f.getId() == null ? "Новый магазин" : "Изменить магазин", sub);
         model.addAttribute("f", f);
-        model.addAttribute("routes", routes.routes().stream().filter(r -> r.getCompanyId().equals(companyId)).toList());
+        model.addAttribute("agents", staff.employees(companyId).stream()
+                .filter(e -> e.getRole() == com.confectionery.distribution.domain.Role.AGENT && e.isActive()).toList());
+        model.addAttribute("regions", regions.regions().stream().filter(r -> r.getCompanyId().equals(companyId)).toList());
         model.addAttribute("priceTypes", priceTypes.findByCompanyIdOrderByIdAsc(companyId));
         return "admin/outlets/form";
     }

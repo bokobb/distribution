@@ -62,7 +62,8 @@ class AgentDataTest {
                 .andExpect(jsonPath("$.settings.workStart").value("08:00"))
                 .andExpect(jsonPath("$.settings.workEnd").value("20:00"))
                 .andExpect(jsonPath("$.routes", hasSize(1)))
-                .andExpect(jsonPath("$.routes[0].name").value(w.route().getName()))
+                .andExpect(jsonPath("$.routes[0].id").value(0)) // маршрутов нет: для старых версий — «Мои магазины»
+                .andExpect(jsonPath("$.routes[0].name").value("Мои магазины"))
                 .andExpect(jsonPath("$.routes[0].days", contains(1, 2, 3, 4, 5, 6, 7)))
                 .andExpect(jsonPath("$.routes[0].outlets", contains(w.outlet().getId().intValue())))
                 .andExpect(jsonPath("$.outlets", hasSize(1)))
@@ -75,7 +76,7 @@ class AgentDataTest {
                 .andExpect(jsonPath("$.products[0].retail").value(600));
 
         jdbc.update("update outlets set status = 'CLOSED' where id = ?", w.outlet().getId());
-        agentData(w.agent()).andExpect(jsonPath("$.routes[0].outlets", hasSize(0))).andExpect(jsonPath("$.outlets", hasSize(0)));
+        agentData(w.agent()).andExpect(jsonPath("$.routes", hasSize(0))).andExpect(jsonPath("$.outlets", hasSize(0)));
         agentData(other.agent()).andExpect(jsonPath("$.outlets[0].name").value(other.outlet().getName()))
                 .andExpect(jsonPath("$.outlets", hasSize(1)));
         agentData(w.agent()).andExpect(jsonPath("$.outlets[?(@.id == " + foreign.getId() + ")]", hasSize(0)));
@@ -90,8 +91,8 @@ class AgentDataTest {
         Outlet near = data.outletInNewRegion(w, data.person(w, "Сосед", Role.AGENT));
         data.place(near, 42.32, 69.62);
         Outlet noPoint = data.outletInNewRegion(w, data.person(w, "Без точки", Role.AGENT));
-        String region = jdbc.queryForObject("select g.name from regions g join routes r on r.region_id = g.id "
-                + "join route_outlets ro on ro.route_id = r.id where ro.outlet_id = ?", String.class, near.getId());
+        String region = jdbc.queryForObject("select g.name from regions g join outlets o on o.region_id = g.id where o.id = ?",
+                String.class, near.getId());
 
         String nearAt = "$.others[?(@.id == " + near.getId() + ")]";
         // заказ принимают в любом магазине компании: у чужих — прайс и владелец, без долгов и телефонов

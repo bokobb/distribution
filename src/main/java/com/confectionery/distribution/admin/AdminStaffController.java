@@ -6,7 +6,6 @@ import com.confectionery.distribution.domain.Vehicle;
 import com.confectionery.distribution.service.EmployeeForm;
 import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.IssuedPassword;
-import com.confectionery.distribution.service.RouteService;
 import com.confectionery.distribution.service.StaffService;
 import com.confectionery.distribution.service.VehicleForm;
 import jakarta.servlet.http.HttpSession;
@@ -30,7 +29,6 @@ public class AdminStaffController {
 
     private final AdminContext ctx;
     private final StaffService staff;
-    private final RouteService routes;
 
     @GetMapping("/admin/staff")
     public String staff(@RequestParam(defaultValue = "people") String tab, Model model, HttpSession session) {
@@ -44,7 +42,7 @@ public class AdminStaffController {
         model.addAttribute("vehicles", staff.vehicles(v.companyId()));
         model.addAttribute("agents", people.stream().filter(e -> e.getRole() == Role.AGENT).count());
         model.addAttribute("expeditors", people.stream().filter(e -> e.getRole() == Role.EXPEDITOR).count());
-        model.addAttribute("routes", routes.routes());
+        model.addAttribute("outletsOf", staff.outletCounts());
         return "admin/staff/list";
     }
 

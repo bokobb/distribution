@@ -15,7 +15,8 @@ public class OutletForm {
     private String owner;
     private String phone;
     private String address;
-    private Long routeId;
+    private Long agentId;
+    private Long regionId;
     private Long priceTypeId;
     private String creditLimit;
     private String paymentDays;
@@ -31,7 +32,8 @@ public class OutletForm {
         f.owner = o.getOwner();
         f.phone = o.getPhone();
         f.address = o.getAddress();
-        f.routeId = o.getRoute() == null ? null : o.getRoute().getId();
+        f.agentId = o.getAgent() == null ? null : o.getAgent().getId();
+        f.regionId = o.getRegion() == null ? null : o.getRegion().getId();
         f.priceTypeId = o.getPriceType() == null ? null : o.getPriceType().getId();
         f.creditLimit = String.valueOf(o.getCreditLimit());
         f.paymentDays = String.valueOf(o.getPaymentDays());

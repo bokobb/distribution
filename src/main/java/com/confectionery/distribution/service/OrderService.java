@@ -35,11 +35,11 @@ public class OrderService {
         return o;
     }
 
-    /** Лист сборки: всё принятое на завтра и ещё не загруженное, по маршрутам. */
+    /** Лист сборки: всё принятое на завтра и ещё не загруженное, по районам. */
     public List<Order> toPick() {
         return orders.findByDeliveryDateAfter(LocalDate.now(clock)).stream()
                 .filter(o -> o.getStatus() == OrderStatus.ACCEPTED || o.getStatus() == OrderStatus.ASSEMBLED)
-                .sorted(Comparator.comparing((Order o) -> o.getOutlet().getRoute() == null ? "" : o.getOutlet().getRoute().getName())
+                .sorted(Comparator.comparing((Order o) -> o.getOutlet().getRegion() == null ? "" : o.getOutlet().getRegion().getName())
                         .thenComparing(o -> o.getOutlet().getName()))
                 .toList();
     }
@@ -79,12 +79,12 @@ public class OrderService {
                 }).toList();
     }
 
-    /** Заказы для накладных: только видимые (своей компании), по рейсам, маршрутам и магазинам. */
+    /** Заказы для накладных: только видимые (своей компании), по рейсам, районам и магазинам. */
     public List<Order> forInvoices(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
         return orders.findAllById(ids).stream()
                 .sorted(Comparator.comparing((Order o) -> o.getTrip() == null ? "" : o.getTrip().getNumber())
-                        .thenComparing(o -> o.getOutlet().getRoute() == null ? "" : o.getOutlet().getRoute().getName())
+                        .thenComparing(o -> o.getOutlet().getRegion() == null ? "" : o.getOutlet().getRegion().getName())
                         .thenComparing(o -> o.getOutlet().getName()))
                 .toList();
     }

@@ -33,8 +33,6 @@ public class TestData {
     private final CompanyRepository companies;
     private final EmployeeRepository employees;
     private final RegionRepository regions;
-    private final RouteRepository routes;
-    private final RouteOutletRepository routeOutlets;
     private final PriceTypeRepository priceTypes;
     private final OutletRepository outlets;
     private final OutletOpeningDebtRepository openingDebts;
@@ -56,7 +54,7 @@ public class TestData {
     private final JwtService jwt;
 
     /** Компания с одним магазином, товаром, агентом, экспедитором с машиной и оператором. */
-    public record World(Company company, Employee operator, Employee agent, Employee expeditor, Route route,
+    public record World(Company company, Employee operator, Employee agent, Employee expeditor, Region region,
                         PriceType wholesale, Product product, Outlet outlet, Vehicle vehicle,
                         Warehouse main, Warehouse defect, Warehouse car) {
         public Long id() {
@@ -86,12 +84,10 @@ public class TestData {
             Vehicle v = save(vehicles, new Vehicle().setPlate("T " + n).setModel("Kia Bongo").setExpeditor(expeditor), c);
             Warehouse car = save(warehouses, new Warehouse().setType(WarehouseType.VEHICLE).setName("Машина").setVehicle(v), c);
             Region region = save(regions, new Region().setName("Регион " + n), c);
-            Route route = save(routes, new Route().setRegion(region).setName("Маршрут " + n).setAgent(agent).setDaysMask(127), c);
             Product p = save(products, new Product().setName("Печенье " + n).setCategory("Печенье").setPerBox(10), c);
             Outlet o = save(outlets, new Outlet().setName("Магазин " + n).setPriceType(wholesale).setCreditLimit(100_000)
-                    .setPaymentDays(7).setCreatedAt(today()), c);
-            save(routeOutlets, new RouteOutlet().setRoute(route).setOutlet(o).setPosition(0), c);
-            return new World(c, operator, agent, expeditor, route, wholesale, p, o, v, main, defect, car);
+                    .setPaymentDays(7).setCreatedAt(today()).setAgent(agent).setRegion(region), c);
+            return new World(c, operator, agent, expeditor, region, wholesale, p, o, v, main, defect, car);
         });
     }
 
@@ -146,16 +142,13 @@ public class TestData {
         root(() -> save(openingDebts, new OutletOpeningDebt().setOutlet(w.outlet()).setAmount(amount).setAsOf(asOf), w.company()));
     }
 
-    /** Ещё один магазин компании — на новом маршруте агента agent в новом регионе (филиале). */
+    /** Ещё один магазин компании — закреплён за агентом agent, в новом районе (филиале). */
     public Outlet outletInNewRegion(World w, Employee agent) {
         return root(() -> {
             long n = SEQ.getAndIncrement();
             Region region = save(regions, new Region().setName("Регион " + n), w.company());
-            Route route = save(routes, new Route().setRegion(region).setName("Маршрут " + n).setAgent(agent).setDaysMask(127), w.company());
-            Outlet o = save(outlets, new Outlet().setName("Магазин " + n).setPriceType(w.wholesale()).setCreditLimit(100_000)
-                    .setPaymentDays(7).setCreatedAt(today()), w.company());
-            save(routeOutlets, new RouteOutlet().setRoute(route).setOutlet(o).setPosition(0), w.company());
-            return o;
+            return save(outlets, new Outlet().setName("Магазин " + n).setPriceType(w.wholesale()).setCreditLimit(100_000)
+                    .setPaymentDays(7).setCreatedAt(today()).setAgent(agent).setRegion(region), w.company());
         });
     }
 
@@ -243,7 +236,7 @@ public class TestData {
 
     /** Визит агента компании в магазин; lat/lng — где был телефон (null — не отметился). */
     public Visit visit(World w, Outlet outlet, LocalDateTime at, VisitResult result, Double lat, Double lng) {
-        return root(() -> save(visits, new Visit().setAgent(w.agent()).setOutlet(outlet).setRoute(w.route()).setStartedAt(at)
+        return root(() -> save(visits, new Visit().setAgent(w.agent()).setOutlet(outlet).setStartedAt(at)
                 .setFinishedAt(at.plusMinutes(5)).setResult(result).setLat(lat).setLng(lng), w.company()));
     }
 

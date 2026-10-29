@@ -9,7 +9,7 @@ import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.MapService;
 import com.confectionery.distribution.service.OrderSearch;
 import com.confectionery.distribution.service.OrderService;
-import com.confectionery.distribution.service.RouteService;
+import com.confectionery.distribution.service.RegionService;
 import com.confectionery.distribution.service.StaffService;
 import com.confectionery.distribution.service.TripService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +39,7 @@ public class AdminOrderController {
     private final StaffService staff;
     private final TripService trips;
     private final MapService map;
-    private final RouteService routes;
+    private final RegionService regions;
     private final Fmt fmt;
     private final Clock clock;
 
@@ -72,7 +72,7 @@ public class AdminOrderController {
                 : today.equals(f.from()) && today.equals(f.to()) ? "today"
                 : today.plusDays(1).equals(f.from()) && f.to() == null ? "tomorrow" : "");
         model.addAttribute("agents", options(staff.staff(v.companyId(), Role.AGENT), f.agents(), v));
-        model.addAttribute("regions", routes.regions().stream()
+        model.addAttribute("regions", regions.regions().stream()
                 .filter(r -> v.companyId() == null || v.companyId().equals(r.getCompanyId()))
                 .map(r -> new Option(r.getId(), label(r.getName(), r.getCompany(), v), f.regions().contains(r.getId()))).toList());
         model.addAttribute("expeditors", options(staff.staff(v.companyId(), Role.EXPEDITOR),

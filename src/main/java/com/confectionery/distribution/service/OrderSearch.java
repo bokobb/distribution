@@ -111,8 +111,8 @@ public class OrderSearch {
             params.put("agents", f.agents());
         }
         if (!f.regions().isEmpty()) {
-            // филиал = регион маршрута, на котором стоит магазин
-            w.add("exists (select 1 from RouteOutlet ro where ro.outlet = ot and ro.route.region.id in :regions)");
+            // филиал = район магазина
+            w.add("ot.region.id in :regions");
             params.put("regions", f.regions());
         }
         if (f.expeditor() != null && f.expeditor() == NO_EXPEDITOR) {

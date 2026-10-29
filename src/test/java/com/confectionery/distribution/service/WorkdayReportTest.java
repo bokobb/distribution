@@ -74,7 +74,7 @@ class WorkdayReportTest {
         assertThat(agent.hours()).isEqualTo("8 ч 30 мин");
         assertThat(agent.gpsOn()).isTrue();
         assertThat(agent.km()).isGreaterThan(1);
-        assertThat(agent.work()).isEqualTo("визитов 1 из 1 · с заказом 1");
+        assertThat(agent.work()).isEqualTo("визитов 1 · с заказом 1");
         assertThat(agent.gaps()).singleElement().satisfies(g -> {
             assertThat(g.from()).isEqualTo("11:55");
             assertThat(g.to()).isEqualTo("12:45");

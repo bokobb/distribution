@@ -27,7 +27,6 @@ public class DashboardService {
     private final ReceiptRepository receipts;
     private final VisitRepository visits;
     private final StaffService staff;
-    private final RouteService routes;
     private final SettingsService settings;
     private final Clock clock;
 
@@ -52,7 +51,7 @@ public class DashboardService {
     public record Alert(String tone, String text, String value, String href) {
     }
 
-    public record CompanyRow(Company company, Summary summary, int agents, int expeditors, int outlets, int routes) {
+    public record CompanyRow(Company company, Summary summary, int agents, int expeditors, int outlets) {
     }
 
     /** Возвраты негодного по товарам (для отчёта о качестве). */
@@ -93,7 +92,6 @@ public class DashboardService {
         private final List<Visit> visitsToday = visits.findByStartedAtGreaterThanEqualAndStartedAtLessThan(
                 today.atStartOfDay(), today.plusDays(1).atStartOfDay());
         private final List<Employee> people = staff.employees(null);
-        private final List<Route> routeList = routes.routes();
 
         private <T extends CompanyEntity> List<T> of(List<T> list, Long cid) {
             return cid == null ? list : list.stream().filter(x -> cid.equals(x.getCompanyId())).toList();
@@ -120,16 +118,13 @@ public class DashboardService {
                     (int) ol.stream().filter(o -> o.getStatus() == OutletStatus.PENDING).count());
         }
 
-        /** Агенты: заказы сегодня (доставка завтра), посещения по маршрутам дня, отказы — визиты без заказа. */
+        /** Агенты: заказы сегодня (доставка завтра), визиты, отказы — визиты без заказа. */
         public List<AgentRow> agents(Long cid) {
-            DayOfWeek dow = today.getDayOfWeek();
             List<AgentRow> out = new ArrayList<>();
             for (Employee a : of(people, cid)) {
                 if (a.getRole() != Role.AGENT) continue;
-                int plan = routeList.stream().filter(r -> a.equals(r.getAgent()) && r.visitsOn(dow))
-                        .mapToInt(r -> r.getStops().size()).sum();
                 List<Visit> vs = visitsToday.stream().filter(v -> a.equals(v.getAgent())).toList();
-                a.setPlanToday(plan).setVisitedToday(vs.size());
+                a.setVisitedToday(vs.size());
                 List<Order> taken = createdToday.stream().filter(o -> a.equals(o.getAgent())).toList();
                 int refusals = (int) vs.stream().filter(v -> v.getResult() == VisitResult.NO_ORDER).count();
                 out.add(new AgentRow(a, taken.size(), taken.stream().mapToLong(Order::getTotal).sum(), refusals));
@@ -167,11 +162,10 @@ public class DashboardService {
 
         public List<CompanyRow> companyRows() {
             Map<Long, Long> outletsBy = outletList.stream().collect(Collectors.groupingBy(Outlet::getCompanyId, Collectors.counting()));
-            Map<Long, Long> routesBy = routeList.stream().collect(Collectors.groupingBy(Route::getCompanyId, Collectors.counting()));
             return companies.all().stream().map(c -> new CompanyRow(c, summary(c.getId()),
                     (int) people.stream().filter(e -> c.getId().equals(e.getCompanyId()) && e.getRole() == Role.AGENT).count(),
                     (int) people.stream().filter(e -> c.getId().equals(e.getCompanyId()) && e.getRole() == Role.EXPEDITOR).count(),
-                    outletsBy.getOrDefault(c.getId(), 0L).intValue(), routesBy.getOrDefault(c.getId(), 0L).intValue())).toList();
+                    outletsBy.getOrDefault(c.getId(), 0L).intValue())).toList();
         }
 
         public List<QualityRow> quality(Long cid) {

@@ -50,9 +50,9 @@ class VisitApiTest {
 
     private static String visit(UUID uuid, World w, LocalDateTime at, String result, String reason) {
         return """
-                {"uuid": "%s", "outletId": %d, "routeId": %d, "startedAt": "%s", "finishedAt": "%s",
+                {"uuid": "%s", "outletId": %d, "routeId": 0, "startedAt": "%s", "finishedAt": "%s",
                  "lat": 42.3010, "lng": 69.6000, "result": "%s", "refuseReason": %s}"""
-                .formatted(uuid, w.outlet().getId(), w.route().getId(), at, at.plusMinutes(7), result,
+                .formatted(uuid, w.outlet().getId(), at, at.plusMinutes(7), result,
                         reason == null ? "null" : '"' + reason + '"');
     }
 

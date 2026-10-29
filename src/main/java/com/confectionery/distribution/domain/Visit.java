@@ -26,8 +26,6 @@ public class Visit extends CompanyEntity {
     private Employee agent;
     @ManyToOne(fetch = FetchType.LAZY)
     private Outlet outlet;
-    @ManyToOne(fetch = FetchType.LAZY)
-    private Route route;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;
     private Double lat;

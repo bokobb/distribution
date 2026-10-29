@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,8 +24,7 @@ public class OutletService {
     private final PaymentRepository payments;
     private final ProductReturnRepository returns;
     private final DebtService debts;
-    private final RouteRepository routes;
-    private final RouteOutletRepository routeOutlets;
+    private final RegionRepository regions;
     private final PriceTypeRepository priceTypes;
     private final CompanyRepository companies;
     private final EmployeeRepository employees;
@@ -34,7 +34,8 @@ public class OutletService {
 
     /**
      * Новый магазин с телефона агента; lat/lng — где агент его отметил (по GPS или вручную на карте). Тип цен агент
-     * не выбирает — его ставит оператор; priceKind от старых версий приложения не читается.
+     * не выбирает — его ставит оператор; priceKind от старых версий приложения не читается. routeId от старых версий
+     * приложения не читается: магазин закрепляется за тем, кто его добавил.
      */
     public record AgentOutletIn(UUID uuid, Long routeId, String name, String legal, String bin, String owner,
                                 String phone, String phone2, String address, String landmark, Double lat, Double lng) {
@@ -97,24 +98,23 @@ public class OutletService {
         if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) lat = lng = null;
         PriceType priceType = priceTypes.findByCompanyIdAndCode(agent.getCompanyId(), PriceKind.WHOLESALE)
                 .orElseThrow(() -> new FormException("В компании нет оптовых цен — обратитесь к оператору"));
-        List<Route> mine = routes.findAllByOrderByNameAsc().stream()
-                .filter(r -> r.isActive() && r.getAgent() != null && r.getAgent().getId().equals(agent.getId())).toList();
-        Route route = mine.stream().filter(r -> r.getId().equals(in.routeId())).findFirst()
-                .orElse(mine.isEmpty() ? null : mine.get(0));
-        if (route == null) throw new FormException("У вас нет маршрута — магазин добавит оператор");
+        // район — тот, где у торгового больше всего магазинов
+        Region region = outlets.findAllByOrderByNameAsc().stream()
+                .filter(x -> x.getRegion() != null && x.getAgent() != null && x.getAgent().getId().equals(agent.getId()))
+                .collect(java.util.stream.Collectors.groupingBy(Outlet::getRegion, java.util.stream.Collectors.counting()))
+                .entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
 
         Outlet o = new Outlet().setUuid(in.uuid()).setStatus(OutletStatus.PENDING).setCreatedAt(LocalDate.now(clock))
                 .setCreatedBy(agent.getName()).setName(name).setLegal(Forms.text(in.legal(), "ИП / ТОО", 200)).setBin(bin)
                 .setOwner(Forms.text(in.owner(), "Владелец", 200)).setPhone(phone).setPhone2(phone2).setAddress(address)
                 .setLandmark(landmark).setLat(lat).setLng(lng).setPriceType(priceType)
-                .setCreditLimit(settings.of(agent.getCompanyId()).getDefaultCreditLimit()).setPaymentDays(0);
+                .setCreditLimit(settings.of(agent.getCompanyId()).getDefaultCreditLimit()).setPaymentDays(0)
+                .setAgent(agent).setRegion(region);
         o.setCompany(agent.getCompany());
-        o = outlets.save(o);
-        placeOnRoute(o, route);
-        return o;
+        return outlets.save(o);
     }
 
-    /** Фото фасада к магазину на маршруте агента; повтор заменяет файл. */
+    /** Фото фасада к магазину агента; повтор заменяет файл. */
     @Transactional
     public void facadeByAgent(Long agentId, UUID uuid, byte[] jpeg) {
         Outlet o = outlets.findByUuid(uuid).filter(x -> x.getAgent() != null && x.getAgent().getId().equals(agentId))
@@ -136,7 +136,7 @@ public class OutletService {
     /**
      * Сохранить магазин из формы. Новый — в компанию companyId (у владельца в «Все компании» её нет —
      * тогда ошибка), сразу работает. Поля, которых нет в форме (второй телефон, ориентир, фото), не
-     * трогаются. Маршрут и тип цен — только своей компании.
+     * трогаются. Торговый, район и тип цен — только своей компании.
      */
     @Transactional
     public Outlet save(OutletForm f, Long companyId, String who) {
@@ -164,33 +164,36 @@ public class OutletService {
         PriceType priceType = f.getPriceTypeId() == null ? null : priceTypes.findById(f.getPriceTypeId())
                 .filter(t -> cid.equals(t.getCompanyId())).orElse(null);
         if (priceType == null) throw new FormException("Выберите тип цен");
-        Route route = f.getRouteId() == null ? null : routes.findById(f.getRouteId())
-                .filter(r -> cid.equals(r.getCompanyId())).orElseThrow(() -> new FormException("Маршрут не найден"));
+        Employee agent = f.getAgentId() == null ? null : employees.findById(f.getAgentId())
+                .filter(e -> cid.equals(e.getCompanyId()) && e.getRole() == Role.AGENT)
+                .orElseThrow(() -> new FormException("Торговый не найден"));
+        Region region = f.getRegionId() == null ? null : regions.findById(f.getRegionId())
+                .filter(r -> cid.equals(r.getCompanyId())).orElseThrow(() -> new FormException("Район не найден"));
 
         if (o == null) {
             o = new Outlet().setStatus(OutletStatus.ACTIVE).setCreatedAt(LocalDate.now(clock)).setCreatedBy(who);
             o.setCompany(companies.getReferenceById(cid));
         }
         o.setName(name).setLegal(legal).setBin(bin).setOwner(owner).setPhone(phone).setAddress(address)
-                .setCreditLimit(limit).setPaymentDays(days).setLat(lat).setLng(lng).setPriceType(priceType);
-        o = outlets.save(o);
-        placeOnRoute(o, route);
-        return o;
+                .setCreditLimit(limit).setPaymentDays(days).setLat(lat).setLng(lng).setPriceType(priceType)
+                .setAgent(agent).setRegion(region);
+        return outlets.save(o);
     }
 
-    /** Магазин — в конец обхода нового маршрута; null — снять с маршрута. Тот же маршрут — порядок не меняется. */
-    private void placeOnRoute(Outlet o, Route route) {
-        RouteOutlet link = routeOutlets.findByOutlet(o).orElse(null);
-        if (route == null) {
-            if (link != null) routeOutlets.delete(link);
-            return;
+    /**
+     * Закрепить магазины за торговым (agentId = null — снять торгового). Только магазины и торговый одной компании;
+     * чужие id пропускаются. Возвращает, сколько закреплено.
+     */
+    @Transactional
+    public int assign(List<Long> outletIds, Long agentId) {
+        Employee agent = agentId == null ? null : employees.findById(agentId).filter(e -> e.getRole() == Role.AGENT)
+                .orElseThrow(() -> new FormException("Торговый не найден"));
+        int n = 0;
+        for (Outlet o : outlets.findAllById(outletIds)) {
+            if (agent != null && !agent.getCompanyId().equals(o.getCompanyId())) continue;
+            o.setAgent(agent);
+            n++;
         }
-        if (link != null && link.getRoute().getId().equals(route.getId())) return;
-        int position = routeOutlets.maxPosition(route) + 1;
-        if (link == null) {
-            link = new RouteOutlet().setOutlet(o);
-            link.setCompany(o.getCompany());
-        }
-        routeOutlets.save(link.setRoute(route).setPosition(position));
+        return n;
     }
 }

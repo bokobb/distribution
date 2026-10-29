@@ -22,11 +22,11 @@
         <p class="empty" th:if="${rows.isEmpty()}">Нечего собирать.</p>
     </section>
     <section class="card">
-        <div class="card-h"><h2>По магазинам</h2><p>в порядке маршрутов</p></div>
+        <div class="card-h"><h2>По магазинам</h2><p>по районам</p></div>
         <div class="tbl-w"><table class="tbl">
-            <thead><tr><th>Маршрут</th><th>Магазин</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead>
+            <thead><tr><th>Район</th><th>Магазин</th><th class="r">Шт</th><th class="r">Сумма</th></tr></thead>
             <tbody><tr th:each="o : ${orders}">
-                <td class="muted" th:text="${o.outlet.route?.name}"></td>
+                <td class="muted" th:text="${o.outlet.region?.name}"></td>
                 <td><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${o.outlet.name}"></a></td>
                 <td class="r num" th:text="${o.qty}"></td>
                 <td class="r num" th:text="${@fmt.money(o.total)}"></td>

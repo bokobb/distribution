@@ -9,7 +9,7 @@
     <a class="btn btn-soft btn-sm" th:href="${'/admin/outlets/' + o.id + '/edit'}"><th:block th:utext="${i16['edit']}"></th:block>Изменить</a>
 </div>
 
-<p class="note" th:if="${o.status.name() == 'PENDING'}" th:text="${'Новый магазин добавил агент ' + o.createdBy + ' ' + @fmt.day(o.createdAt) + '. Проверьте название, телефон и адрес — после этого он появится в маршрутах и отчётах.'}"></p>
+<p class="note" th:if="${o.status.name() == 'PENDING'}" th:text="${'Новый магазин добавил агент ' + o.createdBy + ' ' + @fmt.day(o.createdAt) + '. Проверьте название, телефон и адрес — после этого он появится в отчётах, а первый заказ можно будет взять в долг.'}"></p>
 
 <div class="grid-wide">
     <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
@@ -24,7 +24,8 @@
                 <dt>Адрес</dt><dd th:text="${o.address}"></dd>
                 <dt th:if="${o.landmark != null}">Ориентир</dt><dd th:if="${o.landmark != null}" th:text="${o.landmark}"></dd>
                 <dt th:if="${o.facadePhoto != null}">Фасад</dt><dd th:if="${o.facadePhoto != null}"><a class="link" th:href="${'/admin/outlets/' + o.id + '/photo'}" target="_blank" rel="noopener">Фото фасада</a></dd>
-                <dt>Регион, маршрут</dt><dd th:text="${o.route == null ? 'без маршрута' : o.region.name + ' · ' + o.route.name + ' (' + o.route.days + ')'}"></dd>
+                <dt>Район</dt><dd th:text="${o.region?.name ?: '—'}"></dd>
+                <dt>Торговый</dt><dd th:text="${o.agent == null ? 'не закреплён' : o.agent.name + ' · закреплён'}"></dd>
                 <dt>Агент</dt><dd th:text="${o.agent?.name ?: '—'}"></dd>
                 <dt>Тип цен</dt><dd th:text="${o.priceType}"></dd>
                 <dt>В базе с</dt><dd th:text="${@fmt.date(o.createdAt) + ' · ' + o.createdBy}"></dd>

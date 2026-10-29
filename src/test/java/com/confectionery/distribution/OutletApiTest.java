@@ -42,14 +42,14 @@ class OutletApiTest {
 
     private static String outlet(UUID uuid, World w, String phone, String address, String landmark) {
         return """
-                {"uuid": "%s", "routeId": %d, "name": "Магазин «Новый»", "owner": "Айгерим", "phone": "%s",
+                {"uuid": "%s", "routeId": 0, "name": "Магазин «Новый»", "owner": "Айгерим", "phone": "%s",
                  "address": %s, "landmark": %s, "lat": 42.35, "lng": 69.61, "priceKind": "RETAIL"}"""
-                .formatted(uuid, w.route().getId(), phone, address == null ? "null" : '"' + address + '"',
+                .formatted(uuid, phone, address == null ? "null" : '"' + address + '"',
                         landmark == null ? "null" : '"' + landmark + '"');
     }
 
     @Test
-    void наПроверке_вКонцеМаршрута_повторБезДубля() throws Exception {
+    void наПроверке_закреплёнЗаАгентом_повторБезДубля() throws Exception {
         World w = data.world("Новый магазин");
         String jwt = data.jwt(w.agent());
         UUID uuid = UUID.randomUUID();
@@ -65,11 +65,10 @@ class OutletApiTest {
                 .andExpect(jsonPath("$.landmark").value("у мечети, зелёные ворота"));
         send(jwt, outlet(uuid, w, "87011234567", null, "у мечети")).andExpect(status().isOk());
 
-        Map<String, Object> row = jdbc.queryForMap("select o.id, o.created_by, ro.route_id, ro.position from outlets o "
-                + "join route_outlets ro on ro.outlet_id = o.id where o.uuid = ?", uuid);
+        Map<String, Object> row = jdbc.queryForMap("select o.id, o.created_by, o.agent_id, o.region_id from outlets o where o.uuid = ?", uuid);
         assertThat(row.get("created_by")).isEqualTo(w.agent().getName());
-        assertThat(row.get("route_id")).isEqualTo(w.route().getId());
-        assertThat(row.get("position")).isEqualTo(1); // после магазина мира на позиции 0
+        assertThat(row.get("agent_id")).isEqualTo(w.agent().getId());
+        assertThat(row.get("region_id")).isEqualTo(w.region().getId()); // район, где у агента больше всего магазинов
         assertThat(jdbc.queryForObject("select count(*) from outlets where uuid = ?", Integer.class, uuid)).isEqualTo(1);
 
         mvc.perform(get("/api/mobile/agent/data").header("Authorization", "Bearer " + jwt))

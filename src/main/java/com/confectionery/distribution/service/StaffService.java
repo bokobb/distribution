@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -26,7 +27,7 @@ public class StaffService {
 
     private final EmployeeRepository employees;
     private final VehicleRepository vehicles;
-    private final RouteRepository routes;
+    private final OutletRepository outlets;
     private final WarehouseRepository warehouses;
     private final CompanyRepository companies;
     private final PasswordEncoder encoder;
@@ -92,6 +93,13 @@ public class StaffService {
     }
 
     /** Изменить ФИО, роль, телефон, логин. Свою роль не поменять — чтобы не закрыть себе вход. */
+    /** Сколько магазинов закреплено за каждым торговым: id торгового → магазинов (без закрытых). */
+    public Map<Long, Long> outletCounts() {
+        return outlets.findAllByOrderByNameAsc().stream()
+                .filter(o -> o.getAgent() != null && o.getStatus() != OutletStatus.CLOSED)
+                .collect(java.util.stream.Collectors.groupingBy(o -> o.getAgent().getId(), java.util.stream.Collectors.counting()));
+    }
+
     @Transactional
     public Employee update(EmployeeForm f, Long meId) {
         Employee e = get(f.getId());
@@ -100,9 +108,9 @@ public class StaffService {
         if (e.getRole() != f.getRole()) {
             if (e.getId().equals(meId)) throw new FormException("Свою роль поменять нельзя — попросите другого директора или владельца");
             if (e.getRole() == Role.AGENT) {
-                List<String> own = routes.findAllByOrderByNameAsc().stream()
-                        .filter(r -> r.getAgent() != null && r.getAgent().getId().equals(e.getId())).map(Route::getName).toList();
-                if (!own.isEmpty()) throw new FormException("У агента маршруты: " + String.join(", ", own) + ". Сначала передайте их другому агенту");
+                long own = outlets.findAllByOrderByNameAsc().stream()
+                        .filter(o -> o.getAgent() != null && o.getAgent().getId().equals(e.getId())).count();
+                if (own > 0) throw new FormException("За торговым закреплено магазинов: " + own + ". Сначала закрепите их за другим торговым");
             }
             if (e.getRole() == Role.EXPEDITOR && e.getVehicle() != null)
                 throw new FormException("За экспедитором машина " + e.getVehicle().getPlate() + ". Сначала открепите её");
