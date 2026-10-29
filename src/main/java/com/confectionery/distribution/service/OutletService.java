@@ -67,13 +67,6 @@ public class OutletService {
         return returns.findByOutletOrderByDateDesc(o);
     }
 
-    /** Новый магазин от агента проверен — работает. */
-    @Transactional
-    public Outlet approve(Long id) {
-        Outlet o = outlets.findById(id).orElseThrow(NotFoundException::new);
-        if (o.getStatus() == OutletStatus.PENDING) o.setStatus(OutletStatus.ACTIVE);
-        return o;
-    }
 
     /**
      * Магазин от агента с телефона: «на проверке» у оператора (до проверки агент уже может в нём работать),

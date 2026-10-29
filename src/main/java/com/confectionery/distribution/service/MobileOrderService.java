@@ -197,7 +197,7 @@ public class MobileOrderService {
     private void terms(Order o, String payment, LocalDate deliveryDate, String comment, CompanySettings st,
                        LocalDate notBefore) {
         PaymentMethod p = payment(payment, st);
-        if (p == PaymentMethod.CREDIT && o.getOutlet().getStatus() == OutletStatus.PENDING)
+        if (p == PaymentMethod.CREDIT && o.getOutlet().getStatus() == OutletStatus.PENDING && st.isFirstOrderCash())
             throw new FormException("Магазин ещё на проверке — первый заказ без долга: наличные или Kaspi");
         LocalDate day = o.getCreatedAt().toLocalDate();
         LocalDate delivery = deliveryDate == null ? day.plusDays(st.getDeliveryDays()) : deliveryDate;
@@ -255,11 +255,21 @@ public class MobileOrderService {
         }
     }
 
-    /** В долг сверх лимита магазина — «Нужно разрешение», если так в настройках, иначе только запись в истории. */
+    /**
+     * Магазин закрыт по просрочке — «Нужно разрешение» директора или владельца (любой заказ). В долг сверх лимита
+     * магазина — «Нужно разрешение» оператора, если так в настройках, иначе только запись в истории.
+     */
     private void limit(Order o, CompanySettings st, LocalDateTime now) {
         Outlet outlet = o.getOutlet();
-        if (o.getPayment() != PaymentMethod.CREDIT || outlet.getCreditLimit() <= 0) return;
+        o.setHold(null);
         debts.fill(outlet);
+        if (st.blocks(outlet)) {
+            o.setStatus(OrderStatus.NEEDS_APPROVAL).setHold(ApprovalKind.OVERDUE);
+            o.event(now, null, "Система", "Заказ закрыт: просрочка " + money(outlet.getOverdue()) + ", "
+                    + outlet.getOverdueDays() + " дн. — нужно разрешение (" + st.unblockersText() + ")");
+            return;
+        }
+        if (o.getPayment() != PaymentMethod.CREDIT || outlet.getCreditLimit() <= 0) return;
         long open = open(outlet.getId(), o.getId());
         // возврат экспедитор заберёт при доставке — к долгу добавится заказ минус возврат
         long after = outlet.getDebt() + open + o.getTotal() - o.getReturnTotal();
@@ -269,7 +279,7 @@ public class MobileOrderService {
                 + (o.getReturnTotal() > 0 ? " − возврат " + money(o.getReturnTotal()) : "")
                 + " = " + money(after) + " при лимите " + money(outlet.getCreditLimit());
         if (st.isApprovalOverLimit()) {
-            o.setStatus(OrderStatus.NEEDS_APPROVAL);
+            o.setStatus(OrderStatus.NEEDS_APPROVAL).setHold(ApprovalKind.LIMIT);
             o.event(now, null, "Система", text + " — нужно разрешение");
         } else {
             o.event(now, null, "Система", text + " — сверх лимита");
@@ -363,7 +373,8 @@ public class MobileOrderService {
 
     static OrderOut out(Order o, LocalDateTime deliveredAt) {
         String note = switch (o.getStatus()) {
-            case NEEDS_APPROVAL -> "Долг сверх лимита — ждёт разрешения оператора";
+            case NEEDS_APPROVAL -> o.getHold() == ApprovalKind.OVERDUE ? "Заказ закрыт: просрочка — ждёт разрешения директора"
+                    : "Долг сверх лимита — ждёт разрешения оператора";
             case CANCELLED, REFUSED -> o.getEvents().isEmpty() ? null : o.getEvents().get(o.getEvents().size() - 1).getText();
             default -> null;
         };

@@ -4,6 +4,7 @@ import com.confectionery.distribution.domain.Outlet;
 import com.confectionery.distribution.domain.OutletStatus;
 import com.confectionery.distribution.domain.PriceKind;
 import com.confectionery.distribution.repository.PriceTypeRepository;
+import com.confectionery.distribution.service.ApprovalService;
 import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.NotFoundException;
 import com.confectionery.distribution.service.OutletForm;
@@ -36,6 +37,7 @@ import java.util.stream.Stream;
 public class AdminOutletController {
 
     private final AdminContext ctx;
+    private final ApprovalService approvals;
     private final OutletService outlets;
     private final RegionService regions;
     private final com.confectionery.distribution.service.StaffService staff;
@@ -137,8 +139,12 @@ public class AdminOutletController {
 
     @PostMapping("/admin/outlets/{id}/approve")
     public String approve(@PathVariable Long id, HttpSession session) {
-        Outlet o = outlets.approve(id);
-        ctx.toast(session, o.getName() + " — проверен, работает");
+        Viewer v = ctx.viewer(session);
+        try {
+            ctx.toast(session, approvals.decide("s" + id, "OK", v.actor(), v.role()));
+        } catch (FormException e) {
+            ctx.toast(session, e.getMessage());
+        }
         return "redirect:/admin/outlets/" + id;
     }
 }

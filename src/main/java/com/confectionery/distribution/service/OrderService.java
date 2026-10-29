@@ -89,15 +89,6 @@ public class OrderService {
                 .toList();
     }
 
-    @Transactional
-    public Order approve(Long id, Actor actor) {
-        Order o = orders.findById(id).orElseThrow(NotFoundException::new);
-        if (o.getStatus() == OrderStatus.NEEDS_APPROVAL) {
-            o.setStatus(OrderStatus.ACCEPTED);
-            o.event(LocalDateTime.now(clock), actor.entity(), actor.who(), "Разрешил заказ сверх лимита долга");
-        }
-        return o;
-    }
 
     @Transactional
     public Order cancel(Long id, Actor actor, String reason) {

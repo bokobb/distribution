@@ -61,6 +61,9 @@ public class Outlet extends CompanyEntity {
     private long debt;
     @Transient
     private long overdue;
+    /** Сколько дней просрочена самая старая непогашенная отгрузка; 0 — просрочки нет. */
+    @Transient
+    private int overdueDays;
     @Transient
     private LocalDate lastPaymentDate;
     @Transient

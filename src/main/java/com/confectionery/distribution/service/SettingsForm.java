@@ -19,6 +19,14 @@ public class SettingsForm {
     private String defaultLimit;
     private boolean credit;
     private boolean approval;
+    /** «cash» — магазин на проверке только с оплатой при доставке, «credit» — в долг до лимита сразу. */
+    private String firstOrder = "cash";
+    private boolean overdueBlock;
+    private String overdueDays;
+    private String overdueAmount;
+    private boolean unblockDirector;
+    private boolean unblockOperator;
+    private boolean underpay;
     private boolean discount;
     private String cashTolerance;
     private boolean kaspi;
@@ -37,6 +45,13 @@ public class SettingsForm {
         f.defaultLimit = String.valueOf(st.getDefaultCreditLimit());
         f.credit = st.isAllowCredit();
         f.approval = st.isApprovalOverLimit();
+        f.firstOrder = st.isFirstOrderCash() ? "cash" : "credit";
+        f.overdueBlock = st.isOverdueBlock();
+        f.overdueDays = String.valueOf(st.getOverdueDays());
+        f.overdueAmount = String.valueOf(st.getOverdueAmount());
+        f.unblockDirector = st.isUnblockDirector();
+        f.unblockOperator = st.isUnblockOperator();
+        f.underpay = st.isUnderpayApproval();
         f.discount = st.isAgentDiscount();
         f.cashTolerance = String.valueOf(st.getCashTolerance());
         f.kaspi = st.isAcceptKaspi();

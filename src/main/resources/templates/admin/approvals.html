@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!--/* «Разрешения» (design/admin/AdmApprovals): слева — что ждёт решения, справа — правила компании и что решено
+     сегодня. Заказы ждут по статусу «Нужно разрешение», магазины — «На проверке», недоплата — в журнале решений. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="grid-wide">
+    <div class="stack">
+        <nav class="chips" aria-label="Что показать">
+            <a class="chip" href="/admin/approvals" th:attr="aria-current=${f == 'all'}">Все<span class="cnt" th:text="${p.items().size()}">0</span></a>
+            <a class="chip" href="/admin/approvals?f=money" th:attr="aria-current=${f == 'money'}">Заказы и долги<span class="cnt" th:text="${p.money()}">0</span></a>
+            <a class="chip" href="/admin/approvals?f=shops" th:attr="aria-current=${f == 'shops'}">Новые магазины<span class="cnt" th:text="${p.shops()}">0</span></a>
+        </nav>
+
+        <section class="card"
+                 th:if="${p.items().isEmpty() or (f == 'money' and p.money() == 0) or (f == 'shops' and p.shops() == 0)}">
+            <p class="empty">Решать нечего — всё разрешено.</p>
+        </section>
+
+        <th:block th:each="a : ${p.items()}">
+        <section class="card appr" th:if="${f == 'all' or (f == 'money') == a.kind().money()}">
+            <div class="appr-h">
+                <span class="st" th:classappend="${'st--' + a.kind().tone}" th:text="${a.kind().label}">Сверх лимита</span>
+                <a class="appr-shop" th:href="${'/admin/outlets/' + a.outletId()}" th:text="${T(com.confectionery.distribution.service.ApprovalService).quoted(a.outlet())}">«Магазин»</a>
+                <span class="muted" th:text="${a.address()}"></span>
+                <span class="appr-who" th:text="${@fmt.dot(v.isAll() ? a.company() : null, a.who(), a.kind().name() == 'OUTLET' ? @fmt.day(a.at().toLocalDate()) : @fmt.when(a.at()))}"></span>
+            </div>
+            <p class="appr-what">
+                <a th:if="${a.orderId() != null}" th:href="${'/admin/orders/' + a.orderId()}" th:text="${a.title()}"></a>
+                <th:block th:if="${a.orderId() == null}" th:text="${a.title()}"></th:block>
+            </p>
+            <th:block th:unless="${a.terms().isEmpty()}">
+                <div class="terms">
+                    <div th:each="t : ${a.terms()}"><span th:text="${t.label()}"></span>
+                        <b th:classappend="${t.total() and a.kind().name() != 'OUTLET'} ? 'bad'" th:text="${t.value()}"></b></div>
+                </div>
+                <p class="appr-note" th:if="${a.note() != null}" th:classappend="${a.noteBad()} ? 'bad'" th:text="${a.note()}"></p>
+            </th:block>
+            <p class="appr-facts" th:text="${#strings.listJoin(a.facts(), ' · ')}"></p>
+            <div class="appr-acts">
+                <form th:each="b : ${a.acts()}" th:action="@{/admin/approvals/decide}" method="post">
+                    <input type="hidden" name="key" th:value="${a.key()}"><input type="hidden" name="code" th:value="${b.code()}">
+                    <input type="hidden" name="f" th:value="${f}">
+                    <button class="btn btn-sm" type="submit" th:disabled="${!b.allowed()}"
+                            th:classappend="${b.style() == 'primary' ? 'btn-primary' : (b.style() == 'danger' ? 'btn-danger' : 'btn-line')}"
+                            th:text="${b.label()}">Разрешить</button>
+                </form>
+                <a class="btn btn-line btn-sm" th:if="${a.phone() != null and a.kind().name() == 'OVERDUE'}"
+                   th:href="${'tel:' + a.phone().replace(' ', '')}">Позвонить</a>
+                <a class="btn btn-ghost btn-sm" th:if="${a.facade()}" th:href="${'/admin/outlets/' + a.outletId() + '/photo'}" target="_blank" rel="noopener">Фото фасада</a>
+                <span class="hint" th:if="${a.hint() != null}" th:text="${a.hint()}"></span>
+            </div>
+        </section>
+        </th:block>
+    </div>
+
+    <aside class="stack">
+        <section class="card">
+            <div class="card-h"><div><h2>Правила</h2><p th:text="${v.scopeName()}"></p></div>
+                <a class="link" href="/admin/settings" th:if="${v.can('settings')}">Настройки</a></div>
+            <ul class="rows card-b" style="padding-top:0">
+                <li><span><b>Сверх лимита</b><span class="sub" th:text="${st.approvalOverLimit ? 'долг + не доставлено в долг + этот заказ больше лимита — решают оператор, директор, владелец' : 'выключено: заказ принимается, в истории — пометка'}"></span></span></li>
+                <li><span><b>Заказ закрыт</b><span class="sub" th:text="${st.overdueBlock ? 'просрочка больше ' + st.overdueDays + ' дней или больше ' + @fmt.money(st.overdueAmount) + ' · один заказ открывают: ' + st.unblockersText() : 'выключено: заказы при просрочке принимаются'}"></span></span></li>
+                <li><span><b>Недоплата при выдаче</b><span class="sub" th:text="${st.underpayApproval ? 'если долг станет больше лимита или у магазина нет продажи в долг' : 'выключено: недоплата сразу в долг магазина'}"></span></span></li>
+                <li><span><b>Новый магазин</b><span class="sub" th:text="${st.firstOrderCash ? 'до проверки — только оплата при доставке' : 'в долг до лимита сразу'}"></span></span></li>
+            </ul>
+        </section>
+        <section class="card">
+            <div class="card-h"><div><h2>Решено сегодня</h2></div><b class="num" th:text="${p.today().size()}">0</b></div>
+            <p class="empty" th:if="${p.today().isEmpty()}">Сегодня решений ещё не было.</p>
+            <ul class="rows card-b" style="padding-top:0" th:unless="${p.today().isEmpty()}">
+                <li th:each="d : ${p.today()}">
+                    <span><b th:text="${T(com.confectionery.distribution.service.ApprovalService).quoted(d.outlet())}"></b> <span th:classappend="${d.deny()} ? 'bad' : 'good'" th:text="${'— ' + d.text()}"></span>
+                        <span class="sub" th:text="${@fmt.dot(d.who(), @fmt.time(d.at()))}"></span></span>
+                    <form th:if="${d.undo()}" th:action="@{'/admin/approvals/' + ${d.id()} + '/undo'}" method="post">
+                        <button class="btn btn-ghost btn-sm" type="submit">Вернуть</button></form>
+                </li>
+            </ul>
+        </section>
+    </aside>
+</div>
+</th:block>
+</body>
+</html>

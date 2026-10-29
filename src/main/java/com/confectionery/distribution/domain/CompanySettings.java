@@ -28,6 +28,17 @@ public class CompanySettings extends CompanyEntity {
     private boolean allowCredit = true;
     /** Заказ сверх лимита долга — только с разрешения оператора. */
     private boolean approvalOverLimit = true;
+    /** Магазин на проверке — только оплата при доставке; выключено — в долг до лимита сразу. */
+    private boolean firstOrderCash = true;
+    /** Заказ закрывается сам при просрочке больше overdueDays дней или больше overdueAmount ₸. */
+    private boolean overdueBlock = true;
+    private int overdueDays = 14;
+    private long overdueAmount = 30_000;
+    /** Кто открывает один заказ при просрочке (владелец — всегда). */
+    private boolean unblockDirector = true;
+    private boolean unblockOperator;
+    /** Недоплата при выдаче сверх лимита (или без продажи в долг) — на разрешение. */
+    private boolean underpayApproval = true;
     private boolean agentDiscount;
     /** Допустимая разница при приёме кассы, ₸. */
     private long cashTolerance;
@@ -40,4 +51,23 @@ public class CompanySettings extends CompanyEntity {
     /** Рабочее время: открыл приложение в это время — день начинается сам, в workEnd — заканчивается сам. */
     private LocalTime workStart = LocalTime.of(8, 0);
     private LocalTime workEnd = LocalTime.of(20, 0);
+
+    /** Магазин закрыт по просрочке — заказ ждёт разрешения. Долг магазина уже посчитан (DebtService.fill). */
+    public boolean blocks(Outlet o) {
+        return overdueBlock && o.getOverdue() > 0 && (o.getOverdueDays() > overdueDays || o.getOverdue() > overdueAmount);
+    }
+
+    /** Кто может открыть один заказ при просрочке: владелец всегда, директор и оператор — по настройке. */
+    public boolean unblocks(Role role) {
+        return role == Role.SUPER_ADMIN || role == Role.DIRECTOR && unblockDirector || role == Role.OPERATOR && unblockOperator;
+    }
+
+    /** «директор и владелец» — для подсказки, кто открывает заказ при просрочке. */
+    public String unblockersText() {
+        java.util.List<String> who = new java.util.ArrayList<>();
+        if (unblockDirector) who.add("директор");
+        if (unblockOperator) who.add("оператор");
+        who.add("владелец");
+        return who.size() == 1 ? who.get(0) : String.join(", ", who.subList(0, who.size() - 1)) + " и " + who.get(who.size() - 1);
+    }
 }

@@ -32,7 +32,8 @@ public class DebtService {
     public record Debit(LocalDate date, long amount) {
     }
 
-    public record Balance(long debt, long overdue) {
+    /** overdueDays — сколько дней просрочена самая старая непогашенная отгрузка. */
+    public record Balance(long debt, long overdue, int overdueDays) {
     }
 
     /** Заполняет у магазинов долг, просрочку и последнюю оплату. */
@@ -71,7 +72,7 @@ public class DebtService {
         LocalDate today = LocalDate.now(clock);
         for (Outlet o : outlets) {
             Balance b = balance(debits.getOrDefault(o.getId(), List.of()), credits.getOrDefault(o.getId(), 0L), o.getPaymentDays(), today);
-            o.setDebt(b.debt()).setOverdue(b.overdue());
+            o.setDebt(b.debt()).setOverdue(b.overdue()).setOverdueDays(b.overdueDays());
             Object[] l = last.get(o.getId());
             o.setLastPaymentDate(l == null ? null : (LocalDate) l[0]).setLastPaymentSum(l == null ? 0 : (Long) l[1]);
         }
@@ -89,14 +90,19 @@ public class DebtService {
         List<Debit> sorted = new ArrayList<>(debits);
         sorted.sort(Comparator.comparing(Debit::date));
         long total = 0, left = credit, overdue = 0;
+        int days = 0;
         for (Debit d : sorted) {
             total += d.amount();
             long covered = Math.min(left, d.amount());
             left -= covered;
             long rest = d.amount() - covered;
-            if (rest > 0 && d.date().plusDays(paymentDays).isBefore(today)) overdue += rest;
+            LocalDate due = d.date().plusDays(paymentDays);
+            if (rest > 0 && due.isBefore(today)) {
+                overdue += rest;
+                days = Math.max(days, (int) java.time.temporal.ChronoUnit.DAYS.between(due, today));
+            }
         }
-        return new Balance(total - credit, overdue);
+        return new Balance(total - credit, overdue, days);
     }
 
     private void query(String sql, Long[] ids, RowCallbackHandler row) {

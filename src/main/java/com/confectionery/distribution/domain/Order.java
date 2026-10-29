@@ -46,6 +46,9 @@ public class Order extends CompanyEntity {
     private PaymentMethod payment;
     private String comment;
     private String refuseReason;
+    /** Почему «Нужно разрешение»: LIMIT — долг сверх лимита, OVERDUE — магазин закрыт по просрочке. */
+    @Enumerated(EnumType.STRING)
+    private ApprovalKind hold;
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<OrderLine> lines = new ArrayList<>();

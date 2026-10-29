@@ -1,54 +1,113 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<!--/* «Настройки» (design/admin/AdmSettings): правила компании карточками, сохранение — одной кнопкой внизу. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
 <body>
 <th:block th:fragment="content">
 <p class="note note--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>
-<form th:action="@{/admin/settings}" method="post" style="display:flex;flex-direction:column;gap:18px">
+<p class="note" th:if="${v.isAll()}">Выберите компанию в шапке — настройки у каждой компании свои.</p>
+<form th:action="@{/admin/settings}" method="post" id="settings-form" class="stack">
+<div class="grid">
     <section class="card">
-        <div class="card-h"><h2>Визиты агентов</h2></div>
-        <div class="card-b form">
-            <label class="field">Радиус «на месте», метров<input class="inp" name="visitRadius" inputmode="numeric" th:value="${f.visitRadius}"><span class="hint">дальше — визит помечается</span></label>
-            <label class="check"><input type="checkbox" name="shelfPhoto" value="true" th:checked="${f.shelfPhoto}">Фото полки обязательно</label>
-            <label class="check"><input type="checkbox" name="refuseReason" value="true" th:checked="${f.refuseReason}">Причина отказа обязательна</label>
+        <div class="card-h"><div><h2>Заказы и долги</h2></div></div>
+        <div class="card-b set">
+            <label class="set-row"><span><b>Доставка по умолчанию</b></span>
+                <select class="sel inp--sm" name="deliveryDays" style="width:auto"><option value="1" th:selected="${f.deliveryDays == 1}">на следующий день</option><option value="2" th:selected="${f.deliveryDays == 2}">через день</option></select></label>
+            <label class="set-row"><span><b>Лимит долга нового магазина</b></span>
+                <span class="inline"><input class="inp inp--sm num" name="defaultLimit" inputmode="numeric" th:value="${f.defaultLimit}" style="width:110px">₸</span></label>
+            <label class="set-row"><span><b>Разрешать продажу в долг</b></span>
+                <span class="switch"><input type="checkbox" name="credit" value="true" th:checked="${f.credit}"><i></i></span></label>
+            <label class="set-row"><span><b>Сверх лимита — только с разрешения</b><span class="hint">считается: долг + не доставлено в долг + этот заказ</span></span>
+                <span class="switch"><input type="checkbox" name="approval" value="true" th:checked="${f.approval}"><i></i></span></label>
+            <div class="set-row"><span><b>Первый заказ нового магазина</b>
+                <span class="hint">пока магазин не проверен</span></span>
+                <span class="seg" role="radiogroup" aria-label="Первый заказ нового магазина">
+                    <label class="seg-r"><input type="radio" name="firstOrder" value="cash" th:checked="${f.firstOrder == 'cash'}"><span>Оплата при доставке</span></label>
+                    <label class="seg-r"><input type="radio" name="firstOrder" value="credit" th:checked="${f.firstOrder == 'credit'}"><span>В долг сразу</span></label>
+                </span></div>
+            <label class="set-row"><span><b>Торговый может давать скидку</b></span>
+                <span class="switch"><input type="checkbox" name="discount" value="true" th:checked="${f.discount}"><i></i></span></label>
         </div>
     </section>
+
     <section class="card">
-        <div class="card-h"><h2>GPS и журнал приложения</h2></div>
-        <div class="card-b form">
-            <label class="field">Рабочее время с<input class="inp" type="time" name="workStart" th:value="${f.workStart}"></label>
-            <label class="field">до<input class="inp" type="time" name="workEnd" th:value="${f.workEnd}"><span class="hint">открыл приложение в это время — рабочий день начинается сам, без кнопки; в конце — заканчивается сам. Раньше или позже — кнопкой «Начать рабочий день»</span></label>
-            <label class="field">Интервал GPS, минут<input class="inp" name="gpsInterval" inputmode="numeric" th:value="${f.gpsInterval}"><span class="hint">телефон снимает точку раз в столько минут — только в рабочий день, от «Начал день» до «Закончил день»</span></label>
-            <p class="muted">Точки GPS хранятся 6 месяцев, журнал приложения — год, старше удаляются сами.</p>
+        <div class="card-h"><div><h2>Запрет при просрочке</h2><p>заказ при просрочке ждёт разрешения</p></div></div>
+        <div class="card-b set">
+            <label class="set-row"><span><b>Закрывать заказы при просрочке</b><span class="hint">заказ магазина с просрочкой уходит в «Разрешения»</span></span>
+                <span class="switch"><input type="checkbox" name="overdueBlock" value="true" th:checked="${f.overdueBlock}"><i></i></span></label>
+            <div class="set-row"><span><b>Когда закрывать</b></span>
+                <span class="inline">больше <input class="inp inp--sm num" name="overdueDays" inputmode="numeric" th:value="${f.overdueDays}" style="width:64px" aria-label="Дней просрочки"> дней
+                    или больше <input class="inp inp--sm num" name="overdueAmount" inputmode="numeric" th:value="${f.overdueAmount}" style="width:100px" aria-label="Сумма просрочки"> ₸</span></div>
+            <div class="set-row"><span><b>Открыть один заказ могут</b><span class="hint">владелец — всегда</span></span>
+                <span class="inline">
+                    <label class="check"><input type="checkbox" name="unblockDirector" value="true" th:checked="${f.unblockDirector}">Директор</label>
+                    <label class="check"><input type="checkbox" name="unblockOperator" value="true" th:checked="${f.unblockOperator}">Оператор</label>
+                </span></div>
         </div>
     </section>
+
     <section class="card">
-        <div class="card-h"><h2>Заказы и долги</h2></div>
-        <div class="card-b form">
-            <label class="field">Доставка по умолчанию
-                <select class="sel" name="deliveryDays"><option value="1" th:selected="${f.deliveryDays == 1}">на следующий день</option><option value="2" th:selected="${f.deliveryDays == 2}">через день</option></select></label>
-            <label class="field">Лимит долга нового магазина, ₸<input class="inp" name="defaultLimit" inputmode="numeric" th:value="${f.defaultLimit}"></label>
-            <label class="check"><input type="checkbox" name="credit" value="true" th:checked="${f.credit}">Разрешать продажу в долг</label>
-            <label class="check"><input type="checkbox" name="approval" value="true" th:checked="${f.approval}">Сверх лимита — только с разрешения оператора</label>
-            <label class="check"><input type="checkbox" name="discount" value="true" th:checked="${f.discount}">Агент может давать скидку</label>
+        <div class="card-h"><div><h2>Доставка</h2></div></div>
+        <div class="card-b set">
+            <label class="set-row"><span><b>Недоплата сверх лимита — на разрешение</b><span class="hint">и если у магазина нет продажи в долг; товар уже выдан, решают, как забрать</span></span>
+                <span class="switch"><input type="checkbox" name="underpay" value="true" th:checked="${f.underpay}"><i></i></span></label>
         </div>
     </section>
+
     <section class="card">
-        <div class="card-h"><h2>Касса</h2></div>
-        <div class="card-b form">
-            <label class="field">Допустимая разница при приёме, ₸<input class="inp" name="cashTolerance" inputmode="numeric" th:value="${f.cashTolerance}"></label>
-            <label class="check"><input type="checkbox" name="kaspi" value="true" th:checked="${f.kaspi}">Принимать Kaspi</label>
+        <div class="card-h"><div><h2>Касса</h2></div></div>
+        <div class="card-b set">
+            <label class="set-row"><span><b>Допустимая разница при приёме</b></span>
+                <span class="inline"><input class="inp inp--sm num" name="cashTolerance" inputmode="numeric" th:value="${f.cashTolerance}" style="width:100px">₸</span></label>
+            <label class="set-row"><span><b>Принимать Kaspi</b></span>
+                <span class="switch"><input type="checkbox" name="kaspi" value="true" th:checked="${f.kaspi}"><i></i></span></label>
         </div>
     </section>
+
     <section class="card">
-        <div class="card-h"><h2>Связь с CRM производства</h2></div>
-        <div class="card-b form">
-            <label class="field">Клиент в CRM<input class="inp" name="crmClient" th:value="${f.crmClient}" placeholder="—" th:readonly="${!v.isSuper()}"><span class="hint" th:unless="${v.isSuper()}">меняет владелец</span></label>
-            <label class="field">Ключ API<input class="inp" name="crmKey" type="password" value="" placeholder="выдаётся в CRM" autocomplete="off"><span class="hint">подключение — на этапе 7, пока не сохраняется</span></label>
-            <label class="check"><input type="checkbox" name="autoReceipt" value="true" th:checked="${f.autoReceipt}">Создавать приход после отгрузки в CRM</label>
+        <div class="card-h"><div><h2>Визиты торговых</h2></div></div>
+        <div class="card-b set">
+            <label class="set-row"><span><b>Радиус «у магазина»</b><span class="hint">дальше — визит помечается</span></span>
+                <span class="inline"><input class="inp inp--sm num" name="visitRadius" inputmode="numeric" th:value="${f.visitRadius}" style="width:80px">м</span></label>
+            <label class="set-row"><span><b>Фото полки обязательно</b></span>
+                <span class="switch"><input type="checkbox" name="shelfPhoto" value="true" th:checked="${f.shelfPhoto}"><i></i></span></label>
+            <label class="set-row"><span><b>Причина «без заказа» обязательна</b></span>
+                <span class="switch"><input type="checkbox" name="refuseReason" value="true" th:checked="${f.refuseReason}"><i></i></span></label>
+            <div class="set-row"><span><b>Рабочее время</b><span class="hint">открыл приложение в это время — день начинается и заканчивается сам</span></span>
+                <span class="inline"><input class="inp inp--sm" type="time" name="workStart" th:value="${f.workStart}" aria-label="Рабочее время с"> –
+                    <input class="inp inp--sm" type="time" name="workEnd" th:value="${f.workEnd}" aria-label="Рабочее время до"></span></div>
+            <label class="set-row"><span><b>Интервал GPS</b><span class="hint">только в рабочий день · точки хранятся 6 месяцев, журнал приложения — год</span></span>
+                <span class="inline"><input class="inp inp--sm num" name="gpsInterval" inputmode="numeric" th:value="${f.gpsInterval}" style="width:64px">мин</span></label>
         </div>
     </section>
-    <div class="acts"><button class="btn btn-primary" type="submit" th:disabled="${v.isAll()}">Сохранить</button></div>
+
+    <section class="card">
+        <div class="card-h"><div><h2>Связь с CRM</h2></div></div>
+        <div class="card-b set">
+            <label class="set-row"><span><b>Клиент в CRM</b><span class="hint" th:unless="${v.isSuper()}">меняет владелец</span></span>
+                <input class="inp inp--sm" name="crmClient" th:value="${f.crmClient}" placeholder="—" th:readonly="${!v.isSuper()}" style="width:180px"></label>
+            <label class="set-row"><span><b>Приход после выдачи в CRM</b><span class="hint">приход «ждёт подтверждения» на складе</span></span>
+                <span class="switch"><input type="checkbox" name="autoReceipt" value="true" th:checked="${f.autoReceipt}"><i></i></span></label>
+        </div>
+    </section>
+</div>
+<div class="savebar" id="settings-bar">
+    <span id="settings-state" th:text="${'Изменений нет · для компании «' + v.scopeName() + '»'}">Изменений нет</span>
+    <button class="btn btn-primary" type="submit" th:disabled="${v.isAll()}">Сохранить</button>
+</div>
 </form>
+</th:block>
+<th:block th:fragment="scripts">
+<script>
+(function () {
+    var form = document.getElementById('settings-form'), bar = document.getElementById('settings-bar'),
+        state = document.getElementById('settings-state');
+    if (!form) return;
+    form.addEventListener('input', function () {
+        bar.classList.add('savebar--dirty');
+        state.textContent = 'Есть несохранённые изменения';
+    });
+})();
+</script>
 </th:block>
 </body>
 </html>

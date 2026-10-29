@@ -38,6 +38,8 @@ public class SettingsService {
         if (f.getDeliveryDays() < 1 || f.getDeliveryDays() > 7) throw new FormException("Доставка — от 1 до 7 дней после заказа");
         long limit = Forms.money(f.getDefaultLimit(), "Лимит долга нового магазина");
         long tolerance = Forms.money(f.getCashTolerance(), "Допустимая разница при приёме");
+        int overdueDays = Forms.number(f.getOverdueDays(), "Запрет при просрочке: дней", 1, 365);
+        long overdueAmount = Forms.money(f.getOverdueAmount(), "Запрет при просрочке: сумма");
         String crmClient = Forms.text(f.getCrmClient(), "Клиент в CRM", 200);
 
         CompanySettings st = settings.findByCompanyId(companyId).orElseGet(() -> {
@@ -48,7 +50,10 @@ public class SettingsService {
         st.setVisitRadius(radius).setGpsInterval(gps).setWorkStart(workStart).setWorkEnd(workEnd).setShelfPhotoRequired(f.isShelfPhoto()).setRefuseReasonRequired(f.isRefuseReason())
                 .setDeliveryDays(f.getDeliveryDays()).setDefaultCreditLimit(limit).setAllowCredit(f.isCredit())
                 .setApprovalOverLimit(f.isApproval()).setAgentDiscount(f.isDiscount()).setCashTolerance(tolerance)
-                .setAcceptKaspi(f.isKaspi()).setAutoReceipt(f.isAutoReceipt());
+                .setAcceptKaspi(f.isKaspi()).setAutoReceipt(f.isAutoReceipt())
+                .setFirstOrderCash(!"credit".equals(f.getFirstOrder())).setOverdueBlock(f.isOverdueBlock())
+                .setOverdueDays(overdueDays).setOverdueAmount(overdueAmount).setUnblockDirector(f.isUnblockDirector())
+                .setUnblockOperator(f.isUnblockOperator()).setUnderpayApproval(f.isUnderpay());
         settings.save(st);
         if (owner) {
             Company c = companies.findById(companyId).orElseThrow(NotFoundException::new);

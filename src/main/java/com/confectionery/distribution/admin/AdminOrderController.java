@@ -5,6 +5,7 @@ import com.confectionery.distribution.domain.Employee;
 import com.confectionery.distribution.domain.Order;
 import com.confectionery.distribution.domain.OrderStatus;
 import com.confectionery.distribution.domain.Role;
+import com.confectionery.distribution.service.ApprovalService;
 import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.MapService;
 import com.confectionery.distribution.service.OrderSearch;
@@ -34,6 +35,7 @@ import java.util.List;
 public class AdminOrderController {
 
     private final AdminContext ctx;
+    private final ApprovalService approvals;
     private final OrderService orders;
     private final OrderSearch search;
     private final StaffService staff;
@@ -238,8 +240,12 @@ public class AdminOrderController {
 
     @PostMapping("/admin/orders/{id}/approve")
     public String approve(@PathVariable Long id, HttpSession session) {
-        Order o = orders.approve(id, ctx.viewer(session).actor());
-        ctx.toast(session, "Заказ " + o.getNumber() + " разрешён");
+        Viewer v = ctx.viewer(session);
+        try {
+            ctx.toast(session, approvals.decide("o" + id, "OK", v.actor(), v.role()));
+        } catch (FormException e) {
+            ctx.toast(session, e.getMessage());
+        }
         return "redirect:/admin/orders/" + id;
     }
 

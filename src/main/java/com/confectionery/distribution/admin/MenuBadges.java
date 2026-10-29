@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Счётчики в меню: что ждёт решения или действия. Разрешения — заказы на разрешении и новые магазины; магазины —
+ * Счётчики в меню: что ждёт решения или действия. Разрешения — заказы на разрешении, недоплаты и новые магазины; магазины —
  * новые на проверке; приём кассы — рейсы, у которых пройдены все точки; склад — приходы, ждущие подтверждения.
  * Считаются прямыми запросами по компании из шапки (null — все компании).
  */
@@ -24,7 +24,8 @@ public class MenuBadges {
     public Map<String, Integer> of(Long companyId) {
         Map<String, Integer> out = new HashMap<>();
         int pendingOutlets = count("select count(*) from outlets where status = 'PENDING' and " + SCOPE, companyId);
-        out.put("approvals", count("select count(*) from orders where status = 'NEEDS_APPROVAL' and " + SCOPE, companyId) + pendingOutlets);
+        out.put("approvals", count("select count(*) from orders where status = 'NEEDS_APPROVAL' and " + SCOPE, companyId) + pendingOutlets
+                + count("select count(*) from approvals where kind = 'UNDERPAY' and decision is null and " + SCOPE, companyId));
         out.put("outlets", pendingOutlets);
         out.put("cash", count("""
                 select count(*) from trips t

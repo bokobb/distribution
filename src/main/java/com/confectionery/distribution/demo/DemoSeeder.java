@@ -476,7 +476,7 @@ public class DemoSeeder implements ApplicationRunner {
     }
 
     private void needsApproval(Order o, long debt) {
-        o.setStatus(OrderStatus.NEEDS_APPROVAL);
+        o.setStatus(OrderStatus.NEEDS_APPROVAL).setHold(ApprovalKind.LIMIT);
         o.event(o.getCreatedAt().plusMinutes(1), null, "Система", "Долг станет " + money(debt + o.getTotal())
                 + " при лимите " + money(o.getOutlet().getCreditLimit()) + " — нужно разрешение");
     }

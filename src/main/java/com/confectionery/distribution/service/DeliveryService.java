@@ -35,6 +35,8 @@ public class DeliveryService {
     private final StockService stock;
     private final SettingsService settings;
     private final FileStore files;
+    private final DebtService debts;
+    private final ApprovalService approvals;
     private final Clock clock;
 
     /** Сколько штук товара выдано. */
@@ -79,6 +81,7 @@ public class DeliveryService {
 
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime at = in.deliveredAt() == null ? now : in.deliveredAt();
+        debts.fill(o.getOutlet()); // долг до этой выдачи — для недоплаты сверх лимита
         if (at.isAfter(now.plusMinutes(CLOCK_SKEW_MIN)))
             throw new FormException("Время выдачи неверное — проверьте дату и время на телефоне");
         String who = exp.getName() + " (" + exp.getRole().getLabel().toLowerCase() + ")";
@@ -142,8 +145,10 @@ public class DeliveryService {
             t.getPayments().add(payments.save(pay));
         }
         if (paid > 0) o.event(at, exp, who, "Получено " + money(paid));
-        if (o.getPayment() != PaymentMethod.CREDIT && paid < d.getTotal())
+        if (o.getPayment() != PaymentMethod.CREDIT && paid < d.getTotal()) {
             o.event(at, exp, who, "Недоплата " + money(d.getTotal() - paid) + " — в долг магазина");
+            approvals.underpay(o, d.getTotal(), paid, o.getOutlet().getDebt(), st, actor, at);
+        }
         return out(d);
     }
 
