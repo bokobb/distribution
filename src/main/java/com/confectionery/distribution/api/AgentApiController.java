@@ -7,6 +7,8 @@ import com.confectionery.distribution.service.AgentDataService.AgentData;
 import com.confectionery.distribution.service.AgentDataService.OutletDto;
 import com.confectionery.distribution.service.FileStore;
 import com.confectionery.distribution.service.MobileOrderService;
+import com.confectionery.distribution.service.MobileOrderService.CancelIn;
+import com.confectionery.distribution.service.MobileOrderService.EditIn;
 import com.confectionery.distribution.service.MobileOrderService.OrderIn;
 import com.confectionery.distribution.service.MobileOrderService.OrderOut;
 import com.confectionery.distribution.service.OutletCardService;
@@ -54,6 +56,18 @@ public class AgentApiController {
     @PostMapping("/api/mobile/agent/orders")
     public OrderOut order(@AuthenticationPrincipal MobileUser me, @RequestBody OrderIn in) {
         return orders.save(me.id(), in);
+    }
+
+    /** Правка своего заказа, пока его не отгрузили: всё целиком, как при отправке. */
+    @PutMapping("/api/mobile/agent/orders/{uuid}")
+    public OrderOut editOrder(@AuthenticationPrincipal MobileUser me, @PathVariable UUID uuid, @RequestBody EditIn in) {
+        return orders.edit(me.id(), uuid, in);
+    }
+
+    /** Отмена своего заказа, пока его не отгрузили: остаётся в истории «Отменён» с причиной. */
+    @PostMapping("/api/mobile/agent/orders/{uuid}/cancel")
+    public OrderOut cancelOrder(@AuthenticationPrincipal MobileUser me, @PathVariable UUID uuid, @RequestBody CancelIn in) {
+        return orders.cancel(me.id(), uuid, in.reason());
     }
 
     /** Новый магазин от агента — «на проверке», в конце его маршрута; повтор с тем же uuid возвращает уже добавленный. */

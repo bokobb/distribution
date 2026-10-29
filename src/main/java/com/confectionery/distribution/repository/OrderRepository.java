@@ -30,6 +30,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Optional<Order> findByUuid(UUID uuid);
 
+    /** Только id: заказ потом читается под блокировкой (lockAll) — свежим. */
+    @Query("select o.id from Order o where o.uuid = :uuid")
+    Optional<Long> idByUuid(UUID uuid);
+
     boolean existsByCompanyIdAndNumber(Long companyId, String number);
 
     List<Order> findByAgentIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtAsc(Long agentId,
