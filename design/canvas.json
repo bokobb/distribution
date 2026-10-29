@@ -1,0 +1,661 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "AgentBlocked.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Заказ закрыт по просрочке",
+      "w": 390,
+      "x": 940,
+      "y": 2368
+    },
+    "AgentCheckout.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Оформление: заказ − возврат = к оплате",
+      "w": 390,
+      "x": 1880,
+      "y": 0
+    },
+    "AgentMap.dc.html": {
+      "h": 844,
+      "page": "agent",
+      "title": "Мой путь за день — записан сам, магазины из базы",
+      "w": 390,
+      "x": 1880,
+      "y": 1184
+    },
+    "AgentNewOutlet.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Новый магазин с нуля",
+      "w": 390,
+      "x": 1410,
+      "y": 1184
+    },
+    "AgentNoOrder.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Визит без заказа",
+      "w": 390,
+      "x": 1410,
+      "y": 2368
+    },
+    "AgentOrder.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Заказ и возврат — как в CRM",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    },
+    "AgentOrders.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Заказы: статусы «Новый» и «Доставлен»",
+      "w": 390,
+      "x": 2350,
+      "y": 1184
+    },
+    "AgentOutlet.dc.html": {
+      "h": 844,
+      "page": "agent",
+      "title": "Карточка магазина: долг и история",
+      "w": 390,
+      "x": 940,
+      "y": 1184
+    },
+    "AgentPickShop.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Выбор магазина по GPS",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "AgentProductPick.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Подбор товара: в заказ или в возврат",
+      "w": 390,
+      "x": 1410,
+      "y": 0
+    },
+    "AgentProfile.dc.html": {
+      "h": 844,
+      "page": "agent",
+      "title": "Профиль",
+      "w": 390,
+      "x": 1880,
+      "y": 2368
+    },
+    "AgentPromo.dc.html": {
+      "h": 844,
+      "page": "agent",
+      "title": "Акции для магазинов",
+      "w": 390,
+      "x": 470,
+      "y": 2368
+    },
+    "AgentRoute.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Магазины списком — рядом и поиск",
+      "w": 390,
+      "x": 470,
+      "y": 1184
+    },
+    "AgentShopsMap.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Магазины на карте — вся база по умолчанию",
+      "w": 390,
+      "x": 0,
+      "y": 1184
+    },
+    "AgentSuggest.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "agent",
+      "title": "Рекомендуемый заказ",
+      "w": 390,
+      "x": 0,
+      "y": 2368
+    },
+    "AgentToday.dc.html": {
+      "h": 844,
+      "page": "agent",
+      "title": "Сегодня — главный экран",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "BossApprove.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "bot",
+      "title": "Разрешение заказа при просрочке",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "BossDigest.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "bot",
+      "title": "Сводка дня руководителю",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "ExpCash.dc.html": {
+      "h": 844,
+      "page": "exp",
+      "title": "Касса за день",
+      "w": 390,
+      "x": 1410,
+      "y": 0
+    },
+    "ExpCashCount.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "exp",
+      "title": "Сдача кассы — подсчёт купюр",
+      "w": 390,
+      "x": 470,
+      "y": 1184
+    },
+    "ExpDelivery.dc.html": {
+      "h": 844,
+      "page": "exp",
+      "title": "Состав заказа и возврат",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    },
+    "ExpMap.dc.html": {
+      "h": 844,
+      "page": "exp",
+      "title": "Маршрут на карте",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    },
+    "ExpProof.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "exp",
+      "title": "Подтверждение доставки — подпись или фото",
+      "w": 390,
+      "x": 0,
+      "y": 1184
+    },
+    "ExpTrip.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "exp",
+      "title": "Доставки — главный экран",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 844,
+      "page": "exp",
+      "title": "Вход",
+      "w": 390,
+      "x": 0,
+      "y": 2368
+    },
+    "Profile.dc.html": {
+      "h": 844,
+      "page": "exp",
+      "title": "Профиль",
+      "w": 390,
+      "x": 1880,
+      "y": 0
+    },
+    "ShopBot.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "bot",
+      "title": "Магазин заказывает сам — чат",
+      "w": 390,
+      "x": 940,
+      "y": 0
+    },
+    "ShopBotCatalog.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "page": "bot",
+      "title": "Каталог внутри бота",
+      "w": 390,
+      "x": 1410,
+      "y": 0
+    },
+    "System.dc.html": {
+      "h": 900,
+      "page": "exp",
+      "title": "Дизайн-система",
+      "w": 1340,
+      "x": 470,
+      "y": 2368
+    },
+    "CrmDashboard.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1490,
+      "title": "CRM · Дашборд: в меню группа «Дистрибуция», у клиента-директора — его компания",
+      "page": "crm",
+      "expand": "fill"
+    },
+    "CrmDistSummary.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1110,
+      "title": "CRM · Компании дистрибуции: директор — клиент CRM",
+      "page": "crm",
+      "expand": "fill"
+    },
+    "CrmOrder.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1710,
+      "title": "CRM · Заказ директора: после «Выдать» товар уходит на склад компании",
+      "page": "crm",
+      "expand": "fill"
+    },
+    "AdmDashboard.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1660,
+      "title": "Дашборд — без плана маршрутов, с «Требует внимания»",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmApprovals.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1460,
+      "title": "Разрешения: сверх лимита, просрочка, недоплата, новые магазины",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmOrders.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1170,
+      "title": "Заказы: возврат в заказе, отгрузка в рейс",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmOrder.dc.html": {
+      "x": 4560,
+      "y": 0,
+      "w": 1440,
+      "h": 1610,
+      "title": "Заказ: возврат по цене продажи и подтверждение доставки",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmOutlets.dc.html": {
+      "x": 0,
+      "y": 1780,
+      "w": 1440,
+      "h": 1120,
+      "title": "Магазины: новые на проверке",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmOutlet.dc.html": {
+      "x": 1520,
+      "y": 1780,
+      "w": 1440,
+      "h": 1280,
+      "title": "Карточка магазина: точка на карте и запрет при просрочке",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmAssign.dc.html": {
+      "x": 3040,
+      "y": 1780,
+      "w": 1440,
+      "h": 1330,
+      "title": "Закрепление магазинов вместо маршрутов",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmMap.dc.html": {
+      "x": 4560,
+      "y": 1780,
+      "w": 1440,
+      "h": 890,
+      "title": "Карта: путь торгового и статусы магазинов",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmDebts.dc.html": {
+      "x": 0,
+      "y": 3230,
+      "w": 1440,
+      "h": 1160,
+      "title": "Долги магазинов и запрет при просрочке",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmTrips.dc.html": {
+      "x": 1520,
+      "y": 3230,
+      "w": 1440,
+      "h": 1100,
+      "title": "Рейсы с подтверждением доставки",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmTrip.dc.html": {
+      "x": 3040,
+      "y": 3230,
+      "w": 1440,
+      "h": 1240,
+      "title": "Рейс: точки, подписи, возвраты",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmCash.dc.html": {
+      "x": 4560,
+      "y": 3230,
+      "w": 1440,
+      "h": 1110,
+      "title": "Приём кассы: недостача — решение директора",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmStock.dc.html": {
+      "x": 0,
+      "y": 4590,
+      "w": 1440,
+      "h": 1190,
+      "title": "Склад: автоприход из CRM и негодный товар",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmProducts.dc.html": {
+      "x": 1520,
+      "y": 4590,
+      "w": 1440,
+      "h": 1280,
+      "title": "Товары: сверка кодов CRM и акции",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmStaff.dc.html": {
+      "x": 3040,
+      "y": 4590,
+      "w": 1440,
+      "h": 1140,
+      "title": "Сотрудники: план месяца и связь с приложением",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmReports.dc.html": {
+      "x": 4560,
+      "y": 4590,
+      "w": 1440,
+      "h": 990,
+      "title": "Отчёт «Касса и недостачи»",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmSettings.dc.html": {
+      "x": 0,
+      "y": 5990,
+      "w": 1440,
+      "h": 1510,
+      "title": "Настройки: новые правила и связь с CRM",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "AdmCompanies.dc.html": {
+      "x": 1520,
+      "y": 5990,
+      "w": 1440,
+      "h": 990,
+      "title": "Компании: клиент CRM из списка, журнал входов",
+      "page": "admin",
+      "expand": "fill"
+    },
+    "AdmSystem.dc.html": {
+      "x": 3040,
+      "y": 5990,
+      "w": 1440,
+      "h": 1900,
+      "title": "Дизайн-система админок",
+      "page": "admin"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-27T17:40:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas",
+    "page": "crm"
+  },
+  "noteOrder": [
+    "t-exp",
+    "t-common",
+    "t-agent1",
+    "t-agent2",
+    "t-exp-new",
+    "t-agent3",
+    "t-bot1",
+    "t-bot2",
+    "t-crm",
+    "s-crm",
+    "t-admin"
+  ],
+  "notes": {
+    "t-agent1": {
+      "kind": "title1",
+      "maxW": 2270,
+      "page": "agent",
+      "text": "Торговый: «Создать заказ» → магазин по GPS → заказ с возвратом",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t-agent2": {
+      "kind": "title1",
+      "maxW": 2740,
+      "page": "agent",
+      "text": "Магазины: вся база на карте и списком, карточка, новый магазин, мой путь, заказы",
+      "w": 240,
+      "x": 0,
+      "y": 884
+    },
+    "t-agent3": {
+      "kind": "title1",
+      "maxW": 2270,
+      "page": "agent",
+      "text": "Рекомендации, акции, запрет при просрочке, без заказа, профиль",
+      "w": 240,
+      "x": 0,
+      "y": 2068
+    },
+    "t-bot1": {
+      "kind": "title1",
+      "maxW": 860,
+      "page": "bot",
+      "text": "Бот руководителя",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t-bot2": {
+      "kind": "title1",
+      "maxW": 860,
+      "page": "bot",
+      "text": "Бот для магазинов: заказ без торгового",
+      "w": 240,
+      "x": 940,
+      "y": -300
+    },
+    "t-common": {
+      "kind": "title1",
+      "maxW": 1810,
+      "page": "exp",
+      "text": "Вход и дизайн-система",
+      "w": 240,
+      "x": 0,
+      "y": 2068
+    },
+    "t-exp": {
+      "kind": "title1",
+      "maxW": 2270,
+      "page": "exp",
+      "text": "Экспедитор",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t-exp-new": {
+      "kind": "title1",
+      "maxW": 1330,
+      "page": "exp",
+      "text": "Новое: подпись при доставке и сдача кассы",
+      "w": 240,
+      "x": 0,
+      "y": 884
+    },
+    "t-crm": {
+      "kind": "title1",
+      "page": "crm",
+      "text": "CRM: где добавляется Дистрибуция — остальное без изменений",
+      "x": 0,
+      "y": -300,
+      "maxW": 4480,
+      "w": 240
+    },
+    "s-crm": {
+      "page": "crm",
+      "text": "Синий пунктир и метка «Новое» — то, что добавляется в CRM, остальное как сейчас. Связь — через директора: он клиент CRM, его заказ после «Выдать» сам уходит на склад компании, прикреплённый возврат показывается в Дистрибуции. Дальше работа — в админке Дистрибуции. Выключить пометки: Tweaks → highlightNew.",
+      "x": 4560,
+      "y": 0,
+      "w": 420,
+      "fill": "blue",
+      "size": "m"
+    },
+    "t-admin": {
+      "kind": "title1",
+      "page": "admin",
+      "text": "Админка Дистрибуции: новые функции, Inter + индиго",
+      "x": 0,
+      "y": -300,
+      "maxW": 6000,
+      "w": 240
+    }
+  },
+  "order": [
+    "ExpTrip.dc.html",
+    "ExpMap.dc.html",
+    "ExpDelivery.dc.html",
+    "ExpCash.dc.html",
+    "Profile.dc.html",
+    "ExpProof.dc.html",
+    "ExpCashCount.dc.html",
+    "Main.dc.html",
+    "System.dc.html",
+    "AgentToday.dc.html",
+    "AgentPickShop.dc.html",
+    "AgentOrder.dc.html",
+    "AgentProductPick.dc.html",
+    "AgentCheckout.dc.html",
+    "AgentShopsMap.dc.html",
+    "AgentRoute.dc.html",
+    "AgentOutlet.dc.html",
+    "AgentNewOutlet.dc.html",
+    "AgentMap.dc.html",
+    "AgentOrders.dc.html",
+    "AgentSuggest.dc.html",
+    "AgentPromo.dc.html",
+    "AgentBlocked.dc.html",
+    "AgentNoOrder.dc.html",
+    "AgentProfile.dc.html",
+    "BossDigest.dc.html",
+    "BossApprove.dc.html",
+    "ShopBot.dc.html",
+    "ShopBotCatalog.dc.html",
+    "CrmDashboard.dc.html",
+    "CrmDistSummary.dc.html",
+    "CrmOrder.dc.html",
+    "AdmDashboard.dc.html",
+    "AdmApprovals.dc.html",
+    "AdmOrders.dc.html",
+    "AdmOrder.dc.html",
+    "AdmOutlets.dc.html",
+    "AdmOutlet.dc.html",
+    "AdmAssign.dc.html",
+    "AdmMap.dc.html",
+    "AdmDebts.dc.html",
+    "AdmTrips.dc.html",
+    "AdmTrip.dc.html",
+    "AdmCash.dc.html",
+    "AdmStock.dc.html",
+    "AdmProducts.dc.html",
+    "AdmStaff.dc.html",
+    "AdmReports.dc.html",
+    "AdmSettings.dc.html",
+    "AdmCompanies.dc.html",
+    "AdmSystem.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "exp",
+      "name": "Экспедитор"
+    },
+    {
+      "id": "agent",
+      "name": "Торговый представитель"
+    },
+    {
+      "id": "bot",
+      "name": "Telegram-бот"
+    },
+    {
+      "id": "crm",
+      "name": "CRM: Дистрибуция"
+    },
+    {
+      "id": "admin",
+      "name": "Админка Дистрибуции"
+    }
+  ],
+  "title": "Приложение «Дистрибуция»"
+}
