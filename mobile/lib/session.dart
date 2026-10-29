@@ -57,6 +57,9 @@ class SessionStore {
 
   static const _user = 'session.user';
   static const _server = 'server.url';
+
+  /// Для какой сборки (её адреса по умолчанию) адрес сменили вручную.
+  static const _serverFor = 'server.urlFor';
   static const _deviceToken = 'session.deviceToken';
 
   /// Адрес сервера по умолчанию: при сборке --dart-define=API_URL=https://…; для разработки — сервер на
@@ -108,9 +111,23 @@ class SessionStore {
     await _secure.delete(key: _deviceToken);
   }
 
-  Future<String> serverUrl() async =>
-      (await SharedPreferences.getInstance()).getString(_server) ?? defaultServer;
+  /// Адрес, сменённый вручную внизу входа, держится только в той сборке, где его сменили: новая сборка с другим
+  /// адресом по умолчанию (проверочная → сервер компании) идёт на свой, а не на старый, которого уже нет.
+  Future<String> serverUrl() async {
+    final p = await SharedPreferences.getInstance();
+    final saved = p.getString(_server);
+    if (saved == null) return defaultServer;
+    if (p.getString(_serverFor) != defaultServer) {
+      await p.remove(_server);
+      await p.remove(_serverFor);
+      return defaultServer;
+    }
+    return saved;
+  }
 
-  Future<void> setServerUrl(String url) async =>
-      (await SharedPreferences.getInstance()).setString(_server, url);
+  Future<void> setServerUrl(String url) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_server, url);
+    await p.setString(_serverFor, defaultServer);
+  }
 }
