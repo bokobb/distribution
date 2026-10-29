@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,6 +34,7 @@ public class DeliveryService {
     private final EmployeeRepository employees;
     private final StockService stock;
     private final SettingsService settings;
+    private final FileStore files;
     private final Clock clock;
 
     /** Сколько штук товара выдано. */
@@ -143,6 +145,22 @@ public class DeliveryService {
         if (o.getPayment() != PaymentMethod.CREDIT && paid < d.getTotal())
             o.event(at, exp, who, "Недоплата " + money(d.getTotal() - paid) + " — в долг магазина");
         return out(d);
+    }
+
+    /** Подпись получателя или фото накладной к своей выдаче — после самой выдачи; повтор заменяет файл. */
+    @Transactional
+    public void proof(Long expeditorId, UUID uuid, byte[] image) {
+        Delivery d = deliveries.findByUuid(uuid)
+                .filter(x -> x.getExpeditor() != null && x.getExpeditor().getId().equals(expeditorId))
+                .orElseThrow(NotFoundException::new);
+        if (d.getStatus() == DeliveryStatus.REFUSED) throw new FormException("При отказе подтверждение не нужно");
+        d.setProof(files.saveProof(d.getCompanyId(), uuid, image));
+    }
+
+    /** Файл подтверждения к выдаче своей компании — для админки. */
+    @Transactional(readOnly = true)
+    public Optional<Path> proofFile(UUID uuid) {
+        return deliveries.findByUuid(uuid).map(Delivery::getProof).flatMap(files::find);
     }
 
     /** Наличные — всегда; Kaspi — если компания принимает. */

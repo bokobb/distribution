@@ -12,8 +12,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Фото с телефонов (полка при визите, позже — фасад нового магазина) — файлами на диске сервера, в базе
- * только путь «компания/папка/uuid.jpg». Корень — distribution.files.dir (FILES_DIR); в git не попадает.
+ * Фото с телефонов (полка при визите, фасад нового магазина, накладная или подпись при доставке) — файлами на
+ * диске сервера, в базе только путь «компания/папка/uuid.jpg». Корень — distribution.files.dir (FILES_DIR); в git не попадает.
  * Повторная загрузка того же фото просто заменяет файл.
  */
 @Service
@@ -30,15 +30,43 @@ public class FileStore {
 
     /** Сохранить JPEG; вернуть путь для базы. */
     public String savePhoto(Long companyId, String folder, UUID uuid, byte[] jpeg) {
-        if (jpeg == null || jpeg.length < 3 || (jpeg[0] & 0xff) != 0xFF || (jpeg[1] & 0xff) != 0xD8 || (jpeg[2] & 0xff) != 0xFF)
-            throw new FormException("Фото — только JPEG");
-        if (jpeg.length > MAX_PHOTO) throw new FormException("Фото больше 5 МБ");
-        String rel = companyId + "/" + folder + "/" + uuid + ".jpg";
+        if (!isJpeg(jpeg)) throw new FormException("Фото — только JPEG");
+        return save(companyId + "/" + folder + "/" + uuid + ".jpg", jpeg);
+    }
+
+    /** Подтверждение доставки: подпись получателя (PNG) или фото накладной (JPEG); вернуть путь для базы. */
+    public String saveProof(Long companyId, UUID uuid, byte[] image) {
+        String ext = isJpeg(image) ? ".jpg" : isPng(image) ? ".png" : null;
+        if (ext == null) throw new FormException("Подтверждение — только фото JPEG или подпись PNG");
+        // переслали другим видом (была подпись — стало фото) — прежний файл не нужен
+        for (String old : new String[]{".jpg", ".png"})
+            if (!old.equals(ext)) delete(companyId + "/deliveries/" + uuid + old);
+        return save(companyId + "/deliveries/" + uuid + ext, image);
+    }
+
+    private static boolean isJpeg(byte[] b) {
+        return b != null && b.length >= 3 && (b[0] & 0xff) == 0xFF && (b[1] & 0xff) == 0xD8 && (b[2] & 0xff) == 0xFF;
+    }
+
+    private static boolean isPng(byte[] b) {
+        return b != null && b.length >= 4 && (b[0] & 0xff) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G';
+    }
+
+    private void delete(String rel) {
+        try {
+            Files.deleteIfExists(root.resolve(rel));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private String save(String rel, byte[] bytes) {
+        if (bytes.length > MAX_PHOTO) throw new FormException("Фото больше 5 МБ");
         Path file = root.resolve(rel);
         try {
             Files.createDirectories(file.getParent());
-            Path part = Files.createTempFile(file.getParent(), uuid.toString(), ".part");
-            Files.write(part, jpeg);
+            Path part = Files.createTempFile(file.getParent(), file.getFileName().toString(), ".part");
+            Files.write(part, bytes);
             Files.move(part, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

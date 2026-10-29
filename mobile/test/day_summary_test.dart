@@ -5,6 +5,7 @@ import 'package:distribution_mobile/deliveries.dart';
 import 'package:distribution_mobile/outbox.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'fake_camera.dart';
 import 'fake_location.dart';
 import 'fake_server.dart';
 import 'memory_store.dart';
@@ -20,7 +21,7 @@ void main() {
     final store = MemoryStore();
     outbox = Outbox(
         api: ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ'), store: store, clock: () => now);
-    book = DeliveryBook(store: store, outbox: outbox, location: FakeLocation(), clock: () => now);
+    book = DeliveryBook(store: store, outbox: outbox, location: FakeLocation(), camera: FakeCamera(), clock: () => now);
   });
 
   tearDown(() {

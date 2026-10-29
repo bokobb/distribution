@@ -107,7 +107,7 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
     final outbox = _outbox = Outbox(api: widget.api, store: widget.local)..start();
     _workday = Workday(outbox: outbox, store: widget.local, location: _location)..restore();
     _visits = VisitBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
-    _deliveries = DeliveryBook(store: widget.local, outbox: outbox, location: _location)..load();
+    _deliveries = DeliveryBook(store: widget.local, outbox: outbox, location: _location, camera: _camera)..load();
   }
 
   Future<void> _stopWorkday() async {

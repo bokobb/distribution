@@ -28,7 +28,7 @@
                 <td class="r num hide-m" th:text="${@fmt.money(o.total)}"></td>
                 <td class="r num" th:text="${o.status.delivered() ? @fmt.money(o.deliveredTotal) : '—'}"></td>
                 <td class="hide-m" th:text="${o.payment.label}"></td>
-                <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
+                <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span><span class="sub" th:if="${o.delivery?.proof != null}"><a class="link" th:href="${'/admin/trips/proof/' + o.delivery.uuid}" target="_blank" th:text="${o.delivery.proofPhoto ? 'Фото накладной' : 'Подпись получателя'}"></a></span></td>
             </tr></tbody>
         </table></div>
     </section>

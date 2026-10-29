@@ -4,12 +4,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// Фото полки и фасада: камера телефона и папка с фото до отправки — отдельно от визитов и магазинов, чтобы
+/// Фото полки, фасада и накладной (и подпись получателя): камера телефона и папка с фото до отправки — отдельно от визитов и магазинов, чтобы
 /// проверять их без камеры.
 abstract class PhotoSource {
   /// Снять фото для визита или магазина (id — его uuid); вернуть путь к новому файлу на телефоне.
   /// Отменили съёмку — null.
   Future<String?> photo(String id);
+
+  /// Сохранить готовую картинку (подпись получателя) рядом с фото; вернуть путь к файлу.
+  Future<String> keep(String name, List<int> bytes);
 
   /// Стереть все фото — при выходе.
   Future<void> clear();
@@ -37,6 +40,15 @@ class DeviceCamera implements PhotoSource {
       // временный файл камеры — сотрёт система
     }
     return path;
+  }
+
+  @override
+  Future<String> keep(String name, List<int> bytes) async {
+    final dir = await _dir();
+    await dir.create(recursive: true);
+    final file = File(p.join(dir.path, name));
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
   }
 
   @override

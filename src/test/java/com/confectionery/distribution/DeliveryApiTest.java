@@ -9,14 +9,18 @@ import com.confectionery.distribution.domain.TripStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -25,6 +29,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +47,8 @@ class DeliveryApiTest {
     TestData data;
     @Autowired
     JdbcTemplate jdbc;
+    @Value("${distribution.files.dir}")
+    String filesDir;
 
     World w;
     Order order;
@@ -164,5 +173,59 @@ class DeliveryApiTest {
         send(delivery(UUID.randomUUID(), "[]", "[]")).andExpect(status().isOk());
         send(delivery(UUID.randomUUID(), "[]", "[]")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("уже «Доставлен»")));
+    }
+
+    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 13, 10, 26, 10, 1, 2};
+    private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3};
+
+    private ResultActions proof(UUID uuid, String jwt, MediaType type, byte[] body) throws Exception {
+        return mvc.perform(put("/api/mobile/expeditor/deliveries/{uuid}/proof", uuid).header("Authorization", "Bearer " + jwt)
+                .contentType(type).content(body));
+    }
+
+    @Test
+    void подписьИлиФотоНакладной_послеВыдачи_видныВАдминке() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        String jwt = data.jwt(w.expeditor());
+        proof(uuid, jwt, MediaType.IMAGE_PNG, PNG).andExpect(status().isNotFound()); // выдачи ещё нет
+        send(delivery(uuid, "[]", pay("CASH", 10_000))).andExpect(status().isOk());
+
+        proof(uuid, jwt, MediaType.IMAGE_GIF, new byte[]{'G', 'I', 'F'}).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Подтверждение — только фото JPEG или подпись PNG"));
+        proof(uuid, jwt, MediaType.IMAGE_PNG, PNG).andExpect(status().isNoContent());
+        String path = jdbc.queryForObject("select proof from deliveries where uuid = ?", String.class, uuid);
+        assertThat(path).isEqualTo(w.company().getId() + "/deliveries/" + uuid + ".png");
+        assertThat(Files.readAllBytes(Path.of(filesDir, path))).isEqualTo(PNG);
+
+        // переснял фотографией — подпись больше не нужна
+        proof(uuid, jwt, MediaType.IMAGE_JPEG, JPEG).andExpect(status().isNoContent());
+        String photo = jdbc.queryForObject("select proof from deliveries where uuid = ?", String.class, uuid);
+        assertThat(photo).endsWith(uuid + ".jpg");
+        assertThat(Path.of(filesDir, path)).doesNotExist();
+
+        World other = data.world("Чужое подтверждение");
+        proof(uuid, data.jwt(other.expeditor()), MediaType.IMAGE_JPEG, JPEG).andExpect(status().isNotFound());
+
+        data.password(w.operator(), "Проверка-2026", false);
+        MockHttpSession s = (MockHttpSession) mvc.perform(formLogin("/login").user(w.operator().getPhone()).password("Проверка-2026"))
+                .andReturn().getRequest().getSession(false);
+        mvc.perform(get("/admin/trips/{id}", trip.getId()).session(s)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("/admin/trips/proof/" + uuid)))
+                .andExpect(content().string(containsString("Фото накладной")));
+        mvc.perform(get("/admin/orders/{id}", order.getId()).session(s)).andExpect(status().isOk())
+                .andExpect(content().string(containsString("/admin/trips/proof/" + uuid)));
+        mvc.perform(get("/admin/trips/proof/{uuid}", uuid).session(s)).andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_JPEG)).andExpect(content().bytes(JPEG));
+    }
+
+    @Test
+    void приОтказеПодтверждениеНеНужно() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        LocalDateTime at = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).minusMinutes(5);
+        send("""
+                {"uuid": "%s", "orderId": %d, "deliveredAt": "%s", "refused": true, "refuseReason": "Закрыто",
+                 "items": [], "payments": []}""".formatted(uuid, order.getId(), at)).andExpect(status().isOk());
+        proof(uuid, data.jwt(w.expeditor()), MediaType.IMAGE_PNG, PNG).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("При отказе подтверждение не нужно"));
     }
 }

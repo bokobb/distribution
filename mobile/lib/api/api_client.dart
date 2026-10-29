@@ -102,6 +102,10 @@ class ApiClient {
   Future<Map<String, dynamic>> delivery(Map<String, dynamic> delivery) =>
       _authed('POST', '/api/mobile/expeditor/deliveries', body: delivery);
 
+  /// Подтверждение выдачи: подпись получателя (PNG) или фото накладной (JPEG) — после самой выдачи.
+  Future<void> deliveryProof(String uuid, List<int> image, {required bool png}) => _authed(
+      'PUT', '/api/mobile/expeditor/deliveries/$uuid/proof', bytes: image, contentType: png ? 'image/png' : 'image/jpeg');
+
   /// Оплата старого долга магазином из рейса; в ответе долг магазина после неё. Повтор с тем же uuid вернёт уже
   /// принятую.
   Future<Map<String, dynamic>> debtPayment(Map<String, dynamic> payment) =>

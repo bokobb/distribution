@@ -13,12 +13,19 @@ import com.confectionery.distribution.service.ExpeditorDataService.ExpeditorData
 import com.confectionery.distribution.service.ReturnService;
 import com.confectionery.distribution.service.ReturnService.ReturnIn;
 import com.confectionery.distribution.service.ReturnService.ReturnOut;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+import java.util.UUID;
 
 /** Адреса приложения экспедитора: /api/mobile/expeditor/** (только роль EXPEDITOR — SecurityConfig). */
 @RestController
@@ -42,6 +49,14 @@ public class ExpeditorApiController {
     @PostMapping("/api/mobile/expeditor/deliveries")
     public DeliveryOut delivery(@AuthenticationPrincipal MobileUser me, @RequestBody DeliveryIn in) {
         return deliveries.save(me.id(), in);
+    }
+
+    /** Подтверждение выдачи — подпись получателя (PNG) или фото накладной (JPEG) телом запроса, после самой выдачи. */
+    @PutMapping("/api/mobile/expeditor/deliveries/{uuid}/proof")
+    public ResponseEntity<Void> proof(@AuthenticationPrincipal MobileUser me, @PathVariable UUID uuid,
+                                      HttpServletRequest request) throws IOException {
+        deliveries.proof(me.id(), uuid, AgentApiController.photo(request));
+        return ResponseEntity.noContent().build();
     }
 
     /** Оплата старого долга магазином из рейса; повтор с тем же uuid возвращает уже записанную. */

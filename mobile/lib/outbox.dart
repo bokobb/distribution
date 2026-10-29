@@ -13,7 +13,8 @@ import 'data/order.dart';
 import 'data/visit.dart';
 
 /// Всё, что ждёт отправки на сервер: журнал приложения и точки GPS (пачками), новые магазины с фото фасада,
-/// законченные визиты, фото полки, заказы, выдачи экспедитора, оплаты долга и возвраты негодного. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
+/// законченные визиты, фото полки, заказы, выдачи экспедитора с подписью или фото накладной, оплаты долга и
+/// возвраты негодного. Сначала пишется на телефон, отсюда уходит, когда есть сеть; нет сети — останется до следующего
 /// раза: отправка повторяется сама раз в [retry], пока есть что отправить ([start]), и при возврате в
 /// приложение. Повтор не задваивает: у записей журнала, визитов и заказов uuid телефона, у точек — время.
 class Outbox extends ChangeNotifier {
@@ -180,16 +181,32 @@ class Outbox extends ChangeNotifier {
     await store.pruneOrders(_now().subtract(keep));
   }
 
-  /// Выдача экспедитора; сервер вернул статус заказа и свои суммы. Не принял — помечаем и идём дальше.
+  /// Выдача экспедитора, потом подтверждение к ней (подпись или фото накладной); сервер вернул статус заказа и
+  /// свои суммы. Не принял выдачу — помечаем и идём дальше; не принял подтверждение — выдача остаётся, файл
+  /// больше не шлём.
   Future<void> _deliveries() async {
     for (final d in await store.deliveries()) {
-      if (d.sent || d.error != null) continue;
+      if (d.uploaded || d.error != null) continue;
       try {
-        final r = await api.delivery(d.toJson());
-        d
-          ..sent = true
-          ..statusLabel = r['statusLabel'] as String?;
-        expeditorSent++;
+        if (!d.sent) {
+          final r = await api.delivery(d.toJson());
+          d
+            ..sent = true
+            ..statusLabel = r['statusLabel'] as String?;
+          expeditorSent++;
+          await store.saveDelivery(d);
+        }
+        final proof = d.proof;
+        if (proof != null && !d.proofSent) {
+          final file = File(proof);
+          try {
+            if (await file.exists()) await api.deliveryProof(d.uuid, await file.readAsBytes(), png: proof.endsWith('.png'));
+          } on ApiException catch (e) {
+            if (!_rejected(e)) rethrow;
+          }
+          d.proofSent = true;
+          await _deleteFile(proof);
+        }
       } on ApiException catch (e) {
         if (!_rejected(e)) rethrow;
         d.error = e.message;

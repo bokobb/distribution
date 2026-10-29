@@ -11,6 +11,7 @@ import 'package:distribution_mobile/outbox.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'fake_camera.dart';
 import 'fake_location.dart';
 import 'fake_server.dart';
 import 'memory_store.dart';
@@ -35,7 +36,7 @@ void main() {
     gps = FakeLocation();
     final api = ApiClient(baseUrl: 'http://s', client: server.client, deviceToken: 'ключ');
     outbox = Outbox(api: api, store: store, clock: () => now);
-    book = DeliveryBook(store: store, outbox: outbox, location: gps, clock: () => now);
+    book = DeliveryBook(store: store, outbox: outbox, location: gps, camera: FakeCamera(), clock: () => now);
     data = ExpeditorData.fromJson(sampleExpeditorData(now: now));
   });
 
@@ -147,6 +148,50 @@ void main() {
     expect(store.deliveriesByUuid, hasLength(1));
     expect(book.of(11)!.statusLabel, 'Доставлен');
     expect((await store.pending()).rejectedDeliveries, isEmpty);
+  });
+
+  test('подтверждение: подпись уходит после выдачи, файл стирается; без сети — ждёт вместе с выдачей', () async {
+    final camera = book.camera;
+    server.offline = true;
+    final png = await camera.keep('подпись.png', [0x89, 0x50, 0x4E, 0x47, 1]);
+    await book.deliver(trip(), arai(), items: {1: 24, 2: 5}, cash: 13500, proof: png, settings: data.settings);
+    await settle();
+    expect(outbox.unsent, 1);
+    expect(book.of(11)!.proof, png);
+
+    server.offline = false;
+    await outbox.flush();
+    final uuid = book.of(11)!.uuid;
+    expect(server.proofs[uuid]!.$1, 'image/png');
+    expect(server.proofs[uuid]!.$2, [0x89, 0x50, 0x4E, 0x47, 1]);
+    expect(File(png).existsSync(), isFalse);
+    await settle(); // книга перечитывает телефон после отправки
+    expect(book.of(11)!.uploaded, isTrue);
+    expect(outbox.unsent, 0);
+  });
+
+  test('подтверждение: выдача ушла, а подтверждение — нет (сеть пропала) — дошлётся потом', () async {
+    final photo = (await book.camera.photo('накладная'))!;
+    server.dropProofs = 1;
+    await book.deliver(trip(), arai(), items: {1: 24, 2: 5}, cash: 13500, proof: photo, settings: data.settings);
+    await settle();
+    final d = book.of(11)!;
+    expect([d.sent, d.proofSent, d.uploaded], [true, false, false]);
+    expect(outbox.unsent, 1);
+    expect(await book.cancel(d), isFalse); // выдача уже на сервере
+
+    await outbox.flush();
+    expect(server.proofs[d.uuid]!.$1, 'image/jpeg');
+    expect(outbox.unsent, 0);
+  });
+
+  test('подтверждение: отменили выдачу до отправки — файл стёрт', () async {
+    server.offline = true;
+    final png = await book.camera.keep('подпись-2.png', [0x89, 0x50, 0x4E, 0x47]);
+    await book.deliver(trip(), arai(), items: {1: 24, 2: 5}, proof: png, settings: data.settings);
+    await settle();
+    expect(await book.cancel(book.of(11)!), isTrue);
+    expect(File(png).existsSync(), isFalse);
   });
 
   test('повтор отправки той же выдачи не задваивает: uuid выдачи и оплат те же', () async {
@@ -328,6 +373,22 @@ void main() {
     await db.saveDelivery(back);
     expect(await db.unsentCount(), 0);
     expect((await db.deliveries()).single.statusLabel, 'Частично');
+
+    // выдача ушла, подпись — ещё нет: ждёт отправки и не стирается
+    final signed = Delivery(
+        uuid: 'в3', orderId: 13, tripId: 1, outletId: 3, deliveredAt: DateTime(2026, 10, 20),
+        cashUuid: 'н3', kaspiUuid: 'к3', proof: '/tmp/подпись.png')
+      ..sent = true;
+    await db.saveDelivery(signed);
+    expect(await db.unsentCount(), 1);
+    await db.pruneDeliveries(DateTime(2026, 10, 28));
+    expect((await db.deliveries()).map((x) => x.uuid), contains('в3'));
+    expect((await db.deliveries()).firstWhere((x) => x.uuid == 'в3').proof, '/tmp/подпись.png');
+    signed.proofSent = true;
+    await db.saveDelivery(signed);
+    expect(await db.unsentCount(), 0);
+    await db.pruneDeliveries(DateTime(2026, 10, 28));
+    expect((await db.deliveries()).map((x) => x.uuid), isNot(contains('в3')));
 
     await db.saveDelivery(Delivery(
         uuid: 'в2', orderId: 12, tripId: 1, outletId: 2, deliveredAt: DateTime(2026, 10, 28, 12),

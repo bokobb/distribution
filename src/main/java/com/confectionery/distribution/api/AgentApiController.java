@@ -81,7 +81,8 @@ public class AgentApiController {
         return ResponseEntity.noContent().build();
     }
 
-    private static byte[] photo(HttpServletRequest request) throws IOException {
+    /** Фото телом запроса, не больше FileStore.MAX_PHOTO (и для экспедитора — подтверждение выдачи). */
+    static byte[] photo(HttpServletRequest request) throws IOException {
         byte[] jpeg = request.getInputStream().readNBytes(FileStore.MAX_PHOTO + 1);
         if (jpeg.length > FileStore.MAX_PHOTO) throw new ApiException(HttpStatus.CONTENT_TOO_LARGE, "Фото больше 5 МБ");
         return jpeg;

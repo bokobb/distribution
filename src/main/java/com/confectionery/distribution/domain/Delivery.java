@@ -38,6 +38,8 @@ public class Delivery extends CompanyEntity {
     private String refuseReason;
     private Double lat;
     private Double lng;
+    /** Подпись получателя (PNG) или фото накладной (JPEG) — путь в FileStore; null — не прислали. */
+    private String proof;
     @OneToMany(mappedBy = "delivery", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<DeliveryItem> items = new ArrayList<>();
@@ -47,6 +49,11 @@ public class Delivery extends CompanyEntity {
         item.setCompany(getCompany());
         items.add(item);
         return this;
+    }
+
+    /** Подтверждение — фото накладной, а не подпись на экране. */
+    public boolean isProofPhoto() {
+        return proof != null && proof.endsWith(".jpg");
     }
 
     public long getTotal() {

@@ -23,6 +23,13 @@ class FakeCamera implements PhotoSource {
   }
 
   @override
+  Future<String> keep(String name, List<int> bytes) async {
+    final f = File('${dir.path}/$name');
+    await f.writeAsBytes(bytes);
+    return f.path;
+  }
+
+  @override
   Future<void> clear() async {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   }

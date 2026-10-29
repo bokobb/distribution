@@ -18,6 +18,8 @@ class Delivery {
     required this.kaspiUuid,
     this.lat,
     this.lng,
+    this.proof,
+    this.proofSent = false,
     this.sent = false,
     this.error,
     this.statusLabel,
@@ -50,6 +52,10 @@ class Delivery {
   final double? lat;
   final double? lng;
 
+  /// Подтверждение: подпись получателя (PNG) или фото накладной (JPEG) — файл на телефоне; уходит после выдачи.
+  final String? proof;
+  bool proofSent;
+
   bool sent;
 
   /// Сервер не принял — почему.
@@ -59,6 +65,9 @@ class Delivery {
   String? statusLabel;
 
   bool get refused => refuseReason != null;
+
+  /// Ушло всё: выдача и подтверждение к ней.
+  bool get uploaded => sent && (proof == null || proofSent);
   bool get partial => !refused && items.isNotEmpty;
   int get paid => cash + kaspi;
 
@@ -97,6 +106,8 @@ class Delivery {
         'kaspiUuid': kaspiUuid,
         'lat': lat,
         'lng': lng,
+        'proof': proof,
+        'proofSent': proofSent,
         'sent': sent,
         'error': error,
         'statusLabel': statusLabel,
@@ -119,6 +130,8 @@ class Delivery {
       kaspiUuid: j['kaspiUuid'] as String,
       lat: (j['lat'] as num?)?.toDouble(),
       lng: (j['lng'] as num?)?.toDouble(),
+      proof: j['proof'] as String?,
+      proofSent: j['proofSent'] as bool? ?? false,
       sent: j['sent'] as bool? ?? false,
       error: j['error'] as String?,
       statusLabel: j['statusLabel'] as String?,

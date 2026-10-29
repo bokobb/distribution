@@ -31,6 +31,12 @@ class FakeServer {
   final visits = <String, Map<String, dynamic>>{};
   final photos = <String, List<int>>{};
 
+  /// Подтверждения выдач по uuid выдачи: тип и байты (подпись PNG или фото накладной JPEG).
+  final proofs = <String, (String?, List<int>)>{};
+
+  /// Столько подтверждений «потерять» — сеть пропала посреди отправки.
+  int dropProofs = 0;
+
   /// Сервер не принимает визиты (неверные данные) — с этим текстом.
   String? rejectVisits;
 
@@ -73,6 +79,17 @@ class FakeServer {
       if (!authed) return _json({'message': 'Войдите заново'}, 401);
       if (!visits.containsKey(photo[1])) return _json({'message': 'Не найдено'}, 404);
       photos[photo[1]!] = r.bodyBytes;
+      return http.Response('', 204);
+    }
+    final proof = RegExp(r'^/api/mobile/expeditor/deliveries/([^/]+)/proof$').firstMatch(r.url.path);
+    if (proof != null) {
+      if (dropProofs > 0) {
+        dropProofs--;
+        throw http.ClientException('Connection reset');
+      }
+      if (!authed) return _json({'message': 'Войдите заново'}, 401);
+      if (!deliveries.containsKey(proof[1])) return _json({'message': 'Не найдено'}, 404);
+      proofs[proof[1]!] = (r.headers['content-type'], r.bodyBytes);
       return http.Response('', 204);
     }
     final facade = RegExp(r'^/api/mobile/agent/outlets/([^/]+)/photo$').firstMatch(r.url.path);

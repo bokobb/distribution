@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +7,7 @@ import '../data/expeditor_data.dart';
 import '../deliveries.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'proof_screen.dart';
 
 /// «Выдача» заказа: сколько выдать по каждому товару (сначала — всё по заказу), сколько получено наличными и
 /// Kaspi (сначала — как оплачивает магазин); не хватило денег — остаток уходит в долг магазина. Выдано —
@@ -71,14 +74,29 @@ class _DeliverScreenState extends State<DeliverScreen> {
   }
 
   Future<void> _deliver() async {
+    final cash = _value(_cash), kaspi = _kaspiField ? _value(_kaspi) : 0;
+    // как на «Доставках»: подпись получателя или фото накладной
+    final proof = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => ProofScreen(
+                stop: widget.stop,
+                camera: widget.deliveries.camera,
+                forOrder: widget.stop.order.payment == 'CREDIT' && cash + kaspi == 0 ? null : cash + kaspi)));
+    if (proof == null || !mounted) return;
     setState(() => _busy = true);
-    final problem = await widget.deliveries.deliver(widget.trip, widget.stop,
-        items: {..._qty}, cash: _value(_cash), kaspi: _kaspiField ? _value(_kaspi) : 0, settings: widget.settings);
+    final problem = await widget.deliveries
+        .deliver(widget.trip, widget.stop, items: {..._qty}, cash: cash, kaspi: kaspi, proof: proof, settings: widget.settings);
     if (!mounted) return;
     setState(() => _busy = false);
     if (problem == null) {
       Navigator.pop(context, true);
     } else {
+      try {
+        File(proof).deleteSync();
+      } on FileSystemException {
+        // уже нет
+      }
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(problem)));

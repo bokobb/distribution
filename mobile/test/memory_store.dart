@@ -66,7 +66,7 @@ class MemoryStore implements LocalStore {
         orders.values.where((o) => !o.sent && o.error == null).length +
         newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length +
         newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length +
-        deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length +
+        deliveriesByUuid.values.where((d) => !d.uploaded && d.error == null).length +
         debtPaymentsByUuid.values.where((p) => !p.sent && p.error == null).length +
         returnsByUuid.values.where((r) => !r.sent && r.error == null).length;
   }
@@ -111,7 +111,7 @@ class MemoryStore implements LocalStore {
 
   @override
   Future<void> pruneDeliveries(DateTime before) async =>
-      deliveriesByUuid.removeWhere((_, d) => d.sent && d.deliveredAt.isBefore(before));
+      deliveriesByUuid.removeWhere((_, d) => d.uploaded && d.deliveredAt.isBefore(before));
 
   @override
   Future<void> saveNewOutlet(NewOutlet o) async => newOutletsByUuid[o.uuid] = o.copy();
@@ -189,7 +189,7 @@ class MemoryStore implements LocalStore {
           newOutletsByUuid.values.where((o) => o.error == null && o.photo != null && !o.photoSent).length,
       orders: orders.values.where((o) => !o.sent && o.error == null).length,
       outlets: newOutletsByUuid.values.where((o) => o.error == null && !o.sent).length,
-      deliveries: deliveriesByUuid.values.where((d) => !d.sent && d.error == null).length,
+      deliveries: deliveriesByUuid.values.where((d) => !d.uploaded && d.error == null).length,
       debtPayments: debtPaymentsByUuid.values.where((p) => !p.sent && p.error == null).length,
       returns: returnsByUuid.values.where((r) => !r.sent && r.error == null).length,
       rejectedVisits: _sorted(visits.values.where((v) => v.error != null)),

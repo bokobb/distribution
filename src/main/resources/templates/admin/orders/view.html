@@ -55,6 +55,7 @@
                 <dt th:if="${o.comment != null}">Комментарий</dt><dd th:if="${o.comment != null}" th:text="${o.comment}"></dd>
                 <dt>Цены</dt><dd th:text="${o.outlet.priceType}"></dd>
                 <dt th:if="${o.trip != null}">Рейс</dt><dd th:if="${o.trip != null}"><a class="link" th:href="${'/admin/trips/' + o.trip.id}" th:text="${o.trip.number + ' · ' + o.trip.expeditor.name}"></a></dd>
+                <dt th:if="${o.delivery?.proof != null}">Получено</dt><dd th:if="${o.delivery?.proof != null}"><a class="link" th:href="${'/admin/trips/proof/' + o.delivery.uuid}" target="_blank" th:text="${o.delivery.proofPhoto ? 'Фото накладной' : 'Подпись получателя'}"></a></dd>
                 <dt th:if="${o.refuseReason != null}">Отказ</dt><dd th:if="${o.refuseReason != null}" class="bad" th:text="${o.refuseReason}"></dd>
                 <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>
             </dl></div>

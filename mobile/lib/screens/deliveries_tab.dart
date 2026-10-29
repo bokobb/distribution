@@ -12,6 +12,7 @@ import '../widgets/workday_card.dart';
 import '../workday.dart';
 import 'goods_screen.dart';
 import 'home_parts.dart';
+import 'proof_screen.dart';
 import 'route_map_screen.dart';
 import 'stop_screen.dart';
 
@@ -137,9 +138,15 @@ class _DeliveriesTabState extends State<DeliveriesTab> {
     final debt = _debtOpen.contains(id) ? _value(_debtOf(id)) : 0;
     final items = _plan[id] ?? {for (final l in order.lines) l.productId: l.qty};
     final kaspi = order.payment == 'KASPI';
+    final proof = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => ProofScreen(
+                stop: s, camera: widget.deliveries.camera, forOrder: credit ? null : paid, oldDebt: debt)));
+    if (proof == null || !mounted) return;
     setState(() => _busy = true);
     var problem = await widget.deliveries.deliver(t, s,
-        items: items, cash: kaspi ? 0 : paid, kaspi: kaspi ? paid : 0, settings: widget.data!.settings);
+        items: items, cash: kaspi ? 0 : paid, kaspi: kaspi ? paid : 0, proof: proof, settings: widget.data!.settings);
     if (problem == null && debt > 0) {
       problem = await widget.deliveries.payDebt(t, s, cash: debt, settings: widget.data!.settings);
       if (problem != null) problem = 'Выдача сохранена, а старый долг — нет: $problem';

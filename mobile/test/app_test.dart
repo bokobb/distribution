@@ -67,9 +67,23 @@ Future<void> tapVisible(WidgetTester t, Finder f) async {
   await t.tap(f);
 }
 
+/// «Подтверждение доставки» фото накладной.
+Future<void> confirmByPhoto(WidgetTester t) async {
+  expect(find.text('Подтверждение доставки'), findsOneWidget);
+  await t.tap(find.text('Фото накладной'));
+  await t.pump();
+  expect(find.text('Нужно фото накладной с печатью'), findsOneWidget);
+  await t.tap(find.text('Сфотографировать накладную'));
+  await settleIo(t);
+  expect(find.text('Фото накладной приложено'), findsOneWidget);
+  await t.tap(find.text('Подтвердить доставку'));
+  await t.pumpAndSettle();
+  await settleIo(t, rounds: 3); // фото уходит вслед за выдачей: чтение и стирание файла
+}
+
 /// Дать отработать настоящему вводу-выводу (файл фото): каждый его шаг ждёт кадра.
-Future<void> settleIo(WidgetTester t) async {
-  for (var i = 0; i < 5; i++) {
+Future<void> settleIo(WidgetTester t, {int rounds = 1}) async {
+  for (var i = 0; i < 5 * rounds; i++) {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
     await t.pump();
   }
@@ -635,6 +649,13 @@ void main() {
     expect(find.text('Не хватает ${money(2200)} — останется долгом'), findsOneWidget);
     await tapVisible(t, button('Доставлено'));
     await t.pumpAndSettle();
+    expect(find.text(money(5000)), findsOneWidget); // за заказ
+    await t.pageBack(); // передумал — ничего не записано
+    await t.pumpAndSettle();
+    expect(server.deliveries, isEmpty);
+    await tapVisible(t, button('Доставлено'));
+    await t.pumpAndSettle();
+    await confirmByPhoto(t);
 
     final sent = server.deliveries.values.single;
     expect(sent['items'], [
@@ -642,6 +663,7 @@ void main() {
       {'productId': 2, 'qty': 4},
     ]);
     expect([for (final p in sent['payments'] as List) p['amount']], [5000]);
+    expect(server.proofs[sent['uuid']]!.$1, 'image/jpeg');
     expect(server.count('/api/mobile/expeditor/data'), 2); // после отправки данные обновились
     expect(find.text('Новые · 0'), findsOneWidget);
     expect(find.text('Все доставки выполнены'), findsOneWidget);
@@ -688,8 +710,27 @@ void main() {
     await tapVisible(t, button('Доставлено'));
     await t.pumpAndSettle();
 
+    expect(find.text('Старый долг'), findsOneWidget);
+    expect(find.text(money(33500)), findsOneWidget); // всего
+    expect(find.text('Подтверждение доставки'), findsOneWidget);
+    expect(find.text('Нужна подпись получателя'), findsOneWidget);
+    expect(t.widget<ButtonStyleButton>(find.ancestor(of: find.text('Подтвердить доставку'), matching: find.byWidgetPredicate((w) => w is ButtonStyleButton))).onPressed, isNull);
+    await t.drag(find.text('Распишитесь здесь пальцем'), const Offset(120, 30));
+    await t.pump();
+    expect(find.text('Подпись получена'), findsOneWidget);
+    await t.tap(find.text('Очистить'));
+    await t.pump();
+    expect(find.text('Нужна подпись получателя'), findsOneWidget);
+    await t.drag(find.text('Распишитесь здесь пальцем'), const Offset(-100, 20));
+    await t.pump();
+    await t.tap(find.text('Подтвердить доставку'));
+    await settleIo(t, rounds: 4); // картинка подписи, файл, выдача, отправка с подписью
+
     expect([for (final p in server.deliveries.values.single['payments'] as List) p['amount']], [13500]);
     expect([for (final p in server.debtPayments.values) p['amount']], [20000]);
+    final proof = server.proofs.values.single;
+    expect(proof.$1, 'image/png');
+    expect(proof.$2.take(4), [0x89, 0x50, 0x4E, 0x47]); // PNG
     await openTab(t, 'Касса');
     expect(find.text(money(33500)), findsOneWidget);
     expect(find.text('из них в счёт долгов ${money(20000)}'), findsOneWidget);
@@ -726,6 +767,17 @@ void main() {
     await tapVisible(t, find.text('Отменить отказ'));
     await t.pumpAndSettle();
     await t.tap(find.widgetWithText(TextButton, 'Отменить'));
+    await t.pumpAndSettle();
+    // и из карточки точки выдача — тоже с подтверждением
+    await t.scrollUntilVisible(find.text('Выдать'), -200, scrollable: find.byType(Scrollable).first);
+    await t.tap(find.text('Выдать'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Выдать на ${money(13500)}'));
+    await t.pumpAndSettle();
+    expect(find.text('Подтверждение доставки'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await t.pageBack();
     await t.pumpAndSettle();
     await t.pageBack();
     await t.pumpAndSettle();

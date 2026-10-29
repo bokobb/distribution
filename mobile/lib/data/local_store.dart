@@ -467,7 +467,8 @@ class SqliteStore implements LocalStore {
           'order_id': d.orderId,
           'delivered_at': d.deliveredAt.toIso8601String(),
           'json': d.encode(),
-          'sent': d.sent ? 1 : 0,
+          // «отправлено» для счёта и очистки — когда ушло и подтверждение
+          'sent': d.uploaded ? 1 : 0,
           'error': d.error,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'camera.dart';
 import 'data/debt_payment.dart';
 import 'data/defect_return.dart';
 import 'data/delivery.dart';
@@ -15,7 +17,8 @@ import 'outbox.dart';
 /// оплату старого долга и негодный товар; отменить, пока не ушло. Всё пишется на телефон и уходит через [outbox]; пока сервер не
 /// ответил, точка рейса показывается по телефонной выдаче.
 class DeliveryBook extends ChangeNotifier {
-  DeliveryBook({required this.store, required this.outbox, required this.location, DateTime Function()? clock})
+  DeliveryBook(
+      {required this.store, required this.outbox, required this.location, required this.camera, DateTime Function()? clock})
       : _now = clock ?? DateTime.now {
     // отправка прошла — отметки «ждёт отправки» перечитать с телефона
     outbox.addListener(_reload);
@@ -24,6 +27,9 @@ class DeliveryBook extends ChangeNotifier {
   final LocalStore store;
   final Outbox outbox;
   final LocationSource location;
+
+  /// Фото накладной и файл подписи получателя.
+  final PhotoSource camera;
   final DateTime Function() _now;
 
   /// Частые причины отказа — выбрать одним касанием.
@@ -86,9 +92,14 @@ class DeliveryBook extends ChangeNotifier {
   void _reload() => unawaited(load());
 
   /// Выдать заказ: [items] — сколько выдано по товарам (id → штук), всё как в заказе — выдано целиком;
-  /// [cash] и [kaspi] — сколько получено. Не получилось — текст для человека.
+  /// [cash] и [kaspi] — сколько получено; [proof] — файл подписи получателя или фото накладной. Не получилось —
+  /// текст для человека.
   Future<String?> deliver(TripInfo trip, Stop stop,
-      {required Map<int, int> items, int cash = 0, int kaspi = 0, required ExpeditorSettings settings}) async {
+      {required Map<int, int> items,
+      int cash = 0,
+      int kaspi = 0,
+      String? proof,
+      required ExpeditorSettings settings}) async {
     final order = stop.order;
     if (done(order)) return 'Заказ уже выдан';
     var total = 0;
@@ -107,7 +118,8 @@ class DeliveryBook extends ChangeNotifier {
         items: all ? const {} : {for (final e in items.entries) if (e.value > 0) e.key: e.value},
         total: total,
         cash: cash,
-        kaspi: kaspi);
+        kaspi: kaspi,
+        proof: proof);
     return null;
   }
 
@@ -121,7 +133,12 @@ class DeliveryBook extends ChangeNotifier {
   }
 
   Future<void> _save(TripInfo trip, Stop stop,
-      {String? refuseReason, Map<int, int> items = const {}, int total = 0, int cash = 0, int kaspi = 0}) async {
+      {String? refuseReason,
+      Map<int, int> items = const {},
+      int total = 0,
+      int cash = 0,
+      int kaspi = 0,
+      String? proof}) async {
     final fix = await location.current().timeout(gpsWait, onTimeout: () => null);
     // прежняя выдача, которую сервер не принял, заменяется новой
     final rejected = of(stop.order.id);
@@ -141,6 +158,7 @@ class DeliveryBook extends ChangeNotifier {
       kaspiUuid: const Uuid().v4(),
       lat: fix?.lat,
       lng: fix?.lng,
+      proof: proof,
     );
     await store.saveDelivery(d);
     _local = [..._local.where((x) => x.uuid != rejected?.uuid), d];
@@ -220,6 +238,14 @@ class DeliveryBook extends ChangeNotifier {
     final now = (await store.deliveries()).where((x) => x.uuid == d.uuid).firstOrNull;
     if (now == null || now.sent) return false;
     await store.deleteDelivery(d.uuid);
+    final proof = now.proof;
+    if (proof != null) {
+      try {
+        await File(proof).delete();
+      } on FileSystemException {
+        // уже нет
+      }
+    }
     _local = _local.where((x) => x.uuid != d.uuid).toList();
     notifyListeners();
     await outbox.count();
