@@ -3,6 +3,7 @@ package com.confectionery.distribution.service;
 import com.confectionery.distribution.domain.*;
 import com.confectionery.distribution.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +25,10 @@ public class StockService {
     private final ReceiptRepository receipts;
     private final OrderRepository orders;
     private final CatalogService catalog;
+    private final JdbcTemplate jdbc;
     private final Clock clock;
 
-    /** Строка склада: товар, основной склад, в машинах, в резерве под заказы на завтра, негодный. */
+    /** Строка склада: товар, основной склад, в машинах, в резерве под неотгруженные заказы, негодный. */
     public record StockRow(Product product, int main, int inVehicles, int reserved, int defect) {
         public int free() {
             return main - reserved;
@@ -59,6 +61,66 @@ public class StockService {
         List<StockRow> out = new ArrayList<>();
         m.forEach((p, r) -> out.add(new StockRow(p, r[0], r[1], r[2], r[3])));
         return out;
+    }
+
+    /**
+     * Свободно для заказа: основной склад минус неотгруженные заказы (те же статусы, что RESERVED), кроме
+     * exceptOrderId — у правки заказа его товар свой. Товар → штук; меньше нуля, если склад ушёл в минус.
+     */
+    public Map<Long, Integer> free(Long companyId, Long exceptOrderId) {
+        Map<Long, Integer> out = new HashMap<>();
+        jdbc.query("""
+                select p.id, coalesce(b.qty, 0) - coalesce(r.qty, 0)
+                from products p
+                left join warehouses w on w.company_id = p.company_id and w.type = 'MAIN'
+                left join stock_balances b on b.warehouse_id = w.id and b.product_id = p.id
+                left join (select i.product_id, sum(i.qty) qty from order_items i join orders o on o.id = i.order_id
+                           where o.company_id = ? and o.status in ('ACCEPTED', 'NEEDS_APPROVAL', 'ASSEMBLED') and o.id <> ?
+                           group by i.product_id) r on r.product_id = p.id
+                where p.company_id = ?""",
+                rs -> {
+                    out.put(rs.getLong(1), rs.getInt(2));
+                }, companyId, exceptOrderId == null ? -1L : exceptOrderId, companyId);
+        return out;
+    }
+
+    /** Чего заказу не хватает на складе: товар → {заказано, свободно}; всё есть — пусто. */
+    public Map<Product, int[]> shortage(Order o) {
+        Map<Long, Integer> free = free(o.getCompanyId(), o.getId());
+        Map<Product, int[]> out = new LinkedHashMap<>();
+        for (OrderLine l : o.getLines()) {
+            int f = free.getOrDefault(l.getProduct().getId(), 0);
+            if (l.getQty() > f) out.put(l.getProduct(), new int[]{l.getQty(), Math.max(0, f)});
+        }
+        return out;
+    }
+
+    /**
+     * Ввод остатков (первый раз или после пересчёта): на основном складе становится столько, сколько указано;
+     * разница — движение «ввод остатков». Не указано — товар не трогается. Возвращает, у скольких товаров изменилось.
+     */
+    @Transactional
+    public int count(Company c, Map<Long, Integer> actual, Actor actor) {
+        Warehouse main = warehouse(c, WarehouseType.MAIN);
+        LocalDateTime now = LocalDateTime.now(clock);
+        int changed = 0;
+        for (Product p : catalog.products(c.getId())) {
+            Integer want = actual.get(p.getId());
+            if (want == null) continue;
+            int have = qty(main, p);
+            if (want == have) continue;
+            if (want > have) move(p, want - have, null, main, MovementReason.ADJUST, actor, now, null);
+            else move(p, have - want, main, null, MovementReason.ADJUST, actor, now, null);
+            changed++;
+        }
+        return changed;
+    }
+
+    /** «Булочки» — заказано 30, свободно 12; … */
+    public static String shortageText(Map<Product, int[]> m) {
+        StringJoiner j = new StringJoiner("; ");
+        m.forEach((p, q) -> j.add("«" + p.getName() + "» — заказано " + q[0] + ", свободно " + q[1]));
+        return j.toString();
     }
 
     public Warehouse warehouse(Company c, WarehouseType type) {

@@ -44,6 +44,37 @@ public class AdminStockController {
         return "admin/stock/list";
     }
 
+    /** Компания склада: выбранная, в режиме «Все компании» — первая (как на странице склада). */
+    private Company company(Viewer v) {
+        return v.isAll() ? companies.first() : companies.get(v.companyId());
+    }
+
+    /** Ввод остатков: сколько сейчас на основном складе по каждому товару и поле «фактически». */
+    @GetMapping("/admin/stock/count")
+    public String countForm(Model model, HttpSession session) {
+        Company c = company(ctx.viewer(session));
+        if (c == null) return "redirect:/admin/stock";
+        AdminPage.head(model, "stock", "Ввод остатков", c.getName() + " · основной склад");
+        model.addAttribute("rows", stock.rows(c.getId()));
+        return "admin/stock/count";
+    }
+
+    /** Записать остатки из полей qty_{productId}; пустое поле — товар не меняется. */
+    @PostMapping("/admin/stock/count")
+    public String count(HttpServletRequest req, HttpSession session) {
+        Viewer v = ctx.viewer(session);
+        Company c = company(v);
+        if (c == null) return "redirect:/admin/stock";
+        Map<Long, Integer> actual = new HashMap<>();
+        req.getParameterMap().forEach((k, vals) -> {
+            if (k.matches("qty_\\d{1,18}") && vals.length > 0 && vals[0].strip().matches("\\d{1,6}"))
+                actual.put(Long.parseLong(k.substring(4)), Integer.parseInt(vals[0].strip()));
+        });
+        int n = stock.count(c, actual, v.actor());
+        ctx.toast(session, n == 0 ? "Остатки не изменились" : "Остатки записаны: изменено " + n + " тов.");
+        return "redirect:/admin/stock";
+    }
+
     @GetMapping("/admin/stock/receipts/{id}")
     public String receipt(@PathVariable Long id, Model model, HttpSession session) {
         Receipt r = stock.receipt(id);

@@ -11,7 +11,8 @@
 </nav>
 
 <section class="card" th:if="${tab == 'stock'}">
-    <div class="card-h"><div><h2>Остатки</h2><p>резерв — заказы, ещё не отгруженные экспедиторам · минус — отгружено больше, чем пришло, закроется приходом</p></div></div>
+    <div class="card-h"><div><h2>Остатки</h2><p>резерв — заказы, ещё не отгруженные экспедиторам · минус — отгружено больше, чем пришло, закроется приходом</p></div>
+        <a class="btn btn-soft btn-sm" href="/admin/stock/count">Ввод остатков</a></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
         <thead><tr><th>Товар</th><th class="r">Основной склад</th><th class="r">Резерв</th><th class="r">Свободно</th><th class="r">В машинах</th><th class="r">Негодный</th></tr></thead>
         <tbody><tr th:each="r : ${rows}">

@@ -30,12 +30,14 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** «Разрешения»: заказ закрыт по просрочке, кто его открывает, сверх лимита — «только оплата при доставке»,
- * «Вернуть», недоплата при выдаче. */
+ * больше остатка склада, «Вернуть», недоплата при выдаче. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, TestData.class})
@@ -77,6 +79,7 @@ class ApprovalTest {
     @Test
     void просрочка_заказЗакрыт_открываетДиректор_вернуть() throws Exception {
         World w = data.world("Просрочка");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(60));
         data.openingDebt(w, 40_000, data.today().minusDays(30)); // отсрочка 7 дней — просрочено 23 дня
         UUID uuid = UUID.randomUUID();
@@ -117,6 +120,7 @@ class ApprovalTest {
     @Test
     void сверхЛимита_толькоОплатаПриДоставке_вернутьВДолг() throws Exception {
         World w = data.world("Сверх лимита");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
         data.openingDebt(w, 95_000, data.today().minusDays(2));
         UUID uuid = UUID.randomUUID();
@@ -139,6 +143,60 @@ class ApprovalTest {
 
         in(w, () -> approvals.decide(key, "DENY", op, Role.OPERATOR));
         assertThat(state(uuid)).isEqualTo("CANCELLED LIMIT CREDIT");
+    }
+
+    @Test
+    void большеОстатка_нужноРазрешение_торговыйВидитСвободное() throws Exception {
+        World w = data.world("Остаток");
+        data.price(w, PriceKind.WHOLESALE, 100, data.today().minusDays(1));
+        data.stockIn(w, 20);
+        String stockPath = "$.products[?(@.id == " + w.product().getId() + ")].stock";
+        mvc.perform(get("/api/mobile/agent/data").header("Authorization", "Bearer " + data.jwt(w.agent())))
+                .andExpect(jsonPath(stockPath).value(hasItem(20)));
+
+        UUID first = UUID.randomUUID(), late = UUID.randomUUID();
+        order(w, first, "CASH", 15).andExpect(jsonPath("$.status").value("ACCEPTED"));
+        // свободно 20 − 15 = 5, а телефон без сети взял 8
+        order(w, late, "CASH", 8).andExpect(jsonPath("$.status").value("NEEDS_APPROVAL"))
+                .andExpect(jsonPath("$.note").value("Не хватает на складе — ждёт разрешения оператора"));
+        assertThat(state(late)).isEqualTo("NEEDS_APPROVAL STOCK CASH");
+        mvc.perform(get("/api/mobile/agent/data").header("Authorization", "Bearer " + data.jwt(w.agent())))
+                .andExpect(jsonPath(stockPath).value(hasItem(0)));
+
+        String key = "o" + data.orderByUuid(late).getId();
+        ApprovalService.Item item = in(w, () -> approvals.page(w.id(), Role.OPERATOR)).items().stream()
+                .filter(i -> i.key().equals(key)).findFirst().orElseThrow();
+        assertThat(item.kind()).isEqualTo(ApprovalKind.STOCK);
+        assertThat(item.terms()).extracting(ApprovalService.Term::value).containsExactly("заказано 8 · свободно 5");
+
+        Actor op = actor(w, Role.OPERATOR);
+        in(w, () -> approvals.decide(key, "OK", op, Role.OPERATOR));
+        assertThat(state(late)).isEqualTo("ACCEPTED STOCK CASH");
+        Long done = in(w, () -> approvals.page(w.id(), Role.OPERATOR)).today().get(0).id();
+        in(w, () -> approvals.undo(done, op));
+        assertThat(state(late)).isEqualTo("NEEDS_APPROVAL STOCK CASH");
+        in(w, () -> approvals.decide(key, "DENY", op, Role.OPERATOR));
+        assertThat(state(late)).isEqualTo("CANCELLED STOCK CASH");
+    }
+
+    @Test
+    void долгРазрешили_аТовараНет_ждётРазрешенияПоСкладу() throws Exception {
+        World w = data.world("Долг и склад");
+        data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
+        data.openingDebt(w, 95_000, data.today().minusDays(2));
+        data.stockIn(w, 5);
+        UUID uuid = UUID.randomUUID();
+        order(w, uuid, "CREDIT", 10).andExpect(jsonPath("$.status").value("NEEDS_APPROVAL"));
+        assertThat(state(uuid)).isEqualTo("NEEDS_APPROVAL LIMIT CREDIT");
+        String key = "o" + data.orderByUuid(uuid).getId();
+
+        Actor op = actor(w, Role.OPERATOR);
+        in(w, () -> approvals.decide(key, "OK", op, Role.OPERATOR));
+        assertThat(state(uuid)).isEqualTo("NEEDS_APPROVAL STOCK CREDIT");
+        // «Вернуть» решение по долгу — снова ждёт его
+        Long done = in(w, () -> approvals.page(w.id(), Role.OPERATOR)).today().get(0).id();
+        in(w, () -> approvals.undo(done, op));
+        assertThat(state(uuid)).isEqualTo("NEEDS_APPROVAL LIMIT CREDIT");
     }
 
     @Test

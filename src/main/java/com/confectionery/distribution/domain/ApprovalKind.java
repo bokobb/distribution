@@ -1,11 +1,15 @@
 package com.confectionery.distribution.domain;
 
-/** Что ждёт разрешения. LIMIT и OVERDUE — заказ «Нужно разрешение», UNDERPAY — выдача, OUTLET — магазин на проверке. */
+/**
+ * Что ждёт разрешения. LIMIT, OVERDUE и STOCK — заказ «Нужно разрешение», UNDERPAY — выдача, OUTLET — магазин на
+ * проверке.
+ */
 public enum ApprovalKind {
     LIMIT("Сверх лимита", "warn"),
     OVERDUE("Заказ закрыт: просрочка", "bad"),
     UNDERPAY("Недоплата при выдаче", "warn"),
-    OUTLET("Новый магазин", "new");
+    OUTLET("Новый магазин", "new"),
+    STOCK("Не хватает на складе", "warn");
 
     private final String label;
     private final String tone;

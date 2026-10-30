@@ -48,6 +48,7 @@ public class ApprovalService {
     private final ApprovalRepository approvals;
     private final SettingsService settings;
     private final DebtService debts;
+    private final StockService stock;
     private final JdbcTemplate jdbc;
     private final Clock clock;
     private final Fmt fmt;
@@ -95,7 +96,9 @@ public class ApprovalService {
         Map<Long, List<Open>> open = openCredit(shops.stream().map(Outlet::getId).toArray(Long[]::new));
         for (Order o : waiting) {
             CompanySettings s = st.computeIfAbsent(o.getCompanyId(), settings::of);
-            items.add(o.getHold() == ApprovalKind.OVERDUE ? overdue(o, s, role) : limit(o, open.getOrDefault(o.getOutlet().getId(), List.of())));
+            items.add(o.getHold() == ApprovalKind.OVERDUE ? overdue(o, s, role)
+                    : o.getHold() == ApprovalKind.STOCK ? stock(o)
+                    : limit(o, open.getOrDefault(o.getOutlet().getId(), List.of())));
         }
 
         for (Approval a : approvals.findByKindAndDecisionIsNullOrderByCreatedAtAsc(ApprovalKind.UNDERPAY))
@@ -164,6 +167,20 @@ public class ApprovalService {
         return new Item("o" + o.getId(), ApprovalKind.OVERDUE, o.getCompany().getName(), s.getId(), s.getName(), s.getAddress(),
                 s.getPhone(), o.getId(), orderTitle(o), agentName(o), o.getCreatedAt(), terms, note, List.of(lastPayment(s)),
                 false, acts, can ? null : "Один заказ открывает " + st.unblockersText());
+    }
+
+    /** Заказ больше свободного остатка: по каждому товару — заказано и свободно сейчас (мог прийти приход). */
+    private Item stock(Order o) {
+        Outlet s = o.getOutlet();
+        Map<com.confectionery.distribution.domain.Product, int[]> lack = stock.shortage(o);
+        List<Term> terms = new ArrayList<>();
+        lack.forEach((p, q) -> terms.add(new Term(p.getName(), "заказано " + q[0] + " · свободно " + q[1], true)));
+        String note = lack.isEmpty() ? "сейчас на складе уже хватает — можно разрешить"
+                : "свободно — основной склад минус другие неотгруженные заказы";
+        List<Act> acts = List.of(new Act("OK", "Разрешить заказ", "primary", true), new Act("DENY", "Отказать", "danger", true));
+        return new Item("o" + o.getId(), ApprovalKind.STOCK, o.getCompany().getName(), s.getId(), s.getName(), s.getAddress(),
+                s.getPhone(), o.getId(), orderTitle(o), agentName(o), o.getCreatedAt(), terms, note,
+                List.of("Разрешите — при отгрузке склад уйдёт в минус до прихода"), false, acts, null);
     }
 
     private Item underpay(Approval a) {
@@ -245,18 +262,27 @@ public class ApprovalService {
                     text = "Разрешён заказ " + o.getNumber();
                 }
                 o.setStatus(OrderStatus.ACCEPTED);
-                o.event(now, actor.entity(), actor.who(), kind == ApprovalKind.OVERDUE
-                        ? "Разрешил один заказ при просрочке" : "Разрешил заказ сверх лимита долга");
+                o.event(now, actor.entity(), actor.who(), switch (kind) {
+                    case OVERDUE -> "Разрешил один заказ при просрочке";
+                    case STOCK -> "Разрешил заказ сверх остатка склада";
+                    default -> "Разрешил заказ сверх лимита долга";
+                });
+                if (kind != ApprovalKind.STOCK) stockHold(o, now);
             }
             case "CASH" -> {
                 if (kind != ApprovalKind.LIMIT || o.getPayment() != PaymentMethod.CREDIT) throw new FormException("Заказ и так не в долг");
                 a.setPrevPayment(o.getPayment());
                 o.setPayment(PaymentMethod.CASH).setStatus(OrderStatus.ACCEPTED);
                 o.event(now, actor.entity(), actor.who(), "Сверх лимита: переведён на оплату при доставке");
+                stockHold(o, now);
                 text = "Заказ " + o.getNumber() + " — только оплата при доставке";
             }
             case "DENY" -> {
-                String why = kind == ApprovalKind.OVERDUE ? "просрочка " + overdueDays(s) + " дн." : "долг сверх лимита";
+                String why = switch (kind) {
+                    case OVERDUE -> "просрочка " + overdueDays(s) + " дн.";
+                    case STOCK -> "не хватает на складе";
+                    default -> "долг сверх лимита";
+                };
                 o.setStatus(OrderStatus.CANCELLED);
                 o.event(now, actor.entity(), actor.who(), "Отказано: " + why);
                 text = "Отказано: " + why;
@@ -266,6 +292,14 @@ public class ApprovalService {
         a.setDecisionText(text);
         approvals.save(a);
         return quoted(s.getName()) + " — " + text;
+    }
+
+    /** Долг разрешили, а товара на складе не хватает — заказ ждёт второго разрешения, по остатку. */
+    private void stockHold(Order o, LocalDateTime now) {
+        Map<com.confectionery.distribution.domain.Product, int[]> lack = stock.shortage(o);
+        if (lack.isEmpty()) return;
+        o.setStatus(OrderStatus.NEEDS_APPROVAL).setHold(ApprovalKind.STOCK);
+        o.event(now, null, "Система", "Не хватает на складе: " + StockService.shortageText(lack) + " — нужно разрешение");
     }
 
     private String decideUnderpay(Long id, String code, Actor actor, LocalDateTime now) {
@@ -314,10 +348,13 @@ public class ApprovalService {
             throw new FormException("Вернуть можно только сегодняшнее решение");
         String name = quoted(a.getOutlet().getName());
         switch (a.getKind()) {
-            case LIMIT, OVERDUE -> {
+            case LIMIT, OVERDUE, STOCK -> {
                 Order o = orders.lockAll(List.of(a.getOrder().getId())).get(0);
                 OrderStatus expected = "DENY".equals(a.getDecision()) ? OrderStatus.CANCELLED : OrderStatus.ACCEPTED;
-                if (o.getStatus() != expected)
+                // долг разрешили, а заказ встал на разрешение по остатку — вернуть можно и так
+                boolean waitsStock = expected == OrderStatus.ACCEPTED && a.getKind() != ApprovalKind.STOCK
+                        && o.getStatus() == OrderStatus.NEEDS_APPROVAL && o.getHold() == ApprovalKind.STOCK;
+                if (o.getStatus() != expected && !waitsStock)
                     throw new FormException("Заказ " + o.getNumber() + " уже «" + o.getStatus().getLabel() + "» — вернуть нельзя");
                 o.setStatus(OrderStatus.NEEDS_APPROVAL).setHold(a.getKind());
                 if (a.getPrevPayment() != null) o.setPayment(a.getPrevPayment());
@@ -433,6 +470,7 @@ public class ApprovalService {
             String note = switch (ApprovalKind.valueOf(rs.getString(2))) {
                 case LIMIT -> "CASH".equals(code) ? "сверх лимита — только при доставке" : "сверх лимита — разрешён";
                 case OVERDUE -> "разрешён 1 заказ";
+                case STOCK -> "сверх остатка — разрешён";
                 case UNDERPAY -> "OK".equals(code) ? "недоплата — в долг магазина" : "недоплату заберёт торговый";
                 case OUTLET -> null;
             };

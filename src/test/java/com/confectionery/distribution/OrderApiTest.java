@@ -61,6 +61,7 @@ class OrderApiTest {
     @Test
     void ценыСервера_номер_повторБезДубля_вДанныхАгента() throws Exception {
         World w = data.world("Заказ");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 450, data.today().minusDays(10));
         data.price(w, PriceKind.WHOLESALE, 500, data.today().minusDays(1));
         data.price(w, PriceKind.RETAIL, 650, data.today().minusDays(1));
@@ -90,6 +91,7 @@ class OrderApiTest {
     @Test
     void вДолгСверхЛимита_нужноРазрешение() throws Exception {
         World w = data.world("Лимит");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
         data.openingDebt(w, 80_000, data.today().minusDays(3));
         String jwt = data.jwt(w.agent());
@@ -110,6 +112,7 @@ class OrderApiTest {
     @Test
     void сВозвратом_лимитСЧётомВозврата_экспедиторВидит_последнийЗаказМагазина() throws Exception {
         World w = data.world("Возврат с заказом");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
         data.openingDebt(w, 80_000, data.today().minusDays(3));
         String jwt = data.jwt(w.agent());

@@ -35,6 +35,7 @@ public class AgentDataService {
     private final VisitService visits;
     private final MobileOrderService orders;
     private final OutletCardService cards;
+    private final StockService stock;
     private final JdbcTemplate jdbc;
     private final Clock clock;
 
@@ -43,8 +44,15 @@ public class AgentDataService {
                            int gpsInterval, String workStart, String workEnd) {
     }
 
+    /**
+     * stock — свободно для заказа на минуту выгрузки: основной склад минус неотгруженные заказы, не меньше нуля;
+     * экспедитору не нужен — null.
+     */
     public record ProductDto(Long id, String name, String category, String unit, int perBox, String barcode,
-                             long wholesale, long retail) {
+                             long wholesale, long retail, Integer stock) {
+        public ProductDto(Long id, String name, String category, String unit, int perBox, String barcode, long wholesale, long retail) {
+            this(id, name, category, unit, perBox, barcode, wholesale, retail, null);
+        }
     }
 
     /**
@@ -105,6 +113,7 @@ public class AgentDataService {
 
         List<Product> active = products.findAllByOrderByNameAsc().stream().filter(Product::isActive).toList();
         catalog.fillPrices(active);
+        Map<Long, Integer> free = stock.free(companyId, null);
 
         LocalDate today = LocalDate.now(clock);
         LocalDate previous = orders.previousDay(agentId, companyId, today);
@@ -113,7 +122,7 @@ public class AgentDataService {
                         s.isAllowCredit(), s.isApprovalOverLimit(), s.isAgentDiscount(), s.isAcceptKaspi(), s.getGpsInterval(),
                         s.getWorkStart().toString(), s.getWorkEnd().toString()),
                 active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
-                        p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
+                        p.getBarcode(), p.getWholesale(), p.getRetail(), Math.max(0, free.getOrDefault(p.getId(), 0)))).toList(),
                 routeDtos,
                 outlets.values().stream().map(AgentDataService::outlet).toList(),
                 visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()), lastOrders(companyId),

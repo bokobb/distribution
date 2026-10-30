@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!--/* Ввод остатков: кладовщик пересчитал основной склад и вписывает, сколько лежит; пустое поле — товар не трогается.
+     Разница уходит движением «ввод остатков». От остатка зависит, сколько торговые могут заказать. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<body>
+<th:block th:fragment="content">
+<div class="acts">
+    <a class="back" href="/admin/stock"><th:block th:utext="${i16['back']}"></th:block>Остатки</a>
+</div>
+<p class="note">Впишите, сколько штук сейчас лежит на основном складе. Пустое поле — товар не меняется. Торговые видят в телефоне свободный остаток: склад минус заказы, которые ещё не отгрузили.</p>
+<form class="card" th:action="@{/admin/stock/count}" method="post" id="count">
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Товар</th><th class="r">Сейчас, шт</th><th class="r">Фактически, шт</th><th class="r">Разница</th></tr></thead>
+        <tbody><tr th:each="r : ${rows}">
+            <td><b th:text="${r.product().name}"></b><span class="sub" th:text="${@fmt.dot(r.product().category, 'кор. ' + r.product().perBox + ' шт')}"></span></td>
+            <td class="r num" th:classappend="${r.main() < 0} ? 'bad'" th:text="${r.main()}"></td>
+            <td class="r"><input class="inp inp--sm" style="text-align:right;max-width:110px" inputmode="numeric" pattern="\d{1,6}"
+                                 th:attr="data-now=${r.main()}" th:name="${'qty_' + r.product().id}" th:aria-label="${'Фактически: ' + r.product().name}"></td>
+            <td class="r num" data-diff>—</td>
+        </tr></tbody>
+    </table></div>
+    <p class="empty" th:if="${rows.isEmpty()}">Товаров пока нет.</p>
+    <div class="card-b acts">
+        <span class="muted" id="count-text">Ничего не изменено</span><span style="flex:1"></span>
+        <button class="btn btn-primary" type="submit">Записать остатки</button></div>
+</form>
+<script>
+(function () {
+  // разница по строке и сколько товаров изменится — сразу при вводе
+  var form = document.getElementById('count');
+  function sign(n) { return n === 0 ? '—' : (n > 0 ? '+' + n : '−' + (-n)); }
+  form.addEventListener('input', function () {
+    var changed = 0;
+    form.querySelectorAll('input[data-now]').forEach(function (i) {
+      var now = parseInt(i.getAttribute('data-now'), 10), v = parseInt(i.value, 10);
+      var cell = i.closest('tr').querySelector('[data-diff]');
+      var d = isNaN(v) ? 0 : v - now;
+      cell.textContent = sign(d);
+      cell.classList.toggle('bad', d < 0);
+      if (d !== 0) changed++;
+    });
+    document.getElementById('count-text').textContent = changed === 0 ? 'Ничего не изменено' : 'Изменится товаров: ' + changed;
+  });
+})();
+</script>
+</th:block>
+</body>
+</html>

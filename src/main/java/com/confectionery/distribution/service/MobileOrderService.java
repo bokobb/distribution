@@ -43,6 +43,7 @@ public class MobileOrderService {
     private final CatalogService catalog;
     private final DebtService debts;
     private final SettingsService settings;
+    private final StockService stock;
     private final JdbcTemplate jdbc;
     private final Clock clock;
 
@@ -115,6 +116,7 @@ public class MobileOrderService {
         o.setStatus(OrderStatus.ACCEPTED);
         o.event(now, agent, who(agent), "Новый — пришёл с телефона");
         limit(o, st, now);
+        stock(o, now);
         return out(orders.save(o));
     }
 
@@ -130,6 +132,7 @@ public class MobileOrderService {
         LocalDateTime now = LocalDateTime.now(clock);
         CompanySettings st = settings.of(o.getCompanyId());
         OrderStatus wasStatus = o.getStatus();
+        ApprovalKind wasHold = o.getHold();
         PaymentMethod wasPayment = o.getPayment();
         String wasComment = o.getComment(), wasLines = lines(o), wasReturns = returns(o);
         int wasCount = o.getLines().size();
@@ -152,8 +155,10 @@ public class MobileOrderService {
         o.event(now, o.getAgent(), who(o.getAgent()), "Изменён торговым — " + String.join("; ", changes));
         o.setStatus(OrderStatus.ACCEPTED);
         limit(o, st, now);
+        stock(o, now);
         if (wasStatus == OrderStatus.NEEDS_APPROVAL && o.getStatus() == OrderStatus.ACCEPTED)
-            o.event(now, null, "Система", "В пределах лимита — разрешение не нужно");
+            o.event(now, null, "Система", wasHold == ApprovalKind.STOCK ? "На складе хватает — разрешение не нужно"
+                    : "В пределах лимита — разрешение не нужно");
         return out(o);
     }
 
@@ -276,6 +281,18 @@ public class MobileOrderService {
         }
     }
 
+    /**
+     * Больше свободного остатка (телефон без сети не знал, что товар разобрали) — «Нужно разрешение» оператора.
+     * Заказ уже ждёт разрешения по долгу — остаток проверят после него (ApprovalService).
+     */
+    private void stock(Order o, LocalDateTime now) {
+        if (o.getStatus() != OrderStatus.ACCEPTED) return;
+        Map<Product, int[]> lack = stock.shortage(o);
+        if (lack.isEmpty()) return;
+        o.setStatus(OrderStatus.NEEDS_APPROVAL).setHold(ApprovalKind.STOCK);
+        o.event(now, null, "Система", "Не хватает на складе: " + StockService.shortageText(lack) + " — нужно разрешение");
+    }
+
     /** Товары заказа для сравнения до и после правки. */
     private static String lines(Order o) {
         return o.getLines().stream().map(l -> l.getProduct().getId() + ":" + l.getQty()).sorted().toList().toString();
@@ -364,6 +381,7 @@ public class MobileOrderService {
     static OrderOut out(Order o, LocalDateTime deliveredAt) {
         String note = switch (o.getStatus()) {
             case NEEDS_APPROVAL -> o.getHold() == ApprovalKind.OVERDUE ? "Заказ закрыт: просрочка — ждёт разрешения директора"
+                    : o.getHold() == ApprovalKind.STOCK ? "Не хватает на складе — ждёт разрешения оператора"
                     : "Долг сверх лимита — ждёт разрешения оператора";
             case CANCELLED, REFUSED -> o.getEvents().isEmpty() ? null : o.getEvents().get(o.getEvents().size() - 1).getText();
             default -> null;

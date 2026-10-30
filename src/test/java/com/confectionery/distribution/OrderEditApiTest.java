@@ -67,6 +67,7 @@ class OrderEditApiTest {
     @Test
     void правка_строкиНаМесте_лимитЗаново_история_ничегоНеИзменилось() throws Exception {
         World w = data.world("Правка заказа");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
         data.openingDebt(w, 80_000, data.today().minusDays(3));
         String jwt = data.jwt(w.agent());
@@ -119,6 +120,7 @@ class OrderEditApiTest {
     @Test
     void отмена_сПричиной_повтор_отгруженныйНельзя_чужойНельзя() throws Exception {
         World w = data.world("Отмена заказа");
+        data.stockIn(w, 1000); // заказ в пределах остатка — проверка склада не мешает
         data.price(w, PriceKind.WHOLESALE, 1000, data.today().minusDays(1));
         String jwt = data.jwt(w.agent());
         UUID first = UUID.randomUUID(), second = UUID.randomUUID();
