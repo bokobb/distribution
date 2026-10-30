@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -32,9 +33,14 @@ public class AdminStockController {
         Company first = v.isAll() ? companies.first() : null;
         AdminPage.head(model, "stock", "Склад и приходы",
                 v.isAll() ? (first == null ? "—" : first.getName()) + " (в режиме «Все компании» — склад первой)" : v.scopeName());
-        model.addAttribute("tab", "receipts".equals(tab) ? "receipts" : "stock");
-        model.addAttribute("rows", stock.rows(v.isAll() ? (first == null ? -1L : first.getId()) : v.companyId()));
-        model.addAttribute("receipts", stock.receipts());
+        model.addAttribute("tab", "receipts".equals(tab) || "defect".equals(tab) ? tab : "stock");
+        List<StockService.StockRow> rows = stock.rows(v.isAll() ? (first == null ? -1L : first.getId()) : v.companyId());
+        List<com.confectionery.distribution.domain.Receipt> receipts = stock.receipts();
+        model.addAttribute("rows", rows);
+        model.addAttribute("defects", rows.stream().filter(r -> r.defect() > 0).toList());
+        model.addAttribute("defectQty", rows.stream().mapToInt(StockService.StockRow::defect).sum());
+        model.addAttribute("receipts", receipts);
+        model.addAttribute("drafts", receipts.stream().filter(r -> r.getStatus() == com.confectionery.distribution.domain.ReceiptStatus.DRAFT).count());
         return "admin/stock/list";
     }
 

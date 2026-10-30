@@ -50,7 +50,7 @@
   if (all) {
     var name = all.getAttribute('data-check-all');
     var bar = document.getElementById('bulk-bar');
-    var boxes = function () { return document.querySelectorAll('input[type=checkbox][name="' + name + '"]'); };
+    var boxes = function () { return document.querySelectorAll('input[type=checkbox][name="' + name + '"]:not(:disabled)'); };
     var sync = function () {
       var list = boxes(), n = 0, sum = 0;
       list.forEach(function (b) {
@@ -61,9 +61,13 @@
       all.checked = list.length > 0 && n === list.length;
       all.indeterminate = n > 0 && n < list.length;
       if (bar) {
-        bar.hidden = n === 0;
+        // ничего не выбрано — подсказка; выбрано — сколько и на какую сумму
+        bar.classList.toggle('bulk--on', n > 0);
+        bar.querySelectorAll('[data-sel-none]').forEach(function (x) { x.hidden = n > 0; });
+        bar.querySelectorAll('[data-sel-some]').forEach(function (x) { x.hidden = n === 0; });
         bar.querySelector('[data-sel-count]').textContent = n;
-        bar.querySelector('[data-sel-sum]').textContent = sum.toLocaleString('ru-RU') + ' ₸';
+        bar.querySelector('[data-sel-sum]').textContent = sum.toLocaleString('ru-RU') + '\u00a0₸';
+        bar.querySelectorAll('button[type=submit]').forEach(function (b) { b.disabled = n === 0; });
       }
     };
     all.addEventListener('change', function () {

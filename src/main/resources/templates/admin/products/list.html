@@ -1,25 +1,35 @@
 <!DOCTYPE html>
+<!--/* Товары и прайс (design/admin/AdmProducts): коды и цены CRM, опт и розница, наценка опта над ценой CRM.
+     Акций нет — решили не делать. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<div class="tools">
-    <p class="note" style="flex:1" th:text="${'Товаров производства (с кодом CRM): ' + fromCrm + '. Их приход создаётся автоматически после отгрузки в CRM. Прайс у каждой компании свой.'}"></p>
-    <button class="btn btn-soft btn-sm" type="button" disabled title="Этап 1">Загрузить товары из CRM</button>
-    <button class="btn btn-primary btn-sm" type="button" disabled title="Этап 1"><th:block th:utext="${i16['plus']}"></th:block>Новый товар</button>
+<div class="note note--new" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">
+    <span style="flex:1 1 360px" th:text="${@fmt.dot(
+        !crmOn ? 'Связь с CRM не настроена' : (crmAt == null ? 'С CRM ещё не обменивались' : 'Обмен с CRM ' + @fmt.when(crmAt)),
+        'товаров CRM: ' + fromCrm) + '. Их приход создаётся сам после выдачи заказа в CRM, цена CRM — из последнего такого заказа.'
+        + (notCrm.isEmpty() ? '' : ' Не из CRM: ' + #strings.listJoin(notCrm.size() > 3 ? notCrm.subList(0, 3) : notCrm, ', ') + (notCrm.size() > 3 ? ' и ещё ' + (notCrm.size() - 3) : '') + ' — их возврат уходит поставщику.')}"></span>
+    <a class="link" href="/admin/settings" th:if="${crmOn}">Обменяться сейчас</a>
 </div>
-<section class="card" th:each="e : ${byCat}">
-    <div class="card-h"><h2 th:text="${e.key}">Категория</h2><p th:text="${@fmt.plural(e.value.size(), 'товар', 'товара', 'товаров')}"></p></div>
+
+<section class="card">
+    <div class="card-h"><div><h2>Товары</h2><p th:text="${@fmt.plural(products.size(), 'товар', 'товара', 'товаров') + ' · прайс у каждой компании свой'}"></p></div></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Товар</th><th>Штрихкод</th><th class="r">В коробке</th><th>Код CRM</th><th class="r">Опт</th><th class="r">Розница</th></tr></thead>
-        <tbody><tr th:each="p : ${e.value}" th:classappend="${!p.active} ? 'is-off'">
-            <td><b th:text="${p.name}"></b></td>
-            <td class="num muted hide-m" th:text="${p.barcode}"></td>
-            <td class="r num hide-m" th:text="${p.perBox + ' шт'}"></td>
-            <td class="hide-m"><span class="tag" th:classappend="${p.crmCode != null} ? 'tag--crm'" th:text="${p.crmCode ?: 'другой поставщик'}"></span></td>
+        <thead><tr><th>Товар</th><th class="hide-m">Штрихкод</th><th class="r hide-m">В коробке</th><th class="hide-m">Код CRM</th><th class="r">Цена CRM</th>
+            <th class="r">Опт</th><th class="r hide-m">Розница</th><th class="r">Наценка опт</th></tr></thead>
+        <tbody><tr th:each="p : ${products}" th:classappend="${!p.active} ? 'is-off'">
+            <td><b th:text="${p.name}"></b><span class="sub" th:text="${p.category}"></span></td>
+            <td class="num muted hide-m" th:text="${p.barcode ?: '—'}"></td>
+            <td class="r num hide-m" th:text="${p.perBox}"></td>
+            <td class="hide-m"><span class="tag" th:classappend="${p.crmCode != null} ? 'tag--crm'" th:text="${p.crmCode ?: 'не из CRM'}"></span></td>
+            <td class="r num"><th:block th:text="${p.crmPrice == null ? '—' : @fmt.money(p.crmPrice)}"></th:block>
+                <span class="sub" th:if="${p.crmPriceAt != null}" th:text="${@fmt.day(p.crmPriceAt.toLocalDate())}"></span></td>
             <td class="r num"><b th:text="${@fmt.money(p.wholesale)}"></b></td>
-            <td class="r num" th:text="${@fmt.money(p.retail)}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(p.retail)}"></td>
+            <td class="r num" th:classappend="${p.markup != null and p.markup < 0} ? 'bad'" th:text="${p.markup == null ? '—' : (p.markup > 0 ? '+' : '') + p.markup + '%'}"></td>
         </tr></tbody>
     </table></div>
+    <p class="empty" th:if="${products.isEmpty()}">Товаров пока нет — они заводятся сами с первым приходом из CRM.</p>
 </section>
 </th:block>
 </body>

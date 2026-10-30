@@ -60,8 +60,8 @@
       var all = [];
 
       d.outlets.forEach(function (s) {
-        L.circleMarker([s.lat, s.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: s.color, fillOpacity: 0.85 })
-          .bindTooltip('<b>' + esc(s.name) + '</b><br>' + esc(s.address) + (s.route ? '<br>маршрут ' + esc(s.route) : ''))
+        L.circleMarker([s.lat, s.lng], { radius: 6, color: '#fff', weight: 1.5, fillColor: s.stateColor || s.color, fillOpacity: 0.9 })
+          .bindTooltip('<b>' + esc(s.name) + '</b><br>' + esc(s.address) + (s.state ? '<br>' + esc(s.state) : '') + (s.route ? ' · ' + esc(s.route) : ''))
           .addTo(shopLayer);
         all.push([s.lat, s.lng]);
       });
@@ -187,4 +187,35 @@
     // карту открывали — после смены условий списка она снова открыта
     try { if (localStorage.getItem('orders-map-open')) box.open = true; } catch (e) { /* нет хранилища */ }
   })();
+
+  // рейс: магазины по порядку (data-stops) и пунктиром путь машины по GPS за день рейса (data-src — данные карты)
+  (function () {
+    var el = document.getElementById('trip-map');
+    if (!el) return;
+    var stops = JSON.parse(el.getAttribute('data-stops') || '[]');
+    var map = newMap(el), all = [];
+    stops.forEach(function (s) {
+      L.marker([s.lat, s.lng], {
+        icon: L.divIcon({ className: 'map-n', html: '<span class="' + (s.done ? '' : 'off') + '" style="--c:#4136F1">' + s.n + '</span>',
+          iconSize: [24, 24], iconAnchor: [12, 12] }),
+        title: s.n + '. ' + s.name
+      }).bindTooltip('<b>' + s.n + '. ' + esc(s.name) + '</b><br>' + esc(s.state)).addTo(map);
+      all.push([s.lat, s.lng]);
+    });
+    if (all.length) map.fitBounds(all, { padding: [24, 24], maxZoom: 15 }); else map.setView([43.24, 76.89], 11);
+    load(el, function (d) {
+      (d.people[0] ? d.people[0].track : []).forEach(function (seg) {
+        if (seg.length > 1) L.polyline(seg, { color: '#4136F1', weight: 3, opacity: 0.7, dashArray: '6 6' }).addTo(map);
+      });
+    }, noteIn('trip-map-note'));
+  })();
+
+  // одна точка: магазин в карточке (data-point="широта,долгота", data-label — подпись)
+  document.querySelectorAll('[data-point]').forEach(function (el) {
+    var p = el.getAttribute('data-point').split(',').map(Number);
+    var map = newMap(el);
+    map.setView(p, 16);
+    L.circleMarker(p, { radius: 9, color: '#fff', weight: 2, fillColor: '#4136F1', fillOpacity: 1 })
+      .bindTooltip(esc(el.getAttribute('data-label'))).addTo(map);
+  });
 })();

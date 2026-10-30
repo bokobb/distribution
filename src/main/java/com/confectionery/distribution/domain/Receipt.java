@@ -62,6 +62,16 @@ public class Receipt extends CompanyEntity {
         return lines.stream().mapToInt(ReceiptLine::getExpected).sum();
     }
 
+    /** Принято штук: по каждой строке фактическое, не указано — как в документе. */
+    public int getActualQty() {
+        return lines.stream().mapToInt(l -> l.getActual() == null ? l.getExpected() : l.getActual()).sum();
+    }
+
+    /** Расхождение после приёма: принято − по документу (минус — недостача). */
+    public int getDiff() {
+        return status == ReceiptStatus.CONFIRMED ? getActualQty() - getQty() : 0;
+    }
+
     /** Кто принял — имя для страницы. */
     public String getConfirmedBy() {
         return confirmedByUser == null ? null : confirmedByUser.getName();

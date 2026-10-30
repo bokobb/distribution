@@ -38,13 +38,14 @@ public class AdminApprovalController {
 
     @PostMapping("/admin/approvals/decide")
     public String decide(@RequestParam String key, @RequestParam String code, @RequestParam(defaultValue = "all") String f,
-                         HttpSession session) {
+                         @RequestParam(required = false) String back, HttpSession session) {
         Viewer v = ctx.viewer(session);
         try {
             ctx.toast(session, approvals.decide(key, code, v.actor(), v.role()));
         } catch (FormException e) {
             ctx.toast(session, e.getMessage());
         }
+        if (back != null && back.startsWith("/admin/") && !back.startsWith("//")) return "redirect:" + back;
         return "redirect:/admin/approvals?f=" + (FILTERS.contains(f) ? f : "all");
     }
 

@@ -1,22 +1,26 @@
 <!DOCTYPE html>
+<!--/* Заказ (design/admin/AdmOrder): состав «заказано — выдано», возврат негодного и «к оплате», подтверждение доставки,
+     история; справа — оплата, магазин, рейс. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
 <div class="acts">
     <a class="back" href="/admin/orders"><th:block th:utext="${i16['back']}"></th:block>Заказы</a>
+    <span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span>
     <span style="flex:1"></span>
     <a class="btn btn-soft btn-sm" th:href="${'/admin/orders/' + o.id + '/invoice'}" target="_blank"><th:block th:utext="${i16['print']}"></th:block>Накладная</a>
 </div>
 
-<section class="card" th:if="${o.status.name() == 'NEEDS_APPROVAL'}" style="border-color:var(--warn)">
-    <div class="card-h"><h2>Нужно разрешение: долг сверх лимита</h2></div>
+<section class="card card--warn" th:if="${o.status.name() == 'NEEDS_APPROVAL'}">
+    <div class="card-h"><div><h2 th:text="${'Нужно разрешение: ' + (o.hold == null ? 'долг сверх лимита' : o.hold.label.toLowerCase())}">Нужно разрешение</h2></div>
+        <a class="link" href="/admin/approvals">Все разрешения</a></div>
     <div class="card-b" style="display:flex;flex-direction:column;gap:14px">
-        <dl class="kv">
-            <dt>Долг магазина сейчас</dt><dd class="num" th:text="${@fmt.money(o.outlet.debt)}"></dd>
-            <dt>С этим заказом</dt><dd class="num bad"><b th:text="${@fmt.money(o.outlet.debt + o.total)}"></b></dd>
-            <dt>Лимит</dt><dd class="num" th:text="${@fmt.money(o.outlet.creditLimit)}"></dd>
-            <dt>Просрочено</dt><dd class="num" th:text="${@fmt.money(o.outlet.overdue)}"></dd>
-        </dl>
+        <div class="terms">
+            <div><span>Долг магазина сейчас</span><b class="num" th:text="${@fmt.money(o.outlet.debt)}"></b></div>
+            <div><span>С этим заказом</span><b class="num bad" th:text="${@fmt.money(o.outlet.debt + o.total)}"></b></div>
+            <div><span>Лимит</span><b class="num" th:text="${@fmt.money(o.outlet.creditLimit)}"></b></div>
+            <div><span>Просрочено</span><b class="num" th:classappend="${o.outlet.overdue > 0} ? 'bad'" th:text="${@fmt.money(o.outlet.overdue)}"></b></div>
+        </div>
         <div class="acts">
             <form th:action="@{'/admin/orders/' + ${o.id} + '/approve'}" method="post"><button class="btn btn-primary btn-sm" type="submit">Разрешить заказ</button></form>
             <form th:action="@{'/admin/orders/' + ${o.id} + '/cancel'}" method="post"><input type="hidden" name="reason" value="долг сверх лимита, не разрешено"><button class="btn btn-danger btn-sm" type="submit" data-confirm="Отклонить заказ? Агент увидит отмену в приложении.">Отклонить</button></form>
@@ -25,68 +29,121 @@
 </section>
 
 <div class="grid-wide">
-    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+    <div class="stack">
     <section class="card">
-        <div class="card-h"><h2 th:text="${'Состав · '  + @fmt.plural(o.lines.size(), 'позиция', 'позиции', 'позиций')}">Состав</h2>
-            <span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></div>
+        <div class="card-h"><div><h2>Состав</h2><p th:text="${@fmt.plural(o.lines.size(), 'позиция', 'позиции', 'позиций') + ' · заказано на ' + @fmt.money(o.total)}"></p></div></div>
         <div class="tbl-w"><table class="tbl">
-            <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th><th class="r">Выдано</th></tr></thead>
+            <thead><tr><th>Товар</th><th class="r">Заказано</th><th class="r">Выдано</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead>
             <tbody><tr th:each="l : ${o.lines}">
-                <td th:text="${l.product.name}"></td>
+                <td><b th:text="${l.product.name}"></b>
+                    <span class="sub" th:if="${l.shortDelivered}" th:text="${'магазин взял ' + l.delivered + ' из ' + l.qty + ' ' + l.product.unit}"></span>
+                    <span class="sub" th:if="${!l.shortDelivered and l.product.perBox > 1 and l.qty % l.product.perBox == 0}" th:text="${(l.qty / l.product.perBox) + ' кор.'}"></span></td>
                 <td class="r num" th:text="${l.qty + ' ' + l.product.unit}"></td>
-                <td class="r num" th:text="${@fmt.money(l.price)}"></td>
-                <td class="r num" th:text="${@fmt.money(l.sum)}"></td>
                 <td class="r num" th:classappend="${l.shortDelivered} ? 'bad'" th:text="${l.delivered == null ? '—' : l.delivered + ' ' + l.product.unit}"></td>
+                <td class="r num" th:text="${@fmt.money(l.netPrice)}"></td>
+                <td class="r num" th:text="${@fmt.money(l.delivered == null ? l.sum : l.deliveredSum)}"></td>
             </tr></tbody>
-            <tfoot><tr><td colspan="3">Итого</td><td class="r num" th:text="${@fmt.money(o.total)}"></td>
-                <td class="r num" th:text="${o.status.delivered() ? @fmt.money(o.deliveredTotal) : '—'}"></td></tr></tfoot>
+            <tfoot><tr><td th:text="${o.status.delivered() ? 'Выдано' : 'Итого'}">Итого</td>
+                <td class="r num" th:text="${o.qty + ' шт'}"></td>
+                <td class="r num" th:text="${o.status.delivered() ? #aggregates.sum(o.lines.![delivered ?: 0]) + ' шт' : '—'}"></td><td></td>
+                <td class="r num" th:text="${@fmt.money(o.status.delivered() ? o.deliveredTotal : o.total)}"></td></tr></tfoot>
         </table></div>
     </section>
 
     <section class="card" th:if="${!o.returnLines.isEmpty()}">
-        <div class="card-h"><h2 th:text="${'Возврат с заказом · ' + @fmt.plural(o.returnLines.size(), 'позиция', 'позиции', 'позиций')}">Возврат с заказом</h2>
-            <p>Записал торговый — экспедитор заберёт при доставке</p></div>
+        <div class="card-h"><div><h2>Возврат негодного</h2><p th:text="${'оформил торговый в заказе · ' + (o.status.delivered() ? 'забрал экспедитор' : 'экспедитор заберёт при доставке')}"></p></div></div>
         <div class="tbl-w"><table class="tbl">
-            <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена</th><th class="r">Сумма</th></tr></thead>
+            <thead><tr><th>Товар</th><th class="r">Кол-во</th><th class="r">Цена продажи</th><th class="r">Сумма</th></tr></thead>
             <tbody><tr th:each="l : ${o.returnLines}">
-                <td th:text="${l.product.name}"></td>
+                <td><b th:text="${l.product.name}"></b><span class="sub" th:if="${l.reason != null}" th:text="${l.reason.label}"></span></td>
                 <td class="r num" th:text="${l.qty + ' ' + l.product.unit}"></td>
                 <td class="r num" th:text="${@fmt.money(l.price)}"></td>
-                <td class="r num" th:text="${'−' + @fmt.money(l.sum)}"></td>
+                <td class="r num c-ret" th:text="${'−' + @fmt.money(l.sum)}"></td>
             </tr></tbody>
-            <tfoot><tr><td colspan="3">К оплате за заказ</td><td class="r num" th:text="${@fmt.money(o.total - o.returnTotal)}"></td></tr></tfoot>
+            <tfoot><tr><td>Возврат</td><td class="r num" th:text="${#aggregates.sum(o.returnLines.![qty]) + ' шт'}"></td><td></td>
+                <td class="r num c-ret" th:text="${'−' + @fmt.money(o.returnTotal)}"></td></tr></tfoot>
         </table></div>
+        <div class="card-b big-sum" style="border-top:1px solid var(--line)">
+            <span class="muted small" th:text="${(o.status.delivered() ? 'выдано ' + @fmt.money(o.deliveredTotal) : 'заказано ' + @fmt.money(o.total)) + ' − возврат ' + @fmt.money(o.returnTotal)}"></span>
+            <span>К оплате <b class="num" th:text="${@fmt.money(due)}"></b></span>
+        </div>
+    </section>
+
+    <section class="card" th:if="${o.delivery != null and o.delivery.status.name() != 'REFUSED'}">
+        <div class="card-h"><div><h2>Подтверждение доставки</h2><p>обязательно: подпись или фото накладной</p></div>
+            <span class="st" th:classappend="${o.delivery.proof != null ? 'st--done' : 'st--bad'}" th:text="${o.delivery.proof != null ? 'есть' : 'нет'}"></span></div>
+        <div class="card-b" style="display:flex;flex-direction:column;gap:10px">
+            <a th:if="${o.delivery.proof != null}" class="link" th:href="${'/admin/trips/proof/' + o.delivery.uuid}" target="_blank"
+               th:text="${(o.delivery.proofPhoto ? 'Фото накладной' : 'Подпись получателя') + ' · ' + @fmt.time(o.delivery.deliveredAt)}"></a>
+            <p class="muted small" th:text="${@fmt.dot(gps == null ? 'без GPS' : 'GPS: ' + gps + ' м от магазина',
+                o.delivery.expeditor == null ? null : 'экспедитор ' + o.delivery.expeditor.name, o.trip == null ? null : 'рейс ' + o.trip.number)}"></p>
+        </div>
+    </section>
+
+    <section class="card card--bad" th:if="${o.delivery != null and o.delivery.status.name() == 'REFUSED'}">
+        <div class="card-h"><div><h2>Магазин отказался</h2><p th:text="${@fmt.when(o.delivery.deliveredAt)}"></p></div></div>
+        <div class="card-b"><p th:text="${o.delivery.refuseReason ?: (o.refuseReason ?: 'причина не указана')}"></p></div>
+    </section>
+
+    <section class="card">
+        <div class="card-h"><div><h2>История</h2></div></div>
+        <div class="card-b"><ol class="timeline">
+            <li th:each="e : ${o.events}"><time th:text="${@fmt.when(e.at)}"></time><span><b th:text="${e.text}"></b><span class="muted small" th:text="${e.who}"></span></span></li>
+        </ol></div>
     </section>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+    <div class="stack">
+        <section class="card" th:if="${o.delivery != null or !paid.isEmpty()}">
+            <div class="card-h"><div><h2>Оплата</h2></div>
+                <span class="st" th:if="${o.status.delivered() and o.payment.name() != 'CREDIT'}" th:classappend="${paidOrder >= due ? 'st--done' : 'st--warn'}"
+                      th:text="${paidOrder >= due ? 'сошлось' : 'недоплата ' + @fmt.money(due - paidOrder)}"></span></div>
+            <div class="card-b"><div class="sum">
+                <div><span>К оплате</span><b th:text="${@fmt.money(due)}"></b></div>
+                <div th:each="p : ${paid}" th:unless="${p.oldDebt}"><span th:text="${p.method.label}"></span><b th:text="${@fmt.money(p.amount)}"></b></div>
+                <div th:if="${o.payment.name() == 'CREDIT' and o.status.delivered()}"><span>В долг</span><b th:text="${@fmt.money(due - paidOrder)}"></b></div>
+                <div th:if="${paidOld > 0}"><span>В счёт старого долга</span><b th:text="${@fmt.money(paidOld)}"></b></div>
+                <div class="tot"><span>Получено всего</span><b th:text="${@fmt.money(paidOrder + paidOld)}"></b></div>
+                <div><span>Долг магазина сейчас</span><b th:classappend="${o.outlet.overdue > 0} ? 'bad'" th:text="${@fmt.money(o.outlet.debt)}"></b></div>
+            </div></div>
+        </section>
+
         <section class="card">
-            <div class="card-h"><h2>Заказ</h2></div>
+            <div class="card-h"><div><h2>Магазин</h2></div><a class="link" th:href="${'/admin/outlets/' + o.outlet.id}">Карточка</a></div>
             <div class="card-b"><dl class="kv">
-                <dt>Магазин</dt><dd><a class="link" th:href="${'/admin/outlets/' + o.outlet.id}" th:text="${o.outlet.name}"></a></dd>
-                <dt>Адрес</dt><dd th:text="${o.outlet.address}"></dd>
-                <dt>Агент</dt><dd th:text="${o.agent?.name}"></dd>
-                <dt>Оформлен</dt><dd th:text="${@fmt.when(o.createdAt)}"></dd>
-                <dt>Доставка</dt><dd th:text="${@fmt.day(o.deliveryDate)}"></dd>
-                <dt>Оплата</dt><dd th:text="${o.payment.label}"></dd>
-                <dt th:if="${o.comment != null}">Комментарий</dt><dd th:if="${o.comment != null}" th:text="${o.comment}"></dd>
-                <dt>Цены</dt><dd th:text="${o.outlet.priceType}"></dd>
-                <dt th:if="${o.trip != null}">Рейс</dt><dd th:if="${o.trip != null}"><a class="link" th:href="${'/admin/trips/' + o.trip.id}" th:text="${o.trip.number + ' · ' + o.trip.expeditor.name}"></a></dd>
-                <dt th:if="${o.delivery?.proof != null}">Получено</dt><dd th:if="${o.delivery?.proof != null}"><a class="link" th:href="${'/admin/trips/proof/' + o.delivery.uuid}" target="_blank" th:text="${o.delivery.proofPhoto ? 'Фото накладной' : 'Подпись получателя'}"></a></dd>
-                <dt th:if="${o.refuseReason != null}">Отказ</dt><dd th:if="${o.refuseReason != null}" class="bad" th:text="${o.refuseReason}"></dd>
-                <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>
+                <dt>Магазин</dt><dd><b th:text="${o.outlet.name}"></b></dd>
+                <dt th:if="${o.outlet.owner != null}">Владелец</dt><dd th:if="${o.outlet.owner != null}" th:text="${o.outlet.owner}"></dd>
+                <dt>Торговый</dt><dd th:text="${o.agent == null ? '—' : o.agent.name + (o.outlet.agent != null and o.outlet.agent.id == o.agent.id ? ' · закреплён' : '')}"></dd>
+                <dt>Цены</dt><dd th:text="${o.outlet.priceType?.name}"></dd>
+                <dt>Лимит долга</dt><dd class="num" th:text="${o.outlet.creditLimit == 0 ? 'без долга' : @fmt.money(o.outlet.creditLimit)}"></dd>
+                <dt>Просрочка</dt><dd class="num" th:classappend="${o.outlet.overdue > 0} ? 'bad'" th:text="${o.outlet.overdue == 0 ? 'нет' : @fmt.money(o.outlet.overdue) + ' · ' + o.outlet.overdueDays + ' дн.'}"></dd>
             </dl></div>
         </section>
 
         <section class="card">
-            <div class="card-h"><h2>История</h2></div>
-            <div class="card-b"><ol class="timeline">
-                <li th:each="e : ${o.events}"><time th:text="${@fmt.when(e.at)}"></time><span><b th:text="${e.text}"></b><span class="muted small" th:text="${e.who}"></span></span></li>
-            </ol></div>
+            <div class="card-h"><div><h2>Заказ</h2></div></div>
+            <div class="card-b"><dl class="kv">
+                <dt>Оформлен</dt><dd th:text="${@fmt.when(o.createdAt)}"></dd>
+                <dt>Доставка</dt><dd th:text="${@fmt.day(o.deliveryDate)}"></dd>
+                <dt>Оплата</dt><dd th:text="${o.payment.label}"></dd>
+                <dt th:if="${o.comment != null}">Комментарий</dt><dd th:if="${o.comment != null}" th:text="${o.comment}"></dd>
+                <dt th:if="${o.refuseReason != null}">Причина</dt><dd th:if="${o.refuseReason != null}" class="bad" th:text="${o.refuseReason}"></dd>
+                <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>
+            </dl></div>
+        </section>
+
+        <section class="card" th:if="${o.trip != null}">
+            <div class="card-h"><div><h2>Рейс</h2></div><a class="link" th:href="${'/admin/trips/' + o.trip.id}" th:text="${o.trip.number}"></a></div>
+            <div class="card-b"><dl class="kv">
+                <dt>Экспедитор</dt><dd th:text="${o.trip.expeditor.name}"></dd>
+                <dt>Машина</dt><dd th:text="${o.trip.vehicle == null ? '—' : o.trip.vehicle.plate}"></dd>
+                <dt>Точка</dt><dd th:text="${stop + ' из ' + o.trip.stops}"></dd>
+                <dt>Статус</dt><dd th:text="${o.trip.status.label}"></dd>
+            </dl></div>
         </section>
 
         <section class="card" th:if="${o.status.cancellable() and o.status.name() != 'NEEDS_APPROVAL'}">
-            <div class="card-h"><h2>Отменить заказ</h2><p>До загрузки в машину</p></div>
+            <div class="card-h"><div><h2>Отменить заказ</h2><p>до загрузки в машину</p></div></div>
             <form class="card-b" th:action="@{'/admin/orders/' + ${o.id} + '/cancel'}" method="post" style="display:flex;flex-direction:column;gap:10px">
                 <label class="field">Причина<input class="inp" name="reason" placeholder="например, магазин попросил перенести"></label>
                 <button class="btn btn-danger btn-sm" type="submit" data-confirm="Отменить заказ?" style="align-self:flex-start">Отменить заказ</button>

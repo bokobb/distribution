@@ -36,6 +36,30 @@ public class DebtService {
     public record Balance(long debt, long overdue, int overdueDays) {
     }
 
+    /** За сегодня: отгружено в долг (выдано минус оплачено при выдаче) и погашено старого долга — наличными, Kaspi. */
+    public record Today(long credit, long repaid, long repaidCash, long repaidKaspi) {
+    }
+
+    public Today today(Long companyId) {
+        LocalDate day = LocalDate.now(clock);
+        Object[] args = companyId == null ? new Object[]{day, day.plusDays(1)} : new Object[]{day, day.plusDays(1), companyId};
+        Long credit = jdbc.queryForObject("""
+                select coalesce(sum(greatest(0, x.given - x.paid)), 0) from (
+                    select (select coalesce(sum(di.qty * di.price), 0) from delivery_items di where di.delivery_id = d.id) as given,
+                           (select coalesce(sum(p.amount), 0) from payments p where p.order_id = d.order_id) as paid
+                    from deliveries d where d.status <> 'REFUSED' and d.delivered_at >= ? and d.delivered_at < ?"""
+                + (companyId == null ? "" : " and d.company_id = ?") + ") x", Long.class, args);
+        long[] repaid = new long[2];
+        jdbc.query("""
+                select p.method, sum(p.amount) from payments p left join deliveries d on d.order_id = p.order_id
+                where p.paid_at >= ? and p.paid_at < ? and (p.order_id is null or d.delivered_at < cast(p.paid_at as date))"""
+                + (companyId == null ? "" : " and p.company_id = ?") + " group by p.method",
+                rs -> {
+                    repaid["KASPI".equals(rs.getString(1)) ? 1 : 0] += rs.getLong(2);
+                }, args);
+        return new Today(credit == null ? 0 : credit, repaid[0] + repaid[1], repaid[0], repaid[1]);
+    }
+
     /** Заполняет у магазинов долг, просрочку и последнюю оплату. */
     public void fill(Collection<Outlet> outlets) {
         if (outlets.isEmpty()) return;

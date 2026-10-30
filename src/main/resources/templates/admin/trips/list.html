@@ -1,27 +1,71 @@
 <!DOCTYPE html>
+<!--/* Рейсы (design/admin/AdmTrips): итоги дня, рейсы с подтверждениями доставки, подготовка на завтра. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
+<section class="kpis" aria-label="Итоги дня">
+    <div class="kpi"><span class="kpi-l">Рейсы дня</span><span class="kpi-v num" th:text="${day.size()}"></span>
+        <span class="kpi-s" th:text="${day.isEmpty() ? 'рейсов нет' : @fmt.dot(closed > 0 ? closed + ' закрыты' : null, day.size() - closed > 0 ? (day.size() - closed) + ' не закрыты' : null, earlier > 0 ? earlier + ' с прошлых дней' : null)}"></span></div>
+    <div class="kpi"><span class="kpi-l">Доставлено</span><span class="kpi-v num"><th:block th:text="${handed}"></th:block><small th:text="${'из ' + stops}"></small></span>
+        <span class="kpi-s" th:text="${stops == 0 ? 'точек нет' : stops == handed ? 'все точки пройдены' : @fmt.dot(refused > 0 ? 'отказов ' + refused : null, stops - handed - refused > 0 ? (stops - handed - refused) + ' в пути' : null)}"></span></div>
+    <a class="kpi" href="/admin/cash" th:classappend="${cashOut > 0} ? 'kpi--alert'"><span class="kpi-l">Наличные получены</span><span class="kpi-v num" th:text="${@fmt.money(cash)}"></span>
+        <span class="kpi-s" th:text="${'сдано ' + @fmt.money(cashIn) + ' · не сдано ' + @fmt.money(cashOut)}"></span></a>
+    <div class="kpi" th:classappend="${proofs < handed} ? 'kpi--bad'"><span class="kpi-l">С подтверждением</span><span class="kpi-v num"><th:block th:text="${proofs}"></th:block><small th:text="${'из ' + handed}"></small></span>
+        <span class="kpi-s">подпись или фото накладной</span></div>
+</section>
+
 <section class="card">
+    <div class="card-h"><div><h2>Рейсы</h2><p th:text="${@fmt.longDay(today) + ' и не закрытые'}">сегодня</p></div>
+        <a class="btn btn-soft btn-sm" href="/admin/cash">Приём кассы</a></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Рейс</th><th>Экспедитор, машина</th><th>Точки</th><th class="r">Загружено</th><th class="r">Выдано</th><th class="r">Наличные</th><th class="r">Kaspi</th><th class="r">Возвраты</th><th>Статус</th><th></th></tr></thead>
+        <thead><tr><th>Рейс</th><th>Экспедитор</th><th class="r">Точки</th><th class="r hide-m">Загружено</th><th class="r hide-m">Выдано</th><th class="r">Наличные</th>
+            <th class="r hide-m">Kaspi</th><th class="r hide-m">В долг</th><th class="r hide-m">Возвраты</th><th class="r hide-m">Подтверждения</th><th>Статус</th></tr></thead>
         <tbody><tr th:each="t : ${trips}">
-            <td><a class="rl" th:href="${'/admin/trips/' + t.id}" th:text="${t.number}">Рейс</a><span class="sub" th:text="${@fmt.day(t.date) + (t.startedAt != null ? ', отгружен ' + @fmt.time(t.startedAt) : '')}"></span></td>
-            <td><b th:text="${t.expeditor.name}"></b><span class="sub" th:text="${t.vehicle.model + ' · ' + t.vehicle.plate + (v.isAll() ? ' · ' + t.company.name : '')}"></span></td>
-            <td style="min-width:120px"><span class="num small" th:text="${t.doneStops + ' из ' + t.stops}"></span>
-                <span class="meter" th:classappend="${t.progress == 100} ? 'meter--ok'"><i th:style="${'width:' + t.progress + '%'}"></i></span></td>
+            <td><a class="rl" th:href="${'/admin/trips/' + t.id}" th:text="${t.number}">Рейс</a>
+                <span class="sub" th:text="${@fmt.dot(v.isAll() ? t.company.name : null, t.date.equals(today) ? null : 'на ' + @fmt.day(t.date))}"></span></td>
+            <td><b th:text="${t.expeditor.name}"></b><span class="sub" th:text="${t.vehicle.plate}"></span></td>
+            <td class="r num" th:text="${t.doneStops + '/' + t.stops}"></td>
             <td class="r num hide-m" th:text="${@fmt.money(t.loadedTotal)}"></td>
             <td class="r num hide-m" th:text="${@fmt.money(t.deliveredTotal)}"></td>
             <td class="r num"><b th:text="${@fmt.money(t.cash)}"></b></td>
             <td class="r num hide-m" th:text="${@fmt.money(t.kaspi)}"></td>
-            <td class="r num hide-m" th:text="${@fmt.money(t.returnsTotal)}"></td>
-            <td><span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span></td>
-            <td class="c-acts"><a class="btn btn-primary btn-sm" th:if="${t.open and !t.date.isAfter(today)}" th:href="${'/admin/cash/' + t.id}">Принять кассу</a></td>
+            <td class="r num hide-m" th:text="${@fmt.money(t.credit)}"></td>
+            <td class="r num hide-m" th:text="${t.returnsQty == 0 ? '—' : t.returnsQty + ' шт'}"></td>
+            <td class="r num hide-m" th:classappend="${t.proofs < t.handed} ? 'bad'" th:text="${t.proofs + '/' + t.handed}"></td>
+            <td><a th:if="${t.shortageWaiting}" class="st st--bad" th:href="${'/admin/cash/' + t.id}" th:text="${'Недостача ' + @fmt.money(-t.cashDiff)}"></a>
+                <a th:if="${!t.shortageWaiting and t.open and t.waitingCash}" class="st st--warn" th:href="${'/admin/cash/' + t.id}">Ждёт кассы</a>
+                <span th:if="${!t.open}" class="st st--done" th:text="${'Закрыт ' + @fmt.time(t.closedAt)}"></span>
+                <span th:if="${t.open and !t.waitingCash and !t.shortageWaiting}" class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span></td>
         </tr></tbody>
+        <tfoot th:if="${day.size() > 1}"><tr><td>Итого</td><td></td>
+            <td class="r num" th:text="${#aggregates.sum(day.![doneStops]) + '/' + stops}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(#aggregates.sum(day.![loadedTotal]))}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(#aggregates.sum(day.![deliveredTotal]))}"></td>
+            <td class="r num" th:text="${@fmt.money(cash)}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(#aggregates.sum(day.![kaspi]))}"></td>
+            <td class="r num hide-m" th:text="${@fmt.money(#aggregates.sum(day.![credit]))}"></td>
+            <td class="r num hide-m" th:text="${#aggregates.sum(day.![returnsQty]) + ' шт'}"></td>
+            <td class="r num hide-m" th:text="${proofs + '/' + handed}"></td><td></td></tr></tfoot>
     </table></div>
     <p class="empty" th:if="${trips.isEmpty()}">Рейсов сегодня и отгруженных на следующие дни нет.</p>
 </section>
-<p class="note">Рейс создаётся из «Заказов»: отметьте заказы галочками и внизу нажмите «Отгрузить» с выбранным экспедитором. Товар переходит с основного склада на склад его машины; рейс сразу «В пути», рейс экспедитора на тот же день, пока касса не принята, дополняется. Вечером — «Приём кассы».</p>
+<p class="hint">Рейс создаётся из «Заказов»: отметьте заказы и нажмите «Отгрузить». Выдача закрывается только с подписью или фото накладной. Вечером — «Приём кассы».</p>
+
+<section class="card">
+    <div class="card-h"><div><h2>Подготовка на завтра</h2><p th:text="${@fmt.longDay(tomorrow) + ' · ' + @fmt.plural(nextCount, 'заказ', 'заказа', 'заказов')}"></p></div>
+        <a class="link" href="/admin/orders?day=tomorrow">Заказы</a></div>
+    <ul class="rows card-b" style="padding-top:0" th:unless="${next.isEmpty()}">
+        <li th:each="e : ${next}" th:with="n=${e.value.size()}, done=${e.value.?[status.name() != 'ACCEPTED' and status.name() != 'NEEDS_APPROVAL'].size()}">
+            <span style="flex:1;min-width:0"><b th:text="${e.key.name}"></b>
+                <span class="sub" th:text="${@fmt.plural(n, 'заказ', 'заказа', 'заказов') + ' · ' + @fmt.money(#aggregates.sum(e.value.![total]))}"></span>
+                <span class="meter" style="margin-top:6px;max-width:320px" th:classappend="${done == n} ? 'meter--ok'"><i th:style="${'width:' + (done * 100 / n) + '%'}"></i></span>
+                <span class="sub" th:text="${'собрано ' + done + ' из ' + n}"></span></span>
+            <a class="btn btn-soft btn-sm" th:href="@{/admin/scope(company=${e.key.id},back='/admin/orders/pick')}" th:if="${v.isAll()}">Лист сборки</a>
+            <a class="btn btn-soft btn-sm" href="/admin/orders/pick" th:unless="${v.isAll()}">Лист сборки</a>
+        </li>
+    </ul>
+    <p class="empty" th:if="${next.isEmpty()}">Заказов на завтра пока нет.</p>
+</section>
 </th:block>
 </body>
 </html>

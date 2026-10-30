@@ -1,31 +1,60 @@
 <!DOCTYPE html>
+<!--/* Долги магазинов (design/admin/AdmDebts): итоги и движение за сегодня, правило запрета при просрочке,
+     вкладки по статусу; сначала закрытые и скоро закрываемые. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<section class="kpis">
-    <div class="kpi kpi--main"><span class="kpi-l">Долг магазинов</span><span class="kpi-v num" th:text="${@fmt.money(total)}"></span><span class="kpi-s" th:text="${@fmt.plural(count, 'магазин', 'магазина', 'магазинов')}"></span></div>
-    <div class="kpi kpi--alert"><span class="kpi-l">Просрочено</span><span class="kpi-v num" th:text="${@fmt.money(totalOverdue)}"></span><span class="kpi-s" th:text="${@fmt.plural(countOverdue, 'магазин', 'магазина', 'магазинов')}"></span></div>
-    <div class="kpi"><span class="kpi-l">Сверх лимита</span><span class="kpi-v num" th:text="${countOver}"></span><span class="kpi-s">новые заказы — через разрешение</span></div>
+<section class="kpis" aria-label="Итоги">
+    <div class="kpi"><span class="kpi-l">Долги магазинов</span><span class="kpi-v num" th:text="${@fmt.money(total)}"></span>
+        <span class="kpi-s" th:text="${@fmt.plural(count, 'магазин', 'магазина', 'магазинов')}"></span></div>
+    <a class="kpi" th:classappend="${totalOverdue > 0} ? 'kpi--alert'" href="/admin/debts?f=over"><span class="kpi-l">Просрочено</span><span class="kpi-v num" th:text="${@fmt.money(totalOverdue)}"></span>
+        <span class="kpi-s" th:text="${@fmt.plural(countOverdue, 'магазин', 'магазина', 'магазинов')}"></span></a>
+    <a class="kpi" th:classappend="${countBlock > 0} ? 'kpi--bad'" href="/admin/debts?f=block"><span class="kpi-l">Заказы закрыты</span><span class="kpi-v num" th:text="${countBlock}"></span>
+        <span class="kpi-s" th:text="${countBlock == 0 ? 'никому не закрыт' : 'заказ — через разрешение'}"></span></a>
+    <div class="kpi"><span class="kpi-l">Отгружено в долг</span><span class="kpi-v num" th:text="${@fmt.money(day.credit())}"></span><span class="kpi-s">сегодня</span></div>
+    <div class="kpi"><span class="kpi-l">Погашено</span><span class="kpi-v num" th:text="${@fmt.money(day.repaid())}"></span>
+        <span class="kpi-s" th:text="${'сегодня' + (day.repaid() == 0 ? '' : ', ' + (day.repaidKaspi() == 0 ? 'наличными' : day.repaidCash() == 0 ? 'Kaspi' : 'наличными и Kaspi'))}"></span></div>
 </section>
-<div class="tools">
-    <div class="chips">
-        <a class="chip" href="/admin/debts" th:attr="aria-current=${!overdueOnly} ? 'true' : null">Все долги</a>
-        <a class="chip" href="/admin/debts?overdue=1" th:attr="aria-current=${overdueOnly} ? 'true' : null">Только просроченные</a>
-    </div>
+
+<div class="note note--warn" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">
+    <span style="flex:1 1 320px" th:text="${rule.overdueBlock
+        ? 'Заказ закрывается сам: просрочка больше ' + @fmt.plural(rule.overdueDays, 'дня', 'дней', 'дней') + ' или больше ' + @fmt.money(rule.overdueAmount) + ' — проверяется при каждом заказе. Один заказ может открыть ' + rule.unblockersText() + '.'
+        : 'Запрет заказа при просрочке выключен — магазин с просрочкой заказывает как обычно.'}"></span>
+    <a class="link" href="/admin/settings">Изменить в настройках</a>
 </div>
+
+<div class="tools">
+    <div class="chips" aria-label="Статус">
+        <a class="chip" th:href="@{/admin/debts(q=${q})}" th:attr="aria-current=${f == 'all'} ? 'true' : null">Все <span class="cnt" th:text="${count}"></span></a>
+        <a class="chip" th:href="@{/admin/debts(f='over',q=${q})}" th:attr="aria-current=${f == 'over'} ? 'true' : null">Просроченные <span class="cnt" th:text="${countOverdue}"></span></a>
+        <a class="chip" th:href="@{/admin/debts(f='block',q=${q})}" th:attr="aria-current=${f == 'block'} ? 'true' : null">Заказ закрыт <span class="cnt" th:text="${countBlock}"></span></a>
+        <a class="chip" th:href="@{/admin/debts(f='limit',q=${q})}" th:attr="aria-current=${f == 'limit'} ? 'true' : null">Сверх лимита <span class="cnt" th:text="${countLimit}"></span></a>
+        <a class="chip" th:href="@{/admin/debts(f='soon',q=${q})}" th:attr="aria-current=${f == 'soon'} ? 'true' : null">Скоро запрет <span class="cnt" th:text="${countSoon}"></span></a>
+    </div>
+    <span class="tools-sp"></span>
+    <form class="search" role="search" action="/admin/debts" method="get"><th:block th:utext="${i16['search']}"></th:block>
+        <input type="hidden" name="f" th:value="${f}">
+        <input type="search" name="q" th:value="${q}" placeholder="Магазин" aria-label="Найти магазин"></form>
+</div>
+
 <section class="card">
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Магазин</th><th>Агент</th><th class="r">Долг</th><th>Лимит</th><th class="r">Просрочено</th><th>Последняя оплата</th></tr></thead>
-        <tbody><tr th:each="o : ${outlets}">
-            <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}"></a><span class="sub" th:text="${o.phone + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
+        <thead><tr><th>Магазин</th><th class="hide-m">Торговый</th><th>Долг / лимит</th><th class="r">Просрочено</th><th class="hide-m">Последняя оплата</th><th>Статус</th></tr></thead>
+        <tbody><tr th:each="r : ${rows}" th:with="o=${r.o()}">
+            <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}"></a><span class="sub" th:text="${@fmt.dot(o.address, v.isAll() ? o.company.name : null)}"></span></td>
             <td class="hide-m"><th:block th:text="${o.agent?.name ?: '—'}"></th:block><span class="sub" th:text="${o.region?.name}"></span></td>
-            <td class="r num"><b th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt)}"></b></td>
-            <td class="hide-m" style="min-width:140px"><span class="num small" th:text="${@fmt.money(o.creditLimit)}"></span><span class="meter" th:classappend="${o.overLimit} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span></td>
-            <td class="r num" th:classappend="${o.overdue > 0} ? 'bad'" th:text="${o.overdue > 0 ? @fmt.money(o.overdue) : '—'}"></td>
-            <td class="hide-m" th:text="${o.lastPaymentDate == null ? '—' : @fmt.day(o.lastPaymentDate) + ', ' + @fmt.money(o.lastPaymentSum)}"></td>
+            <td style="min-width:160px"><span class="num" th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.num(o.debt) + ' / ' + @fmt.money(o.creditLimit)}"></span>
+                <span class="meter" th:classappend="${o.overLimit or r.block() ? 'meter--bad' : (o.debtPercent >= 80 ? 'meter--warn' : '')}"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span></td>
+            <td class="r num"><th:block th:if="${o.overdue == 0}">—</th:block>
+                <th:block th:if="${o.overdue > 0}"><b th:classappend="${r.block() ? 'bad' : 'warn'}" th:text="${@fmt.money(o.overdue)}"></b>
+                    <span class="sub" th:text="${@fmt.plural(o.overdueDays, 'день', 'дня', 'дней')}"></span></th:block></td>
+            <td class="hide-m small" th:text="${o.lastPaymentDate == null ? '—' : @fmt.day(o.lastPaymentDate) + ' · ' + @fmt.money(o.lastPaymentSum)}"></td>
+            <td><span class="st" th:classappend="${'st--' + r.badge()}" th:text="${r.state()}"></span><span class="sub" th:if="${r.note() != null}" th:text="${r.note()}"></span></td>
         </tr></tbody>
+        <tfoot th:unless="${rows.isEmpty()}"><tr><td th:text="${'Итого · ' + @fmt.plural(rows.size(), 'магазин', 'магазина', 'магазинов')}"></td><td class="hide-m"></td>
+            <td class="num" th:text="${@fmt.money(listDebt)}"></td><td class="r num" th:text="${listOverdue == 0 ? '—' : @fmt.money(listOverdue)}"></td><td class="hide-m"></td><td></td></tr></tfoot>
     </table></div>
-    <p class="empty" th:if="${outlets.isEmpty()}">Долгов нет.</p>
+    <p class="empty" th:if="${rows.isEmpty()}">Долгов с такими условиями нет.</p>
 </section>
 </th:block>
 </body>

@@ -1,12 +1,18 @@
 package com.confectionery.distribution.admin;
 
 import com.confectionery.distribution.domain.Company;
+import com.confectionery.distribution.domain.Delivery;
+import com.confectionery.distribution.domain.DeliveryStatus;
 import com.confectionery.distribution.domain.Employee;
 import com.confectionery.distribution.domain.Order;
 import com.confectionery.distribution.domain.OrderStatus;
+import com.confectionery.distribution.domain.Payment;
 import com.confectionery.distribution.domain.Role;
+import com.confectionery.distribution.domain.TripOrder;
+import com.confectionery.distribution.repository.PaymentRepository;
 import com.confectionery.distribution.service.ApprovalService;
 import com.confectionery.distribution.service.FormException;
+import com.confectionery.distribution.service.GpsTrack;
 import com.confectionery.distribution.service.MapService;
 import com.confectionery.distribution.service.OrderSearch;
 import com.confectionery.distribution.service.OrderService;
@@ -43,6 +49,7 @@ public class AdminOrderController {
     private final MapService map;
     private final RegionService regions;
     private final Fmt fmt;
+    private final PaymentRepository payments;
     private final Clock clock;
 
     /** Пункт выпадающего фильтра: торговый, филиал, экспедитор. */
@@ -67,7 +74,15 @@ public class AdminOrderController {
         OrderSearch.Filter f = filter(day, from, to, agentIds, regionIds, exp, status, q);
         OrderSearch.Page p = search.find(f, page, size);
 
-        AdminPage.head(model, "orders", "Заказы", v.scopeName());
+        String when = f.from() == null && f.to() == null ? "все даты"
+                : f.from() != null && f.from().equals(f.to()) ? "доставка " + fmt.longDay(f.from())
+                : f.to() == null ? "доставка с " + fmt.date(f.from()) : f.from() == null ? "доставка по " + fmt.date(f.to())
+                : "доставка " + fmt.date(f.from()) + " — " + fmt.date(f.to());
+        AdminPage.head(model, "orders", "Заказы", fmt.dot(when, fmt.plural(p.total(), "заказ", "заказа", "заказов") + " на " + fmt.money(p.sum()),
+                v.isAll() ? v.scopeName() : null));
+        model.addAttribute("notes", approvals.orderNotes(p.rows()));
+        model.addAttribute("returns", p.total() == 0 ? 0L : search.returnSum(f));
+        model.addAttribute("oneDay", f.from() != null && f.from().equals(f.to()));
         model.addAttribute("from", f.from());
         model.addAttribute("to", f.to());
         model.addAttribute("quick", f.from() == null && f.to() == null ? "all"
@@ -157,8 +172,26 @@ public class AdminOrderController {
     @GetMapping("/admin/orders/{id}")
     public String view(@PathVariable Long id, Model model, HttpSession session) {
         Order o = orders.get(id);
-        AdminPage.head(model, "orders", "Заказ " + o.getNumber(), o.getOutlet().getName());
+        Delivery d = o.getDelivery();
+        String state = d != null && d.getDeliveredAt() != null
+                ? (d.getStatus() == DeliveryStatus.REFUSED ? "отказ " : "доставлен ") + fmt.when(d.getDeliveredAt())
+                + (o.getStatus() == OrderStatus.PARTIAL ? ", частично" : "")
+                : "доставка " + fmt.day(o.getDeliveryDate());
+        AdminPage.head(model, "orders", "Заказ " + o.getNumber(), fmt.dot(o.getOutlet().getName(), o.getOutlet().getAddress(), state));
         model.addAttribute("o", o);
+        List<Payment> paid = payments.findByOutletOrderByAtDesc(o.getOutlet()).stream()
+                .filter(p -> o.equals(p.getOrder()) || p.isOldDebt() && o.getTrip() != null && o.getTrip().equals(p.getTrip())).toList();
+        model.addAttribute("paid", paid);
+        model.addAttribute("paidOrder", paid.stream().filter(p -> !p.isOldDebt()).mapToLong(Payment::getAmount).sum());
+        model.addAttribute("paidOld", paid.stream().filter(Payment::isOldDebt).mapToLong(Payment::getAmount).sum());
+        long due = (o.getStatus().delivered() ? o.getDeliveredTotal() : o.getTotal())
+                - (o.getReturnLines().isEmpty() ? 0 : o.getReturnTotal());
+        model.addAttribute("due", Math.max(0, due));
+        model.addAttribute("gps", d == null || d.getLat() == null || o.getOutlet().getLat() == null ? null
+                : (int) Math.round(GpsTrack.km(new GpsTrack.At(null, d.getLat(), d.getLng()),
+                new GpsTrack.At(null, o.getOutlet().getLat(), o.getOutlet().getLng())) * 1000));
+        model.addAttribute("stop", o.getTrip() == null ? null : o.getTrip().getTripOrders().stream()
+                .sorted(java.util.Comparator.comparingInt(TripOrder::getPosition)).map(TripOrder::getOrder).toList().indexOf(o) + 1);
         return "admin/orders/view";
     }
 

@@ -183,12 +183,19 @@ public class CrmSync {
             qty.merge(l.productId(), l.qty().setScale(0, RoundingMode.HALF_UP).intValue(), Integer::sum);
             first.putIfAbsent(l.productId(), l);
         }
+        Map<Long, BigDecimal> price = new HashMap<>();
         for (Map.Entry<Long, Integer> e : qty.entrySet()) {
             if (e.getValue() <= 0) continue;
-            r.addLine(new ReceiptLine().setProduct(product(c, first.get(e.getKey()))).setExpected(e.getValue()));
+            Product p = product(c, first.get(e.getKey()));
+            r.addLine(new ReceiptLine().setProduct(p).setExpected(e.getValue()));
+            if (first.get(e.getKey()).price() != null) price.put(p.getId(), first.get(e.getKey()).price());
         }
         if (r.getLines().isEmpty()) return false;
         receipts.save(r);
+        // цена CRM — для наценки в «Товарах»; более старый заказ свежую цену не затирает
+        price.forEach((id, pr) -> jdbc.update("""
+                update products set crm_price = ?, crm_price_at = ? where id = ? and (crm_price_at is null or crm_price_at <= ?)""",
+                pr.setScale(0, RoundingMode.HALF_UP).longValue(), sh.issuedAt(), id, sh.issuedAt()));
         return true;
     }
 

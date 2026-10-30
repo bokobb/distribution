@@ -23,6 +23,7 @@ public class AdminCatalogController {
     private final CatalogService catalog;
     private final CompanyService companies;
     private final Fmt fmt;
+    private final com.confectionery.distribution.service.CrmSync crm;
 
     @GetMapping("/admin/products")
     public String products(Model model, HttpSession session) {
@@ -36,7 +37,11 @@ public class AdminCatalogController {
                 (v.isAll() ? (first == null ? "—" : first.getName()) + " (у каждой компании свой прайс)" : v.scopeName())
                         + " · " + fmt.plural(list.size(), "товар", "товара", "товаров"));
         model.addAttribute("byCat", byCat);
+        model.addAttribute("products", list.stream().sorted(java.util.Comparator.comparing(Product::getCategory).thenComparing(Product::getName)).toList());
         model.addAttribute("fromCrm", list.stream().filter(p -> p.getCrmCode() != null).count());
+        model.addAttribute("notCrm", list.stream().filter(p -> p.getCrmCode() == null).map(Product::getName).toList());
+        model.addAttribute("crmOn", crm.enabled());
+        model.addAttribute("crmAt", crm.lastOk());
         return "admin/products/list";
     }
 }

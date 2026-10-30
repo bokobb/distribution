@@ -90,7 +90,7 @@ public record GpsTrack(List<List<At>> segments, double km) {
     }
 
     /** Расстояние по прямой, км (формула гаверсинусов). */
-    static double km(At a, At b) {
+    public static double km(At a, At b) {
         double r = 6371.0;
         double dLat = Math.toRadians(b.lat() - a.lat()), dLng = Math.toRadians(b.lng() - a.lng());
         double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)

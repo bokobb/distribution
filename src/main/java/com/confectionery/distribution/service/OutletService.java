@@ -28,8 +28,10 @@ public class OutletService {
     private final PriceTypeRepository priceTypes;
     private final CompanyRepository companies;
     private final EmployeeRepository employees;
+    private final VisitRepository visits;
     private final SettingsService settings;
     private final FileStore files;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final Clock clock;
 
     /**
@@ -49,6 +51,15 @@ public class OutletService {
         return list;
     }
 
+    /** Последний визит торгового в каждый магазин компании (все компании — companyId null). */
+    public Map<Long, java.time.LocalDateTime> lastVisits(Long companyId) {
+        Map<Long, java.time.LocalDateTime> out = new java.util.HashMap<>();
+        org.springframework.jdbc.core.RowCallbackHandler row = rs -> out.put(rs.getLong(1), rs.getTimestamp(2).toLocalDateTime());
+        if (companyId == null) jdbc.query("select outlet_id, max(started_at) from visits group by outlet_id", row);
+        else jdbc.query("select outlet_id, max(started_at) from visits where company_id = ? group by outlet_id", row, companyId);
+        return out;
+    }
+
     public Outlet get(Long id) {
         Outlet o = outlets.findById(id).orElseThrow(NotFoundException::new);
         debts.fill(o);
@@ -61,6 +72,10 @@ public class OutletService {
 
     public List<Payment> paymentsOf(Outlet o) {
         return payments.findByOutletOrderByAtDesc(o);
+    }
+
+    public List<Visit> visitsOf(Outlet o) {
+        return visits.findTop10ByOutletIdOrderByStartedAtDesc(o.getId());
     }
 
     public List<ProductReturn> returnsOf(Outlet o) {

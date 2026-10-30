@@ -51,6 +51,9 @@
 
 <div class="map-wrap">
     <section class="card map-card">
+        <ul class="map-legend" style="padding:12px 16px;border-bottom:1px solid var(--line)" aria-label="Цвет магазина">
+            <li th:each="e : ${states}"><i class="dot" th:style="${'background:' + e.value}"></i><span th:text="${e.key}"></span></li>
+        </ul>
         <div id="map" class="map" role="region" aria-label="Карта магазинов и путей за день"
              th:attr="data-src=${'/admin/map/data' + (#strings.contains(here, '?') ? here.substring(here.indexOf('?')) : '')}"></div>
     </section>
@@ -67,7 +70,7 @@
 <th:block th:fragment="scripts">
 <link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
 <script src="/admin/assets/leaflet/leaflet.js"></script>
-<script src="/admin/assets/map.js?v=3"></script>
+<script src="/admin/assets/map.js?v=4"></script>
 </th:block>
 </body>
 </html>

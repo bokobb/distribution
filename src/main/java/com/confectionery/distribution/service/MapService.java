@@ -38,6 +38,8 @@ public class MapService {
     private final GpsPointRepository gps;
     private final AppEventRepository events;
     private final SettingsService settings;
+    private final DebtService debts;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     /** Точка пути: kind — ORDER, NO_ORDER (визит), DELIVERED, PARTIAL, REFUSED (выдача). */
     /** photo — адрес фото полки к визиту, если агент его снял. */
@@ -52,7 +54,21 @@ public class MapService {
                          double km, String summary) {
     }
 
-    public record Shop(Long id, String name, String address, double lat, double lng, String route, String color) {
+    /** Магазин на карте: color — цвет его торгового; state и stateColor — статус («был сегодня», «просрочка»...). */
+    public record Shop(Long id, String name, String address, double lat, double lng, String route, String color,
+                       String state, String stateColor) {
+    }
+
+    /** Статусы магазина на карте — по порядку важности, с цветом точки. */
+    public static final java.util.LinkedHashMap<String, String> STATES = new java.util.LinkedHashMap<>();
+
+    static {
+        STATES.put("был сегодня", "#12805C");
+        STATES.put("заказ закрыт", "#C4291C");
+        STATES.put("просрочка", "#E39B2D");
+        STATES.put("новый", "#4136F1");
+        STATES.put("без визита 7+ дней", "#5C6370");
+        STATES.put("обычный", "#C9CDD5");
     }
 
     /** noCoords — сколько работающих магазинов ещё без координат. */
@@ -135,21 +151,35 @@ public class MapService {
             if (ev.getKind() == AppEventKind.DAY_START || ev.getKind() == AppEventKind.DAY_END)
                 marks.computeIfAbsent(ev.getUser().getId(), k -> new ArrayList<>()).add(new TrackService.Mark(ev.getEventAt(), ev.getKind()));
 
-        // магазины — цветом их торгового
+        // магазины — статусом: был в этот день, заказ закрыт по просрочке, просрочка, новый, давно без визита
+        Set<Long> visited = vs.stream().map(v -> v.getOutlet().getId()).collect(Collectors.toSet());
+        Map<Long, LocalDateTime> lastVisit = new HashMap<>();
+        jdbc.query("select outlet_id, max(started_at) from visits where started_at < ? group by outlet_id",
+                rs -> {
+                    lastVisit.put(rs.getLong(1), rs.getTimestamp(2).toLocalDateTime());
+                }, to);
+        List<Outlet> all = outlets.findAllByOrderByNameAsc().stream()
+                .filter(o -> (companyId == null || companyId.equals(o.getCompanyId())) && o.getStatus() != OutletStatus.CLOSED).toList();
+        debts.fill(all);
+        Map<Long, com.confectionery.distribution.domain.CompanySettings> rules = new HashMap<>();
         boolean agentsChosen = only.stream().anyMatch(id -> byId.containsKey(id) && byId.get(id).role() == Role.AGENT);
         List<Shop> shops = new ArrayList<>();
         int noCoords = 0;
-        for (Outlet o : outlets.findAllByOrderByNameAsc()) {
-            if (companyId != null && !companyId.equals(o.getCompanyId())) continue;
-            if (o.getStatus() == OutletStatus.CLOSED) continue;
+        for (Outlet o : all) {
             Who w = o.getAgent() == null ? null : byId.get(o.getAgent().getId());
             if (agentsChosen && (w == null || !only.contains(w.id()))) continue;
             if (o.getLat() == null || o.getLng() == null) {
                 noCoords++;
                 continue;
             }
+            LocalDateTime lv = lastVisit.get(o.getId());
+            String state = visited.contains(o.getId()) ? "был сегодня"
+                    : rules.computeIfAbsent(o.getCompanyId(), settings::of).blocks(o) ? "заказ закрыт"
+                    : o.getOverdue() > 0 ? "просрочка"
+                    : o.getStatus() == OutletStatus.PENDING ? "новый"
+                    : lv == null || lv.toLocalDate().isBefore(date.minusDays(AssignService.STALE_DAYS - 1)) ? "без визита 7+ дней" : "обычный";
             shops.add(new Shop(o.getId(), o.getName(), o.getAddress(), o.getLat(), o.getLng(),
-                    o.getRegion() == null ? null : o.getRegion().getName(), w == null ? "#8C929C" : w.color()));
+                    o.getRegion() == null ? null : o.getRegion().getName(), w == null ? "#8C929C" : w.color(), state, STATES.get(state)));
         }
 
         List<Person> people = new ArrayList<>();

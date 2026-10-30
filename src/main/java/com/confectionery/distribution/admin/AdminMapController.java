@@ -51,6 +51,7 @@ public class AdminMapController {
         model.addAttribute("agents", people.stream().filter(p -> p.role() == Role.AGENT).toList());
         model.addAttribute("expeditors", people.stream().filter(p -> p.role() == Role.EXPEDITOR).toList());
         model.addAttribute("sel", sel);
+        model.addAttribute("states", MapService.STATES);
         model.addAttribute("chosen", people.stream().filter(p -> sel.contains(p.id())).toList());
         model.addAttribute("link", new QueryLink(request));
         return "admin/map";

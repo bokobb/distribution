@@ -96,6 +96,14 @@ public class OrderSearch {
         return new Page(rows, total, sum == null ? 0 : sum, counts, p, s);
     }
 
+    /** Сколько вычтется за возвраты в найденных заказах — «К оплате» = сумма − возвраты. */
+    public long returnSum(Filter f) {
+        Map<String, Object> params = new HashMap<>();
+        Long sum = query("select coalesce(sum(r.qty * r.price), 0) from OrderReturnLine r where r.order.id in"
+                + " (select o.id" + FROM + where(f, params, true) + ")", Long.class, params).getSingleResult();
+        return sum == null ? 0 : sum;
+    }
+
     private String where(Filter f, Map<String, Object> params, boolean withStatus) {
         List<String> w = new ArrayList<>();
         if (f.from() != null) {

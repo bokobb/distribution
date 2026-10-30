@@ -22,6 +22,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class AdminStaffController {
 
     private final AdminContext ctx;
     private final StaffService staff;
+    private final com.confectionery.distribution.service.TripService trips;
     private final com.confectionery.distribution.service.CashReport cashReport;
 
     @GetMapping("/admin/staff")
@@ -45,6 +47,15 @@ public class AdminStaffController {
         model.addAttribute("expeditors", people.stream().filter(e -> e.getRole() == Role.EXPEDITOR).count());
         model.addAttribute("outletsOf", staff.outletCounts());
         model.addAttribute("debtOf", cashReport.expeditorDebts(v.companyId()));
+        Map<Long, String> versions = staff.appVersions();
+        model.addAttribute("versions", versions);
+        String latest = versions.values().stream().max(StaffService::compareVersions).orElse(null);
+        model.addAttribute("oldApp", versions.entrySet().stream().filter(x -> StaffService.compareVersions(x.getValue(), latest) < 0)
+                .map(Map.Entry::getKey).collect(java.util.stream.Collectors.toSet()));
+        Map<Long, Long> shortages = new java.util.HashMap<>();
+        trips.current(v.companyId()).stream().filter(com.confectionery.distribution.domain.Trip::isShortageWaiting)
+                .forEach(t -> shortages.merge(t.getExpeditor().getId(), -t.getCashDiff(), Long::sum));
+        model.addAttribute("shortages", shortages);
         return "admin/staff/list";
     }
 

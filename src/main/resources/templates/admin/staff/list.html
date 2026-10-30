@@ -12,26 +12,27 @@
 </div>
 
 <section class="card" th:if="${tab == 'people'}">
-    <div class="card-h"><h2>Сотрудники</h2><p th:text="${@fmt.plural(agents, 'агент', 'агента', 'агентов') + ', ' + @fmt.plural(expeditors, 'экспедитор', 'экспедитора', 'экспедиторов')}"></p></div>
+    <div class="card-h"><div><h2>Сотрудники</h2><p th:text="${@fmt.plural(agents, 'торговый', 'торговых', 'торговых') + ', ' + @fmt.plural(expeditors, 'экспедитор', 'экспедитора', 'экспедиторов') + ' · вход в приложение по телефону, пароль выдаёт админка'}"></p></div></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Сотрудник</th><th>Роль</th><th>Телефон</th><th>Магазины или машина</th><th>Связь с телефоном</th></tr></thead>
-        <tbody><tr th:each="e : ${people}">
-            <td><a class="rl" th:href="${'/admin/staff/' + e.id}" th:text="${e.name}"></a><span class="sub bad" th:unless="${e.active}">отключён</span><span class="sub" th:if="${v.isAll()}" th:text="${e.company.name}"></span></td>
+        <thead><tr><th>Сотрудник</th><th>Роль</th><th class="hide-m">Магазины или машина</th><th class="hide-m">Приложение</th><th>Связь</th><th class="hide-m">Долг</th></tr></thead>
+        <tbody><tr th:each="e : ${people}" th:classappend="${!e.active} ? 'is-off'" th:with="mob=${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}, ver=${versions[e.id]}">
+            <td><span class="who"><span class="ava" th:text="${e.initials}"></span><span><a class="rl" th:href="${'/admin/staff/' + e.id}" th:text="${e.name}"></a>
+                <span class="sub num" th:text="${@fmt.dot(@fmt.phone(e.phone), v.isAll() ? e.company.name : null, e.active ? null : 'отключён')}"></span></span></span></td>
             <td th:text="${e.role.label}"></td>
-            <td class="num hide-m" th:text="${@fmt.phone(e.phone)}"></td>
             <td class="hide-m small">
                 <th:block th:if="${e.role.name() == 'AGENT'}" th:text="${@fmt.plural(outletsOf.getOrDefault(e.id, 0L), 'магазин', 'магазина', 'магазинов')}"></th:block>
-                <th:block th:if="${e.vehicle != null}" th:text="${e.vehicle.model + ' · ' + e.vehicle.plate}"></th:block>
-                <a class="sub bad" th:if="${debtOf.getOrDefault(e.id, 0L) > 0}" href="/admin/reports/cash"
-                   th:text="${'долг по недостачам ' + @fmt.money(debtOf.get(e.id))}"></a>
-            </td>
-            <td class="small">
-                <th:block th:if="${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}">
-                    <span th:classappend="${e.stale} ? 'bad'" th:text="${@fmt.ago(e.lastSync)}"></span>
-                    <span class="sub" th:if="${e.unsent > 0}" th:text="${'ждут сети: ' + e.unsent}"></span>
-                </th:block>
-                <span class="muted" th:unless="${e.role.name() == 'AGENT' or e.role.name() == 'EXPEDITOR'}">веб-админка</span>
-            </td>
+                <th:block th:if="${e.vehicle != null}" th:text="${e.vehicle.plate}"></th:block>
+                <th:block th:if="${e.role.name() != 'AGENT' and e.vehicle == null}">—</th:block></td>
+            <td class="hide-m small">
+                <th:block th:if="${mob}"><span th:text="${ver ?: 'версия неизвестна'}" th:classappend="${oldApp.contains(e.id)} ? 'warn'"></span>
+                    <span class="sub" th:classappend="${e.unsent > 0} ? 'warn'" th:text="${e.unsent > 0 ? @fmt.plural(e.unsent, 'запись ждёт', 'записи ждут', 'записей ждут') + ' сети'
+                        : (oldApp.contains(e.id) ? 'старая версия' : 'всё отправлено')}"></span></th:block>
+                <span class="muted" th:unless="${mob}">веб-админка</span></td>
+            <td class="small"><span th:if="${mob}" th:classappend="${e.stale} ? 'bad'" th:text="${@fmt.ago(e.lastSync)}"></span><span th:unless="${mob}" class="muted">—</span></td>
+            <td class="hide-m small">
+                <a class="bad" th:if="${shortages.getOrDefault(e.id, 0L) > 0}" href="/admin/cash" th:text="${'недостача ' + @fmt.money(shortages.get(e.id)) + ' ждёт решения'}"></a>
+                <a class="sub bad" th:if="${debtOf.getOrDefault(e.id, 0L) > 0}" href="/admin/reports/cash" th:text="${'долг по недостачам ' + @fmt.money(debtOf.get(e.id))}"></a>
+                <th:block th:if="${shortages.getOrDefault(e.id, 0L) == 0 and debtOf.getOrDefault(e.id, 0L) == 0}">—</th:block></td>
         </tr></tbody>
     </table></div>
 </section>

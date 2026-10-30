@@ -13,6 +13,8 @@ public interface VisitRepository extends JpaRepository<Visit, Long> {
 
     Optional<Visit> findByUuid(UUID uuid);
 
+    List<Visit> findTop10ByOutletIdOrderByStartedAtDesc(Long outletId);
+
     List<Visit> findByAgentIdAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAtAsc(Long agentId,
                                                                                                   LocalDateTime from,
                                                                                                   LocalDateTime to);

@@ -1,42 +1,77 @@
 <!DOCTYPE html>
+<!--/* Магазины (design/admin/AdmOutlets): новые на проверке — карточками сверху, вкладки по статусу, район и торговый;
+     сначала требующие внимания. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
+<div class="grid" th:unless="${pending.isEmpty()}">
+    <section class="card card--new" th:each="i : ${pending}">
+        <div class="appr">
+            <div class="appr-h"><span class="st st--new">На проверке</span>
+                <a class="appr-shop" th:href="${'/admin/outlets/' + i.outletId()}" th:text="${i.outlet()}"></a></div>
+            <p class="appr-facts" th:text="${@fmt.dot(i.address(), 'добавил ' + i.who() + ', ' + @fmt.day(i.at().toLocalDate()), v.isAll() ? i.company() : null)}"></p>
+            <p class="appr-what" th:text="${i.title()}"></p>
+            <div class="appr-acts">
+                <form action="/admin/approvals/decide" method="post">
+                    <input type="hidden" name="key" th:value="${i.key()}"><input type="hidden" name="code" value="OK">
+                    <input type="hidden" name="back" value="/admin/outlets">
+                    <button class="btn btn-primary btn-sm" type="submit">Проверен</button></form>
+                <a class="btn btn-soft btn-sm" th:href="${'/admin/outlets/' + i.outletId()}">Открыть</a>
+            </div>
+        </div>
+    </section>
+</div>
+
 <div class="tools">
     <div class="chips" aria-label="Статус">
-        <a class="chip" th:href="@{/admin/outlets(region=${region},q=${q})}" th:attr="aria-current=${status == null} ? 'true' : null">Все <span class="cnt" th:text="${total}"></span></a>
-        <th:block th:each="st : ${statuses}">
-            <a class="chip" th:if="${counts.containsKey(st)}" th:href="@{/admin/outlets(status=${st},region=${region},q=${q})}" th:attr="aria-current=${st == status} ? 'true' : null"><th:block th:text="${st.label}"></th:block> <span class="cnt" th:text="${counts.get(st)}"></span></a>
-        </th:block>
+        <a class="chip" th:href="@{/admin/outlets(region=${region},agent=${agent},q=${q})}" th:attr="aria-current=${f == 'all'} ? 'true' : null">Все <span class="cnt" th:text="${counts.getOrDefault('all', 0)}"></span></a>
+        <a class="chip" th:href="@{/admin/outlets(f='new',region=${region},agent=${agent},q=${q})}" th:attr="aria-current=${f == 'new'} ? 'true' : null">На проверке <span class="cnt" th:text="${counts.getOrDefault('new', 0)}"></span></a>
+        <a class="chip" th:href="@{/admin/outlets(f='block',region=${region},agent=${agent},q=${q})}" th:attr="aria-current=${f == 'block'} ? 'true' : null">Заказ закрыт <span class="cnt" th:classappend="${counts.getOrDefault('block', 0) > 0} ? 'bad'" th:text="${counts.getOrDefault('block', 0)}"></span></a>
+        <a class="chip" th:href="@{/admin/outlets(f='over',region=${region},agent=${agent},q=${q})}" th:attr="aria-current=${f == 'over'} ? 'true' : null">Просрочка <span class="cnt" th:text="${counts.getOrDefault('over', 0)}"></span></a>
+        <a class="chip" th:href="@{/admin/outlets(f='stale',region=${region},agent=${agent},q=${q})}" th:attr="aria-current=${f == 'stale'} ? 'true' : null">Без визита 7+ дней <span class="cnt" th:text="${counts.getOrDefault('stale', 0)}"></span></a>
+        <a class="chip" th:if="${counts.getOrDefault('closed', 0) > 0}" th:href="@{/admin/outlets(f='closed',region=${region},agent=${agent},q=${q})}" th:attr="aria-current=${f == 'closed'} ? 'true' : null">Закрыты <span class="cnt" th:text="${counts.get('closed')}"></span></a>
     </div>
-    <form class="tools" role="search" action="/admin/outlets" method="get">
-        <input type="hidden" name="status" th:if="${status != null}" th:value="${status}">
-        <select class="sel" name="region" aria-label="Регион" onchange="this.form.submit()">
-            <option value="">Все регионы</option>
+</div>
+<div class="tools">
+    <form class="tools" role="search" action="/admin/outlets" method="get" style="flex:1 1 auto">
+        <input type="hidden" name="f" th:value="${f}">
+        <select class="sel" name="region" aria-label="Район" onchange="this.form.submit()">
+            <option value="">Район: все</option>
             <option th:each="r : ${regions}" th:value="${r.id}" th:text="${r.name + (v.isAll() ? ' · ' + r.company.name : '')}" th:selected="${r.id == region}"></option>
+        </select>
+        <select class="sel" name="agent" aria-label="Торговый" onchange="this.form.submit()">
+            <option value="">Торговый: все</option>
+            <option th:each="a : ${agents}" th:value="${a.id}" th:text="${a.name + (v.isAll() ? ' · ' + a.company.name : '')}" th:selected="${a.id == agent}"></option>
         </select>
         <label class="search"><th:block th:utext="${i16['search']}"></th:block>
             <input type="search" name="q" th:value="${q}" placeholder="Название, владелец, телефон" aria-label="Найти магазин"></label>
     </form>
-    <span style="flex:1"></span>
+    <span class="tools-sp"></span>
+    <a class="btn btn-soft btn-sm" href="/admin/map">Показать на карте</a>
     <a class="btn btn-primary btn-sm" href="/admin/outlets/new"><th:block th:utext="${i16['plus']}"></th:block>Новый магазин</a>
 </div>
 
 <section class="card">
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Магазин</th><th>Владелец</th><th>Район</th><th>Долг / лимит</th><th>Статус</th></tr></thead>
-        <tbody><tr th:each="o : ${outlets}" th:classappend="${o.status.name() == 'CLOSED'} ? 'is-off'">
-            <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}">Магазин</a><span class="sub" th:text="${o.address}"></span></td>
-            <td class="hide-m"><th:block th:text="${o.owner}"></th:block><span class="sub num" th:text="${o.phone}"></span></td>
-            <td class="hide-m"><th:block th:text="${o.region?.name ?: 'без района'}"></th:block><span class="sub" th:text="${(o.agent != null ? o.agent.name : '—') + (v.isAll() ? ' · ' + o.company.name : '')}"></span></td>
-            <td style="min-width:170px">
+        <thead><tr><th>Магазин</th><th class="hide-m">Владелец</th><th class="hide-m">Торговый</th><th class="hide-m">Район</th><th>Долг / лимит</th>
+            <th class="r hide-m">Просрочено</th><th class="hide-m">Последний визит</th><th>Статус</th></tr></thead>
+        <tbody><tr th:each="r : ${rows}" th:with="o=${r.o()}" th:classappend="${r.f() == 'closed'} ? 'is-off'">
+            <td><a class="rl" th:href="${'/admin/outlets/' + o.id}" th:text="${o.name}">Магазин</a><span class="sub" th:text="${@fmt.dot(o.address, v.isAll() ? o.company.name : null)}"></span></td>
+            <td class="hide-m"><th:block th:text="${o.owner ?: '—'}"></th:block><span class="sub num" th:text="${@fmt.phone(o.phone)}"></span></td>
+            <td class="hide-m" th:text="${o.agent != null ? o.agent.name : 'не закреплён'}" th:classappend="${o.agent == null} ? 'muted'"></td>
+            <td class="hide-m" th:text="${o.region?.name ?: '—'}"></td>
+            <td style="min-width:150px"><th:block th:if="${o.status.name() == 'PENDING' and o.debt == 0}">—</th:block>
+                <th:block th:unless="${o.status.name() == 'PENDING' and o.debt == 0}">
                 <span class="num" th:classappend="${o.overLimit} ? 'bad'" th:text="${@fmt.money(o.debt) + ' / ' + @fmt.num(o.creditLimit)}"></span>
-                <span class="meter" th:classappend="${o.overLimit or o.overdue > 0} ? 'meter--bad'"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span>
-                <span class="sub bad" th:if="${o.overdue > 0}" th:text="${'просрочено ' + @fmt.money(o.overdue)}"></span></td>
-            <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
+                <span class="meter" th:classappend="${o.overLimit or r.badge() == 'bad' ? 'meter--bad' : (o.debtPercent >= 80 ? 'meter--warn' : '')}"><i th:style="${'width:' + o.debtPercent + '%'}"></i></span></th:block></td>
+            <td class="r num hide-m"><th:block th:if="${o.overdue == 0}">—</th:block>
+                <th:block th:if="${o.overdue > 0}"><b th:classappend="${r.badge() == 'bad' ? 'bad' : 'warn'}" th:text="${@fmt.money(o.overdue)}"></b><span class="sub" th:text="${o.overdueDays + ' дн.'}"></span></th:block></td>
+            <td class="hide-m small" th:text="${r.lastVisit() == null ? 'не было' : @fmt.when(r.lastVisit())}"></td>
+            <td><span class="st" th:classappend="${'st--' + r.badge()}" th:text="${r.state()}"></span></td>
         </tr></tbody>
     </table></div>
-    <p class="empty" th:if="${outlets.isEmpty()}">Магазинов с такими условиями нет.</p>
+    <p class="empty" th:if="${rows.isEmpty()}">Магазинов с такими условиями нет.</p>
+    <div class="pager" th:unless="${rows.isEmpty()}"><span th:text="${'Показано ' + rows.size() + ' · сначала требующие внимания'}"></span></div>
 </section>
 </th:block>
 </body>

@@ -125,7 +125,7 @@ a:hover{color:var(--accent)}
 /* ---------- карточки и сетки ---------- */
 .card{background:var(--white);border:1px solid var(--line);border-radius:12px;min-width:0}
 .card-h{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;min-height:60px;padding:12px 20px;border-bottom:1px solid var(--line)}
-.card-h>div:first-child{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;min-width:0;flex:1 1 260px}
+.card-h>div:first-child{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;min-width:0;flex:1 1 150px}
 .card-h h2{font:600 15px/22px var(--body)}
 .card-h p{color:var(--ink-soft);font-size:13px;line-height:18px}
 .card-h .link{font-size:13.5px}
@@ -146,6 +146,9 @@ a.kpi:hover{border-color:var(--line-hard);color:var(--ink)}
 .kpi-v{font:600 26px/32px var(--body);letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
 .kpi-v small{font:500 16px/1 var(--body);color:var(--ink-soft);margin-left:4px}
 .kpi-s{font-size:12.5px;line-height:18px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpis--dense{gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.kpis--dense .kpi{padding:14px 16px}
+.kpis--dense .kpi-v{font-size:21px;line-height:28px}
 .kpi--alert .kpi-v{color:var(--warn-ink)}
 .kpi--bad .kpi-v{color:var(--bad)}
 
@@ -197,6 +200,7 @@ a.kpi:hover{border-color:var(--line-hard);color:var(--ink)}
 .tabs a{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 10px;text-decoration:none;font:500 14px/1 var(--body);color:var(--ink-soft);border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs a:hover{color:var(--ink)}
 .tabs a[aria-current=true]{color:var(--accent-press);border-color:var(--accent);font-weight:600}
+.tabs .nav-n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--accent);color:#fff;font:600 12px/1 var(--body)}
 
 /* ---------- фильтры списка, галочки, страницы ---------- */
 .flt{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px 16px;padding:16px 20px}
@@ -219,11 +223,15 @@ a.kpi:hover{border-color:var(--line-hard);color:var(--ink)}
 .pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;padding:12px 20px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-soft)}
 .pager-sz,.pager-pg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .pager .chip{min-width:32px;justify-content:center;padding:0 10px;border-radius:8px}
-.bulk{position:sticky;bottom:16px;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:10px 12px 10px 18px;border-radius:12px;background:var(--ink);color:#fff;box-shadow:var(--pop)}
+.bulk{position:sticky;bottom:16px;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:10px 12px 10px 18px;border:1px solid var(--line);border-radius:12px;background:var(--white);box-shadow:0 4px 16px rgba(16,19,24,.06)}
+.bulk--on{border-color:var(--accent-line);background:#F7F7FF}
+.bulk-t{display:flex;flex-direction:column;min-width:0}
+.bulk-t b{font-weight:600}
+.bulk-t .hint{margin-top:1px}
 .bulk-sp{flex:1}
 .bulk-g{display:flex;flex-wrap:wrap;gap:8px}
-.bulk .sel{height:36px;min-height:36px;min-width:0;max-width:100%;flex:0 1 260px;border-color:transparent}
-.bulk .btn-soft{background:transparent;border-color:rgba(255,255,255,.3);color:#fff}
+.bulk .sel{height:36px;min-height:36px;min-width:0;max-width:100%;flex:0 1 260px}
+.c-ret{color:var(--bad-ink)}
 
 /* ---------- карта ---------- */
 .dot{flex:none;display:inline-block;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 3px var(--line-strong)}
@@ -232,6 +240,7 @@ a.kpi:hover{border-color:var(--line-hard);color:var(--ink)}
 .map-card{overflow:hidden}
 .map{height:min(72vh,720px);min-height:380px;background:#EEF0F3}
 .map-side{display:flex;flex-direction:column;max-height:min(72vh,720px);overflow:auto}
+.map-side>.card-h{flex:none}
 .map-people{display:flex;flex-direction:column;padding:0 10px 8px}
 .map-people li{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line)}
 .map-people .check{min-height:40px;padding:0 6px}

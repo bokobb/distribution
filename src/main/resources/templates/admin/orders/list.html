@@ -100,20 +100,25 @@
     <div class="tbl-w"><table class="tbl tbl--cards tbl--sel">
         <thead><tr>
             <th class="c-chk"><input type="checkbox" data-check-all="ids" aria-label="Выбрать все заказы на странице"></th>
-            <th>Заказ</th><th>Магазин</th><th>Торговый</th><th>Доставка</th><th>Оплата</th><th>Экспедитор</th><th class="r">Сумма</th><th>Статус</th>
+            <th>Заказ</th><th>Магазин</th><th class="hide-m">Торговый</th><th class="hide-m">Оплата</th><th class="r hide-m">Возврат</th><th class="r">К оплате</th><th>Статус</th>
         </tr></thead>
-        <tbody><tr th:each="o : ${p.rows()}">
-            <td class="c-chk"><input type="checkbox" name="ids" form="bulk-bar" th:value="${o.id}" th:attr="data-sum=${o.total}" th:aria-label="${'Выбрать заказ № ' + o.number}"></td>
-            <td class="c-ord"><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a><span class="sub" th:text="${@fmt.when(o.createdAt)}"></span></td>
+        <tbody><tr th:each="o : ${p.rows()}" th:with="ret=${o.returnTotal}, off=${o.status.name() == 'NEEDS_APPROVAL' or o.status.name() == 'CANCELLED' or o.status.name() == 'REFUSED'}"
+                   th:classappend="${o.status.name() == 'CANCELLED' or o.status.name() == 'REFUSED'} ? 'is-off'">
+            <td class="c-chk"><input type="checkbox" name="ids" form="bulk-bar" th:value="${o.id}" th:attr="data-sum=${o.total - ret}" th:disabled="${off}"
+                                     th:aria-label="${'Выбрать заказ № ' + o.number}" th:title="${off ? 'Этот заказ в рейс не попадёт' : null}"></td>
+            <td class="c-ord"><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a>
+                <span class="sub" th:text="${@fmt.dot(oneDay ? @fmt.time(o.createdAt) : 'на ' + @fmt.day(o.deliveryDate), o.trip != null ? o.trip.expeditor.name : null)}"></span></td>
             <td class="c-shop"><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${@fmt.dot(o.outlet.address, o.outlet.region?.name, v.isAll() ? o.company.name : null)}"></span></td>
             <td class="hide-m" th:text="${o.agent?.name}"></td>
-            <td class="hide-m" th:text="${@fmt.day(o.deliveryDate)}"></td>
             <td class="hide-m" th:text="${o.payment.label}"></td>
-            <td class="hide-m" th:text="${o.trip != null ? o.trip.expeditor.name : '—'}"></td>
-            <td class="r num c-sum"><b th:text="${@fmt.money(o.total)}"></b></td>
-            <td class="c-st"><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span></td>
+            <td class="r num hide-m"><th:block th:if="${ret == 0}">—</th:block>
+                <th:block th:if="${ret > 0}"><span class="c-ret" th:text="${'−' + @fmt.money(ret)}"></span><span class="sub" th:text="${#aggregates.sum(o.returnLines.![qty]) + ' шт'}"></span></th:block></td>
+            <td class="r num c-sum"><b th:text="${@fmt.money(o.total - ret)}"></b><span class="sub" th:if="${ret > 0}" th:text="${'заказ ' + @fmt.money(o.total)}"></span></td>
+            <td class="c-st"><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span>
+                <span class="sub" th:if="${notes[o.id] != null}" th:text="${notes[o.id]}"></span></td>
         </tr></tbody>
-        <tfoot th:if="${p.total() > 0}"><tr><td></td><td colspan="6" th:text="${'Найдено: ' + @fmt.plural(p.total(), 'заказ', 'заказа', 'заказов')}"></td><td class="r num" th:text="${@fmt.money(p.sum())}"></td><td></td></tr></tfoot>
+        <tfoot th:if="${p.total() > 0}"><tr><td></td><td colspan="4" th:text="${'Найдено: ' + @fmt.plural(p.total(), 'заказ', 'заказа', 'заказов')}"></td>
+            <td class="r num hide-m" th:text="${returns == 0 ? '—' : '−' + @fmt.money(returns)}"></td><td class="r num" th:text="${@fmt.money(p.sum() - returns)}"></td><td></td></tr></tfoot>
     </table></div>
     <p class="empty" th:if="${p.total() == 0}">Заказов с такими условиями нет.</p>
 
@@ -133,9 +138,11 @@
     </nav>
 </section>
 
-<form class="bulk" id="bulk-bar" th:action="@{/admin/orders/ship}" method="post" hidden>
+<form class="bulk" id="bulk-bar" th:action="@{/admin/orders/ship}" method="post" th:if="${p.total() > 0}">
     <input type="hidden" name="back" th:value="${here}">
-    <span>Выбрано: <b data-sel-count>0</b> · <b class="num" data-sel-sum>0 ₸</b></span>
+    <span class="bulk-t" data-sel-none><b>Выберите заказы галочками</b><span class="hint">потом — экспедитора и «Отгрузить»</span></span>
+    <span class="bulk-t" data-sel-some hidden><b>Выбрано <span data-sel-count>0</span> · <span class="num" data-sel-sum>0 ₸</span></b>
+        <span class="hint">заказы «Нужно разрешение» и отменённые в рейс не попадут</span></span>
     <span class="bulk-sp"></span>
     <select class="sel" name="expeditor" required aria-label="Экспедитор для отгрузки">
         <option value="">Экспедитор…</option>
@@ -153,7 +160,7 @@
 <th:block th:fragment="scripts">
 <link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
 <script src="/admin/assets/leaflet/leaflet.js"></script>
-<script src="/admin/assets/map.js?v=3"></script>
+<script src="/admin/assets/map.js?v=4"></script>
 </th:block>
 </body>
 </html>

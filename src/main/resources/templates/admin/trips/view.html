@@ -1,45 +1,99 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<!--/* Рейс (design/admin/AdmTrip): итоги, точки по порядку с оплатой и подтверждением, карта с путём машины, товар. */-->
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
 <body>
 <th:block th:fragment="content">
 <div class="acts">
     <a class="back" href="/admin/trips"><th:block th:utext="${i16['back']}"></th:block>Рейсы</a>
+    <span th:if="${t.shortageWaiting}" class="st st--bad" th:text="${'Ждёт директора: недостача ' + @fmt.money(-t.cashDiff)}"></span>
+    <span th:if="${!t.shortageWaiting and t.open and t.waitingCash}" class="st st--warn">Ждёт кассы</span>
+    <span th:if="${!t.open}" class="st st--done" th:text="${'Закрыт ' + @fmt.when(t.closedAt) + (t.acceptedBy == null ? '' : ' · ' + t.acceptedBy)}"></span>
+    <span th:if="${t.open and !t.waitingCash and !t.shortageWaiting}" class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
+    <span class="muted small" th:text="${@fmt.dot(t.vehicle.model + ' ' + t.vehicle.plate, t.startedAt == null ? null : 'выехал ' + @fmt.time(t.startedAt))}"></span>
     <span style="flex:1"></span>
-    <span class="st" th:classappend="${'st--' + t.status.badge}" th:text="${t.status.label}"></span>
-    <a class="btn btn-primary btn-sm" th:if="${t.open and !t.date.isAfter(today)}" th:href="${'/admin/cash/' + t.id}">Принять кассу</a>
+    <form th:action="@{/admin/orders/invoices}" method="post" target="_blank">
+        <input type="hidden" name="ids" th:each="x : ${stops}" th:value="${x.o().id}"><input type="hidden" name="kind" value="shop">
+        <button class="btn btn-soft btn-sm" type="submit"><th:block th:utext="${i16['print']}"></th:block>Накладные</button></form>
+    <a class="btn btn-primary btn-sm" th:if="${t.open and !t.date.isAfter(today)}" th:href="${'/admin/cash/' + t.id}">Приём кассы</a>
 </div>
-<section class="kpis">
-    <div class="kpi"><span class="kpi-l">Точки</span><span class="kpi-v num" th:text="${t.doneStops + ' / ' + t.stops}"></span><span class="kpi-s" th:text="${t.progress + '% пройдено'}"></span></div>
-    <div class="kpi"><span class="kpi-l">Загружено</span><span class="kpi-v num" th:text="${@fmt.money(t.loadedTotal)}"></span></div>
-    <div class="kpi"><span class="kpi-l">Выдано</span><span class="kpi-v num" th:text="${@fmt.money(t.deliveredTotal)}"></span></div>
-    <div class="kpi kpi--main"><span class="kpi-l">Наличные</span><span class="kpi-v num" th:text="${@fmt.money(t.cash)}"></span><span class="kpi-s" th:text="${'в т.ч. старые долги ' + @fmt.money(t.oldDebtCollected)}"></span></div>
-    <div class="kpi"><span class="kpi-l">Kaspi · в долг</span><span class="kpi-v num" th:text="${@fmt.money(t.kaspi)}"></span><span class="kpi-s" th:text="${'в долг ' + @fmt.money(t.credit)}"></span></div>
-    <div class="kpi"><span class="kpi-l">Возвраты негодного</span><span class="kpi-v num" th:text="${@fmt.money(t.returnsTotal)}"></span><span class="kpi-s" th:text="${t.returnsQty + ' шт'}"></span></div>
+
+<section class="kpis kpis--dense" aria-label="Итоги рейса">
+    <div class="kpi"><span class="kpi-l">Точки</span><span class="kpi-v num"><th:block th:text="${t.doneStops}"></th:block><small th:text="${'из ' + t.stops}"></small></span>
+        <span class="kpi-s" th:text="${t.stops - t.doneStops == 0 ? 'все пройдены' : (t.stops - t.doneStops) + ' впереди'}"></span></div>
+    <div class="kpi"><span class="kpi-l">Загружено</span><span class="kpi-v num" th:text="${@fmt.money(t.loadedTotal)}"></span>
+        <span class="kpi-s" th:text="${@fmt.plural(t.stops, 'заказ', 'заказа', 'заказов')}"></span></div>
+    <div class="kpi"><span class="kpi-l">Выдано</span><span class="kpi-v num" th:text="${@fmt.money(t.deliveredTotal)}"></span>
+        <span class="kpi-s" th:text="${@fmt.plural(t.handed, 'заказ', 'заказа', 'заказов')}"></span></div>
+    <div class="kpi"><span class="kpi-l">Наличные</span><span class="kpi-v num" th:text="${@fmt.money(t.cash)}"></span>
+        <span class="kpi-s" th:text="${t.oldDebtCollected == 0 ? 'старых долгов нет' : 'в т.ч. старые долги ' + @fmt.money(t.oldDebtCollected)}"></span></div>
+    <div class="kpi"><span class="kpi-l">Kaspi</span><span class="kpi-v num" th:text="${@fmt.money(t.kaspi)}"></span>
+        <span class="kpi-s" th:text="${t.kaspiChecked ? 'сверен с выпиской' : 'сверка при приёме кассы'}"></span></div>
+    <div class="kpi" th:classappend="${underpay > 0} ? 'kpi--alert'"><span class="kpi-l">В долг</span><span class="kpi-v num" th:text="${@fmt.money(t.credit)}"></span>
+        <span class="kpi-s" th:text="${underpay > 0 ? @fmt.money(underpay) + ' ждёт решения' : 'по заказам в долг'}"></span></div>
+    <div class="kpi"><span class="kpi-l">Негодный</span><span class="kpi-v num" th:text="${t.returnsQty + ' шт'}"></span>
+        <span class="kpi-s" th:text="${@fmt.money(t.returnsTotal) + ' → склад негодного'}"></span></div>
 </section>
-<div class="grid-wide">
-    <section class="card">
-        <div class="card-h"><h2>Точки по порядку</h2></div>
-        <div class="tbl-w"><table class="tbl tbl--cards">
-            <thead><tr><th>#</th><th>Магазин</th><th>Заказ</th><th class="r">Сумма</th><th class="r">Выдано</th><th>Оплата</th><th>Статус</th></tr></thead>
-            <tbody><tr th:each="o, it : ${t.orders}">
-                <td class="num muted hide-m" th:text="${it.count}"></td>
-                <td><a class="rl" th:href="${'/admin/outlets/' + o.outlet.id}" th:text="${o.outlet.name}"></a><span class="sub" th:text="${o.outlet.address}"></span></td>
-                <td class="hide-m"><a class="link" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}"></a></td>
-                <td class="r num hide-m" th:text="${@fmt.money(o.total)}"></td>
-                <td class="r num" th:text="${o.status.delivered() ? @fmt.money(o.deliveredTotal) : '—'}"></td>
-                <td class="hide-m" th:text="${o.payment.label}"></td>
-                <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span><span class="sub" th:if="${o.delivery?.proof != null}"><a class="link" th:href="${'/admin/trips/proof/' + o.delivery.uuid}" target="_blank" th:text="${o.delivery.proofPhoto ? 'Фото накладной' : 'Подпись получателя'}"></a></span></td>
-            </tr></tbody>
-        </table></div>
+
+<section class="card">
+    <div class="card-h"><div><h2>Точки по порядку</h2><p>без маршрута — экспедитор идёт как удобно</p></div></div>
+    <div class="tbl-w"><table class="tbl tbl--cards">
+        <thead><tr><th class="hide-m">#</th><th>Магазин</th><th>Заказ</th><th class="r">Сумма</th><th class="r">Получено</th><th class="hide-m">Подтверждение</th><th>Статус</th></tr></thead>
+        <tbody><tr th:each="x, it : ${stops}" th:with="o=${x.o()}, paid=${x.paid()}, old=${x.old()}, ret=${x.ret()}">
+            <td class="num muted hide-m" th:text="${it.count}"></td>
+            <td><a class="rl" th:href="${'/admin/outlets/' + o.outlet.id}" th:text="${o.outlet.name}"></a><span class="sub" th:text="${o.outlet.address}"></span></td>
+            <td><a class="link" th:href="${'/admin/orders/' + o.id}" th:text="${o.number}"></a>
+                <span class="sub" th:if="${o.delivery != null}" th:text="${@fmt.time(o.delivery.deliveredAt)}"></span></td>
+            <td class="r num"><th:block th:text="${@fmt.money(o.total)}"></th:block>
+                <span class="sub" th:if="${o.status.name() == 'PARTIAL'}" th:text="${'выдано ' + @fmt.num(o.deliveredTotal)}"></span></td>
+            <td class="r num"><th:block th:if="${!o.status.delivered()}">—</th:block>
+                <th:block th:if="${o.status.delivered()}">
+                    <b th:text="${paid > 0 ? @fmt.money(paid) + (old > 0 ? ' + ' + @fmt.num(old) : '') : (old > 0 ? @fmt.money(old) : '—')}"></b>
+                    <span class="sub" th:text="${@fmt.dot(paid == 0 ? 'в долг' : x.methods(), old > 0 ? (paid > 0 ? '+ старый долг' : 'старый долг') : null)}"></span></th:block></td>
+            <td class="hide-m small" th:classappend="${o.status.delivered() and (o.delivery == null or o.delivery.proof == null)} ? 'bad'">
+                <th:block th:if="${o.delivery == null or o.delivery.proof == null}">—</th:block>
+                <a class="link" th:unless="${o.delivery == null or o.delivery.proof == null}" th:href="${'/admin/trips/proof/' + o.delivery.uuid}" target="_blank" rel="noopener"
+                   th:text="${o.delivery.proofPhoto ? 'Фото накладной' : 'Подпись'}"></a></td>
+            <td><span class="st" th:classappend="${'st--' + o.status.badge}" th:text="${o.status.label}"></span>
+                <span class="sub" th:text="${@fmt.dot(notes[o.id], ret > 0 ? 'возврат ' + ret + ' шт' : null,
+                    o.status.name() == 'REFUSED' ? (o.delivery?.refuseReason ?: o.refuseReason) : null)}"></span></td>
+        </tr></tbody>
+    </table></div>
+</section>
+
+<div class="grid-2">
+    <section class="card map-card">
+        <div class="card-h"><div><h2>На карте</h2><p>пунктир — путь машины по GPS</p></div>
+            <a class="link" th:href="@{/admin/map(date=${t.date},who=${t.expeditor.id})}">Открыть карту</a></div>
+        <div id="trip-map" class="map" style="height:360px;min-height:360px" role="region" aria-label="Точки рейса на карте"
+             th:data-stops="${points}" th:data-src="@{/admin/map/data(date=${t.date},who=${t.expeditor.id})}"></div>
+        <p class="map-note" id="trip-map-note" hidden></p>
     </section>
+
     <section class="card">
-        <div class="card-h"><h2>Загрузка машины</h2><button class="btn btn-soft btn-sm" type="button" onclick="window.print()">Печать</button></div>
-        <div class="tbl-w"><table class="tbl">
-            <thead><tr><th>Товар</th><th class="r">Шт</th></tr></thead>
-            <tbody><tr th:each="r : ${rows}"><td th:text="${r.product().name}"></td><td class="r num" th:text="${r.qty()}"></td></tr></tbody>
-        </table></div>
+        <div class="card-h"><div><h2>Товар</h2><p>сверяет кладовщик при приёме</p></div>
+            <button class="btn btn-soft btn-sm" type="button" onclick="document.getElementById('load').open = true; window.print()">Печать загрузки</button></div>
+        <div class="card-b"><div class="sum">
+            <div><span th:text="${'Загружено · ' + @fmt.plural(t.stops, 'заказ', 'заказа', 'заказов') + ' · ' + loadedQty + ' шт'}"></span><b th:text="${@fmt.money(t.loadedTotal)}"></b></div>
+            <div><span th:text="${'Выдано · ' + @fmt.plural(t.handed, 'заказ', 'заказа', 'заказов') + ' · ' + handedQty + ' шт'}"></span><b th:text="${@fmt.money(t.deliveredTotal)}"></b></div>
+            <div><span>Вернётся на основной склад</span><b th:text="${t.undeliveredQty + ' шт'}"></b></div>
+            <div><span th:text="${'Негодный забран' + (t.returns.isEmpty() ? '' : ' · ' + #strings.listJoin(t.returns.![outlet.name + ' ' + qty], ', '))}"></span>
+                <b th:text="${t.returnsQty + ' шт · ' + @fmt.money(t.returnsTotal)}"></b></div>
+        </div></div>
+        <details id="load" class="card-b" style="border-top:1px solid var(--line)">
+            <summary class="link" style="cursor:pointer">Загрузка машины по товарам</summary>
+            <table class="tbl" style="margin-top:8px">
+                <thead><tr><th>Товар</th><th class="r">Шт</th></tr></thead>
+                <tbody><tr th:each="r : ${rows}"><td th:text="${r.product().name}"></td><td class="r num" th:text="${r.qty()}"></td></tr></tbody>
+            </table>
+        </details>
     </section>
 </div>
+</th:block>
+
+<th:block th:fragment="scripts">
+<link rel="stylesheet" href="/admin/assets/leaflet/leaflet.css">
+<script src="/admin/assets/leaflet/leaflet.js"></script>
+<script src="/admin/assets/map.js?v=4"></script>
 </th:block>
 </body>
 </html>

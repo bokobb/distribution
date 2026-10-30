@@ -131,6 +131,11 @@ class CrmLinkTest {
                 select p.name || ' ' || coalesce(p.crm_code, '-') || ' ' || l.expected from receipt_items l join products p on p.id = l.product_id
                 where l.receipt_id = ? order by p.crm_code""", String.class, r.get("id")))
                 .containsExactly(w.product().getName() + " 55 10", "Торт «Медовик» 77 4");
+        // цена CRM из отгрузки — в карточку товара, рядом с нашей ценой продажи
+        assertThat(jdbc.queryForList("""
+                select p.crm_code || ' ' || p.crm_price from receipt_items l join products p on p.id = l.product_id
+                where l.receipt_id = ? and p.crm_price_at is not null order by p.crm_code""", String.class, r.get("id")))
+                .containsExactly("55 1000", "77 1575");
 
         // второй обмен — тот же заказ не приходит дважды, в CRM пока сообщать нечего
         CALLS.clear();

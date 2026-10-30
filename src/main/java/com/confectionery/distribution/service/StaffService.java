@@ -93,6 +93,26 @@ public class StaffService {
     }
 
     /** Изменить ФИО, роль, телефон, логин. Свою роль не поменять — чтобы не закрыть себе вход. */
+    /** Версия приложения у каждого сотрудника — из последней записи журнала приложения: id → «1.0.6». */
+    public Map<Long, String> appVersions() {
+        Map<Long, String> out = new java.util.HashMap<>();
+        jdbc.query("select distinct on (user_id) user_id, app_version from app_events where app_version is not null and app_version <> '' order by user_id, event_at desc",
+                rs -> {
+                    out.put(rs.getLong(1), rs.getString(2));
+                });
+        return out;
+    }
+
+    /** Сравнение версий «1.0.10» > «1.0.9» по числам. */
+    public static int compareVersions(String a, String b) {
+        String[] x = a.split("\\D+"), y = b.split("\\D+");
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            int p = i < x.length && !x[i].isEmpty() ? Integer.parseInt(x[i]) : 0, q = i < y.length && !y[i].isEmpty() ? Integer.parseInt(y[i]) : 0;
+            if (p != q) return Integer.compare(p, q);
+        }
+        return 0;
+    }
+
     /** Сколько магазинов закреплено за каждым торговым: id торгового → магазинов (без закрытых). */
     public Map<Long, Long> outletCounts() {
         return outlets.findAllByOrderByNameAsc().stream()

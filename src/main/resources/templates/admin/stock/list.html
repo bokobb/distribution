@@ -1,40 +1,64 @@
 <!DOCTYPE html>
+<!--/* Склад и приходы (design/admin/AdmStock): приходы из CRM с расхождением и кто принял, остатки с резервом на завтра,
+     негодный товар. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
-<nav class="tabs" aria-label="Склад">
+<nav class="tabs card" aria-label="Склад">
+    <a href="/admin/stock?tab=receipts" th:attr="aria-current=${tab == 'receipts'} ? 'true' : null">Приходы <span class="nav-n" th:if="${drafts > 0}" th:text="${drafts}"></span></a>
     <a href="/admin/stock" th:attr="aria-current=${tab == 'stock'} ? 'true' : null">Остатки</a>
-    <a href="/admin/stock?tab=receipts" th:attr="aria-current=${tab == 'receipts'} ? 'true' : null">Приходы</a>
+    <a href="/admin/stock?tab=defect" th:attr="aria-current=${tab == 'defect'} ? 'true' : null">Негодный товар <span class="muted" th:if="${defectQty > 0}" th:text="${defectQty + ' шт'}"></span></a>
 </nav>
 
 <section class="card" th:if="${tab == 'stock'}">
-    <div class="card-h"><h2>Остатки</h2><p>резерв — заказы на завтра, ещё не загруженные в машины</p></div>
+    <div class="card-h"><div><h2>Остатки</h2><p>резерв — заказы на завтра, ещё не загруженные в машины</p></div></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Товар</th><th class="r">Основной склад</th><th class="r">Резерв</th><th class="r">Свободно</th><th class="r">В машинах</th><th class="r">Негодный</th></tr></thead>
+        <thead><tr><th>Товар</th><th class="r">Основной склад</th><th class="r">Резерв на завтра</th><th class="r">Свободно</th><th class="r">В машинах</th><th class="r">Негодный</th></tr></thead>
         <tbody><tr th:each="r : ${rows}">
-            <td><b th:text="${r.product().name}"></b><span class="sub" th:text="${r.product().category + ' · кор. ' + r.product().perBox + ' шт'}"></span></td>
+            <td><b th:text="${r.product().name}"></b><span class="sub" th:text="${@fmt.dot(r.product().category, 'кор. ' + r.product().perBox + ' шт', r.product().crmCode == null ? null : 'код CRM ' + r.product().crmCode)}"></span></td>
             <td class="r num hide-m" th:text="${r.main()}"></td>
-            <td class="r num hide-m" th:text="${r.reserved()}"></td>
-            <td class="r num"><b th:classappend="${r.low()} ? 'bad'" th:text="${r.free()}"></b><span class="sub bad" th:if="${r.low()}">мало</span></td>
-            <td class="r num hide-m" th:text="${r.inVehicles()}"></td>
-            <td class="r num hide-m" th:text="${r.defect()}"></td>
+            <td class="r num hide-m" th:text="${r.reserved() == 0 ? '—' : r.reserved()}"></td>
+            <td class="r num"><b th:classappend="${r.low()} ? 'bad'" th:text="${r.free()}"></b>
+                <span class="sub bad" th:if="${r.free() < 0}">не хватит</span><span class="sub warn" th:if="${r.low() and r.free() >= 0}">мало</span></td>
+            <td class="r num hide-m" th:text="${r.inVehicles() == 0 ? '—' : r.inVehicles()}"></td>
+            <td class="r num hide-m" th:text="${r.defect() == 0 ? '—' : r.defect()}"></td>
         </tr></tbody>
     </table></div>
 </section>
 
 <section class="card" th:if="${tab == 'receipts'}">
-    <div class="card-h"><h2>Приходы</h2><p>из CRM производства приход создаётся сам после отгрузки — кладовщик сверяет количество</p></div>
+    <div class="card-h"><div><h2>Приходы</h2><p>из CRM создаются сами после выдачи заказа в CRM · кладовщик сверяет штуки</p></div></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Приход</th><th>Откуда</th><th>Основание</th><th class="r">Позиций</th><th class="r">Штук</th><th>Статус</th></tr></thead>
+        <thead><tr><th>Приход</th><th>Основание</th><th class="r">Состав</th><th>Статус</th><th class="hide-m">Принял</th></tr></thead>
         <tbody><tr th:each="r : ${receipts}">
-            <td><a class="rl" th:href="${'/admin/stock/receipts/' + r.id}" th:text="${r.number}"></a><span class="sub" th:text="${@fmt.day(r.date)}"></span></td>
-            <td><span class="tag" th:classappend="${r.source.name() == 'CRM'} ? 'tag--crm'" th:text="${r.source.label}"></span><span class="sub" th:text="${r.supplier}"></span></td>
-            <td class="hide-m" th:text="${r.basis}"></td>
-            <td class="r num hide-m" th:text="${r.lines.size()}"></td>
-            <td class="r num hide-m" th:text="${r.qty}"></td>
-            <td><span class="st" th:classappend="${'st--' + r.status.badge}" th:text="${r.status.label}"></span></td>
+            <td><a class="rl" th:href="${'/admin/stock/receipts/' + r.id}" th:text="${r.number}"></a>
+                <span class="sub" th:text="${@fmt.dot(v.isAll() ? r.company.name : null, @fmt.day(r.date))}"></span></td>
+            <td><span class="tag" th:classappend="${r.source.name() == 'CRM'} ? 'tag--crm'" th:text="${r.source.label}"></span>
+                <span class="sub" th:text="${r.basis ?: r.supplier}"></span></td>
+            <td class="r num"><b th:text="${r.lines.size() + ' / ' + @fmt.num(r.qty)}"></b><span class="sub">позиций / шт</span></td>
+            <td><span th:if="${r.status.name() == 'DRAFT'}" class="st st--warn">Ждёт подтверждения</span>
+                <span th:if="${r.status.name() == 'CONFIRMED' and r.diff != 0}" class="st st--bad" th:text="${'Расхождение ' + (r.diff > 0 ? '+' + r.diff : '−' + (-r.diff)) + ' шт'}"></span>
+                <span th:if="${r.status.name() == 'CONFIRMED' and r.diff == 0}" class="st st--done">Принят</span>
+                <span class="sub" th:if="${r.crmOrderId != null and r.status.name() == 'CONFIRMED'}" th:text="${r.crmSentAt != null ? 'CRM знает' : 'уйдёт в CRM'}"></span></td>
+            <td class="hide-m small" th:text="${r.confirmedBy == null ? '—' : @fmt.dot(r.confirmedBy, r.confirmedAt == null ? null : @fmt.when(r.confirmedAt))}"></td>
         </tr></tbody>
     </table></div>
+    <p class="empty" th:if="${receipts.isEmpty()}">Приходов пока нет.</p>
+</section>
+
+<section class="card" th:if="${tab == 'defect'}">
+    <div class="card-h"><div><h2>Негодный товар</h2><p>принят при приёме кассы, лежит на складе негодного</p></div>
+        <a class="link" href="/admin/reports/quality">Отчёт по качеству</a></div>
+    <div class="tbl-w"><table class="tbl">
+        <thead><tr><th>Товар</th><th>Код CRM</th><th class="r">Штук</th></tr></thead>
+        <tbody><tr th:each="r : ${defects}">
+            <td><b th:text="${r.product().name}"></b><span class="sub" th:text="${r.product().category}"></span></td>
+            <td><span class="tag" th:classappend="${r.product().crmCode != null} ? 'tag--crm'" th:text="${r.product().crmCode ?: 'не товар CRM'}"></span></td>
+            <td class="r num" th:text="${r.defect() + ' шт'}"></td>
+        </tr></tbody>
+        <tfoot th:unless="${defects.isEmpty()}"><tr><td colspan="2">Итого</td><td class="r num" th:text="${defectQty + ' шт'}"></td></tr></tfoot>
+    </table></div>
+    <p class="empty" th:if="${defects.isEmpty()}">Негодного товара нет.</p>
 </section>
 </th:block>
 </body>

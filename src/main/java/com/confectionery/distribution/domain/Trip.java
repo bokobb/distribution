@@ -97,6 +97,16 @@ public class Trip extends CompanyEntity {
         return returns.stream().mapToInt(ProductReturn::getQty).sum();
     }
 
+    /** Выдано магазинам (целиком или частично) — без отказов. */
+    public int getHanded() {
+        return (int) getOrders().stream().filter(o -> o.getStatus().delivered()).count();
+    }
+
+    /** Из выданных — с подписью получателя или фото накладной. */
+    public int getProofs() {
+        return (int) getOrders().stream().filter(o -> o.getStatus().delivered() && o.getDelivery() != null && o.getDelivery().getProof() != null).count();
+    }
+
     public int getStops() {
         return tripOrders.size();
     }

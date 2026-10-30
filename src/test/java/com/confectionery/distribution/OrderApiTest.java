@@ -152,7 +152,7 @@ class OrderApiTest {
         MockHttpSession s = (MockHttpSession) mvc.perform(formLogin("/login").user(w.operator().getPhone()).password("Проверка-2026"))
                 .andReturn().getRequest().getSession(false);
         mvc.perform(get("/admin/orders/{id}", data.orderByUuid(uuid).getId()).session(s)).andExpect(status().isOk())
-                .andExpect(content().string(containsString("Возврат с заказом · 1 позиция")));
+                .andExpect(content().string(containsString("Возврат негодного")));
 
         // старый телефон присылает причину — сохраняется; повтор лимита с возвратом: 80 000 + не доставлено 25 000 + 30 000 − 6 000 = 129 000 > 100 000
         send(jwt, json.formatted(UUID.randomUUID(), w.outlet().getId(), at, w.product().getId(), w.product().getId(), "DEFECT")

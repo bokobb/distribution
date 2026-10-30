@@ -415,6 +415,41 @@ public class ApprovalService {
         return out;
     }
 
+    /** Магазины, которым сегодня открыли один заказ при просрочке. */
+    public java.util.Set<Long> unblockedToday() {
+        return new java.util.HashSet<>(jdbc.queryForList("select outlet_id from approvals where kind = 'OVERDUE' and decision = 'OK' and decided_at >= ?",
+                Long.class, LocalDate.now(clock).atStartOfDay()));
+    }
+
+    /** Подпись под статусом в списке заказов: чем кончилось разрешение по заказу — «сверх лимита — разрешён», «разрешён 1 заказ». */
+    public Map<Long, String> orderNotes(List<Order> list) {
+        Map<Long, String> out = new HashMap<>();
+        Long[] ids = list.stream().map(Order::getId).toArray(Long[]::new);
+        if (ids.length == 0) return out;
+        query("""
+                select order_id, kind, decision from approvals
+                where order_id = any(?) and decision is not null order by decided_at, id""", ids, rs -> {
+            String code = rs.getString(3);
+            String note = switch (ApprovalKind.valueOf(rs.getString(2))) {
+                case LIMIT -> "CASH".equals(code) ? "сверх лимита — только при доставке" : "сверх лимита — разрешён";
+                case OVERDUE -> "разрешён 1 заказ";
+                case UNDERPAY -> "OK".equals(code) ? "недоплата — в долг магазина" : "недоплату заберёт торговый";
+                case OUTLET -> null;
+            };
+            if (note != null && !"DENY".equals(code)) out.put(rs.getLong(1), note);
+        });
+        query("select order_id from approvals where order_id = any(?) and kind = 'UNDERPAY' and decision is null", ids,
+                rs -> out.put(rs.getLong(1), "недоплата ждёт решения"));
+        for (Order o : list) {
+            if (out.containsKey(o.getId())) continue;
+            if (o.getStatus() == OrderStatus.NEEDS_APPROVAL && o.getHold() != null) out.put(o.getId(), o.getHold().getLabel().toLowerCase());
+            else if ((o.getStatus() == OrderStatus.CANCELLED || o.getStatus() == OrderStatus.REFUSED) && o.getRefuseReason() != null)
+                out.put(o.getId(), o.getRefuseReason());
+            else if (o.getOutlet().getStatus() == OutletStatus.PENDING) out.put(o.getId(), "новый магазин");
+        }
+        return out;
+    }
+
     private void query(String sql, Long[] ids, org.springframework.jdbc.core.RowCallbackHandler row) {
         jdbc.query(sql, ps -> {
             Array arr = ps.getConnection().createArrayOf("bigint", ids);
