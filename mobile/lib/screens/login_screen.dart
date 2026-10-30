@@ -85,7 +85,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text('Дистрибуция', style: text.headlineLarge),
+                          Row(children: [
+                            Image.asset('assets/icon/logo.png', width: 48, height: 48),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text('Юг Доставка', style: text.headlineLarge)),
+                          ]),
                           const SizedBox(height: 6),
                           Text('Вход для экспедиторов и торговых агентов',
                               style: text.bodyMedium!.copyWith(color: AppColors.text2)),

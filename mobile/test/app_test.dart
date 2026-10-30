@@ -606,7 +606,8 @@ void main() {
     expect(find.text('3 шт'), findsOneWidget);
     expect(find.text('−${money(1500)}'), findsNWidgets(2));
     expect(find.text(money(34500)), findsOneWidget);
-    expect(find.text('Доставка и сбор возврата'), findsOneWidget);
+    // день доставки торговый не выбирает — его ставит склад при отгрузке
+    expect(find.text('Доставка и сбор возврата'), findsNothing);
     expect(find.textContaining('Есть просрочка ${money(12000)}'), findsOneWidget);
     await t.tap(find.text('В долг'));
     await t.pump();
@@ -856,8 +857,7 @@ void main() {
     await openTab(t, 'Заказы');
     expect(find.text('Сегодня · 1'), findsOneWidget);
     expect(find.text('Вчера · 2'), findsOneWidget);
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    expect(find.text('Доставка завтра, ${dayMonth(tomorrow)}'), findsOneWidget);
+    expect(find.text('Взято 1 заказ'), findsOneWidget);
     expect(find.textContaining(RegExp(r'^\d\d:\d\d · 2 позиции$')), findsOneWidget);
     expect(find.text(money(32000)), findsNWidgets(2)); // итог дня и строка: 64 шт × 500
     expect(find.text('Новый'), findsOneWidget);

@@ -10,7 +10,7 @@
     <!-- Без резервной копии в облако Google: ключ устройства из защищённого хранилища на другом телефоне
          не расшифруется, а вход сотрудника не должен переезжать с телефоном. -->
     <application
-        android:label="Дистрибуция"
+        android:label="Юг Доставка"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

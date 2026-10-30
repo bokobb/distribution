@@ -9,11 +9,11 @@ import '../widgets/layout.dart';
 import '../widgets/message_box.dart';
 import '../widgets/shelf_photo.dart';
 
-/// «Оформление» по макету AgentCheckout: заказ и возврат — итог и весь состав (товар, штук, сумма), к оплате; день
-/// доставки (тогда же экспедитор заберёт возврат) — «Изменить»; оплата при доставке — что разрешено в настройках; у
+/// «Оформление» по макету AgentCheckout: заказ и возврат — итог и весь состав (товар, штук, сумма), к оплате (день
+/// доставки торговый не выбирает — его ставит оператор при отгрузке); оплата при доставке — что разрешено в настройках; у
 /// своего магазина — предупреждение о лимите долга (заказ уйдёт руководителю) или о просрочке; фото полки, если
 /// обязательно; комментарий складу и экспедитору. «Отправить» заканчивает визит заказом — без сети он уйдёт сам. Отправили — возвращает true.
-/// С [editing] — правка уже взятого заказа: его оплата, день и комментарий, «Сохранить изменения» (отправленный
+/// С [editing] — правка уже взятого заказа: его оплата и комментарий, «Сохранить изменения» (отправленный
 /// заказ меняется на сервере сразу — нужна сеть), фото полки не нужно.
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen(
@@ -44,20 +44,8 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   late String _payment = _payments.contains(widget.editing?.payment) ? widget.editing!.payment : 'CASH';
-  late DateTime _delivery = switch (widget.editing) {
-    // прошедший день доставки при правке — сегодня
-    final e? => e.deliveryDate.isBefore(_today()) ? _today() : e.deliveryDate,
-    null => _today().add(Duration(days: widget.data.settings.deliveryDays)),
-  };
   late final _comment = TextEditingController(text: widget.editing?.comment);
   bool _busy = false;
-
-  /// Доставка — не дальше двух недель от дня заказа (при правке — от дня, когда его взяли).
-  DateTime get _lastDay {
-    final from = widget.editing?.createdAt ?? _today();
-    final last = DateTime(from.year, from.month, from.day).add(const Duration(days: 14));
-    return last.isBefore(_delivery) ? _delivery : last;
-  }
 
   static DateTime _today() {
     final n = DateTime.now();
@@ -83,17 +71,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         if (widget.data.settings.allowCredit && !widget.outlet.pending) 'CREDIT',
       ];
 
-  Future<void> _pickDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _delivery,
-      firstDate: _today(),
-      lastDate: _lastDay,
-      helpText: 'Дата доставки',
-    );
-    if (d != null) setState(() => _delivery = d);
-  }
-
   Future<void> _send() async {
     setState(() => _busy = true);
     try {
@@ -104,7 +81,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               returns: widget.returns,
               returnTotal: widget.returnTotal,
               payment: _payment,
-              deliveryDate: _delivery,
+              // день доставки ставит оператор при отгрузке; поле — для старых серверов
+              deliveryDate: widget.editing!.deliveryDate,
               comment: _comment.text)
           : await widget.visits.finishWithOrder(
         items: widget.items,
@@ -112,7 +90,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         returns: widget.returns,
         returnTotal: widget.returnTotal,
         payment: _payment,
-        deliveryDate: _delivery,
+        deliveryDate: _today(),
         comment: _comment.text,
         settings: widget.data.settings,
       );
@@ -196,43 +174,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-              child: Row(children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration:
-                      const BoxDecoration(color: AppColors.fill, borderRadius: BorderRadius.all(Radius.circular(12))),
-                  child: const Icon(Icons.local_shipping_outlined, size: 22, color: AppColors.text),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(withReturn ? 'Доставка и сбор возврата' : 'Доставка',
-                          style: const TextStyle(fontSize: 13, color: AppColors.text2)),
-                      Text(dayTitle(_delivery), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: _pickDate,
-                  style: TextButton.styleFrom(
-                    backgroundColor: AppColors.fill,
-                    foregroundColor: AppColors.text,
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  child: const Text('Изменить'),
-                ),
-              ]),
             ),
           ),
           const SizedBox(height: 16),

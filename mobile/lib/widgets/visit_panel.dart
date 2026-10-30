@@ -213,7 +213,7 @@ class _OrderLine extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Заказ ${o.number == null ? '' : '${o.number} '}на ${money(o.total)} · '
-              '${Order.paymentLabels[o.payment] ?? o.payment} · доставка ${date(o.deliveryDate)}'),
+              '${Order.paymentLabels[o.payment] ?? o.payment}'),
           Text(o.note == null ? state : '$state — ${o.note}',
               style: TextStyle(color: alarm ? AppColors.err : AppColors.text2)),
         ],

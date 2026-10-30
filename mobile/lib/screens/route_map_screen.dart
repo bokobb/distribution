@@ -12,8 +12,9 @@ import '../workday.dart';
 
 /// «Маршрут» экспедитора по макету ExpMap: недоставленные точки рейсов в работе с номерами по порядку и линией
 /// между ними, где вы сейчас; сверху — сколько точек и километров по прямой. Внизу — следующая точка: «Поехали»
-/// (карты на телефоне), звонок, «Открыть» — раскрыть её на «Доставках»; дальше по маршруту — нажать, чтобы
-/// показать на карте. Подложка — OpenStreetMap, без интернета точки всё равно видны.
+/// (карты на телефоне), звонок, «Открыть» — раскрыть её на «Доставках»; «Весь маршрут в 2ГИС» — от вас через
+/// следующие точки по порядку (2ГИС берёт до 10 точек: дальше — нажать ещё раз, когда эти пройдены); дальше по
+/// маршруту — нажать, чтобы показать на карте. Подложка — OpenStreetMap, без интернета точки всё равно видны.
 class RouteMapScreen extends StatefulWidget {
   const RouteMapScreen(
       {super.key, required this.data, required this.deliveries, required this.workday, required this.onOpen});
@@ -219,6 +220,23 @@ class _NextCard extends StatelessWidget {
     return distanceLabel(metersBetween(me!.latitude, me!.longitude, at.latitude, at.longitude));
   }
 
+  /// «Весь маршрут в 2ГИС»: вы (если место известно) и следующие точки с координатами, сколько 2ГИС примет.
+  List<Widget> _gisButton(BuildContext context) {
+    final placed = [for (final s in pending) ?_RouteMapScreenState._at(s)];
+    if (placed.isEmpty) return const [];
+    final room = gisMaxPoints - (me == null ? 0 : 1);
+    final points = [if (me != null) (me!.latitude, me!.longitude), for (final p in placed.take(room)) (p.latitude, p.longitude)];
+    return [
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: () => routeAll(context, points),
+        icon: const Icon(Icons.alt_route),
+        label: Text(placed.length > room ? 'Весь маршрут в 2ГИС · первые $room точек' : 'Весь маршрут в 2ГИС'),
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final o = stop.outlet, order = stop.order;
@@ -293,6 +311,7 @@ class _NextCard extends StatelessWidget {
                 child: const Text('Открыть'),
               ),
             ]),
+            ..._gisButton(context),
             if (after.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text('Дальше по маршруту',

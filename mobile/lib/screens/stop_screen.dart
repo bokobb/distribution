@@ -254,7 +254,6 @@ class _StopScreenState extends State<StopScreen> {
                   Text(
                       [
                         order.paymentLabel,
-                        'доставка ${date(order.deliveryDate)}',
                         if (order.agent != null) 'принял ${order.agent}',
                       ].join(' · '),
                       style: const TextStyle(color: AppColors.text2)),

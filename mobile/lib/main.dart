@@ -22,7 +22,7 @@ import 'theme.dart';
 import 'visits.dart';
 import 'workday.dart';
 
-/// Приложение «Дистрибуция» для торгового агента и экспедитора. Сервер — проект distribution, адреса /api/mobile.
+/// Приложение «Юг Доставка» (проект «Дистрибуция») для торгового агента и экспедитора. Сервер — проект distribution, адреса /api/mobile.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = SessionStore();
@@ -234,7 +234,7 @@ class _DistributionAppState extends State<DistributionApp> with WidgetsBindingOb
   Widget build(BuildContext context) {
     final s = _session;
     return MaterialApp(
-      title: 'Дистрибуция',
+      title: 'Юг Доставка',
       debugShowCheckedModeBanner: false,
       theme: appTheme(),
       builder: (context, child) => AppLockScope(

@@ -52,7 +52,7 @@ class _LockScreenState extends State<LockScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text('Дистрибуция',
+              const Text('Юг Доставка',
                   textAlign: TextAlign.center, style: TextStyle(fontSize: 28, height: 34 / 28, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(widget.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, color: AppColors.text2)),

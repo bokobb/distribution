@@ -3,7 +3,7 @@ description: "Приложение торгового агента и экспе
 publish_to: 'none'
 
 # Версия приложения: 1.0.0 — versionName, +1 — versionCode на Android. Сервер пишет её в журнал приложения.
-version: 1.0.6+7
+version: 1.0.7+8
 
 environment:
   sdk: ^3.13.1
@@ -44,6 +44,7 @@ flutter:
 
   # Шрифт для накладной PDF: в нём есть «₸» (invoice.dart).
   assets:
+    - assets/icon/logo.png
     - assets/fonts/IBMPlexSans-Regular.ttf
     - assets/fonts/IBMPlexSans-SemiBold.ttf
 

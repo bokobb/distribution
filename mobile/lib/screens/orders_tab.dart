@@ -93,7 +93,7 @@ class _OrdersTabState extends State<OrdersTab> {
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
                     child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                       Expanded(
-                        child: Text(_previous ? _deliveredHead(prev, today) : _deliveryHead(live, today),
+                        child: Text(_previous ? _deliveredHead(prev, today) : _takenHead(live),
                             style: const TextStyle(fontSize: 14, color: AppColors.text2)),
                       ),
                       const SizedBox(width: 12),
@@ -130,14 +130,8 @@ class _OrdersTabState extends State<OrdersTab> {
         },
       );
 
-  /// «Доставка завтра, 29 октября»; дни доставки разные — так и сказано.
-  String _deliveryHead(List<Order> live, DateTime today) {
-    final days = {for (final o in live) DateUtils.dateOnly(o.deliveryDate)};
-    if (days.length != 1) return days.isEmpty ? 'Доставлять нечего' : 'Доставка в разные дни';
-    final d = days.single;
-    final word = switch (d.difference(today).inDays) { 0 => 'сегодня, ', 1 => 'завтра, ', _ => '' };
-    return 'Доставка $word${dayMonth(d)}';
-  }
+  /// «Взято 5 заказов»: день доставки торговый не выбирает — его ставит склад при отгрузке.
+  String _takenHead(List<Order> live) => live.isEmpty ? 'Заказов нет' : 'Взято ${plural(live.length, 'заказ', 'заказа', 'заказов')}';
 
   /// «Сегодня доставлено 5 из 14»: отменённые не считаются.
   String _deliveredHead(List<Order> prev, DateTime today) {
