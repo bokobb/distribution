@@ -71,8 +71,9 @@ class OrderApiTest {
         send(jwt, order(uuid, w, "CASH", 12, null)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.number").value(number))
                 .andExpect(jsonPath("$.status").value("ACCEPTED"))
-                .andExpect(jsonPath("$.statusLabel").value("Принят"))
-                .andExpect(jsonPath("$.deliveryDate").value(data.today().plusDays(1).toString()))
+                .andExpect(jsonPath("$.statusLabel").value("Новый"))
+                // дату доставки торговый не выбирает: до отгрузки — день заказа
+                .andExpect(jsonPath("$.deliveryDate").value(data.today().toString()))
                 .andExpect(jsonPath("$.total").value(6000))
                 .andExpect(jsonPath("$.lines[0].price").value(500));
         send(jwt, order(uuid, w, "CASH", 99, null)).andExpect(status().isOk())
@@ -187,8 +188,6 @@ class OrderApiTest {
         send(jwt, order(UUID.randomUUID(), w, "CREDIT", 1, null)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Продажа в долг выключена — выберите другую оплату"));
         send(jwt, order(UUID.randomUUID(), w, "KASPI", 1, null)).andExpect(status().isBadRequest());
-        send(jwt, order(UUID.randomUUID(), w, "CASH", 1, data.today().plusDays(30))).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Дата доставки — с дня заказа и не дальше 14 дней"));
         send(jwt, order(UUID.randomUUID(), w, "CASH", 0, null)).andExpect(status().isBadRequest());
         send(data.jwt(w.expeditor()), order(UUID.randomUUID(), w, "CASH", 1, null)).andExpect(status().isForbidden());
         assertThat(jdbc.queryForObject("select count(*) from orders where company_id = ?", Integer.class, w.id())).isZero();

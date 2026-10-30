@@ -25,7 +25,7 @@ public class OrderSearch {
     private final EntityManager em;
 
     /**
-     * Условия списка. Даты — доставки, включительно, null — без границы. agents и regions — любые из
+     * Условия списка. Даты — заказа (когда пришёл), включительно, null — без границы. agents и regions — любые из
      * выбранных; expeditor: null — любой, {@link #NO_EXPEDITOR} — ещё не в рейсе, иначе id экспедитора.
      */
     public record Filter(LocalDate from, LocalDate to, List<Long> agents, List<Long> regions, Long expeditor,
@@ -67,10 +67,10 @@ public class OrderSearch {
 
     private static final String FROM = " from Order o join o.outlet ot left join o.agent a";
 
-    /** Все найденные заказы, не больше limit (для карты списка), — новые доставки первыми. */
+    /** Все найденные заказы, не больше limit (для карты списка), — новые первыми. */
     public List<Order> all(Filter f, int limit) {
         Map<String, Object> params = new HashMap<>();
-        return query("select o" + FROM + where(f, params, true) + " order by o.deliveryDate desc, o.id desc", Order.class, params)
+        return query("select o" + FROM + where(f, params, true) + " order by o.createdAt desc, o.id desc", Order.class, params)
                 .setMaxResults(limit).getResultList();
     }
 
@@ -83,7 +83,7 @@ public class OrderSearch {
         long total = query("select count(o)" + from + where, Long.class, params).getSingleResult();
         int pages = (int) Math.max(1, (total + s - 1) / s);
         int p = Math.max(1, Math.min(page, pages));
-        List<Order> rows = query("select o" + from + where + " order by o.deliveryDate desc, o.createdAt desc, o.id desc", Order.class, params)
+        List<Order> rows = query("select o" + from + where + " order by o.createdAt desc, o.id desc", Order.class, params)
                 .setFirstResult((p - 1) * s).setMaxResults(s).getResultList();
         Long sum = query("select coalesce(sum(l.qty * l.price - coalesce(l.discount, 0)), 0) from OrderLine l where l.order.id in"
                 + " (select o.id" + from + where + ")", Long.class, params).getSingleResult();
@@ -107,12 +107,12 @@ public class OrderSearch {
     private String where(Filter f, Map<String, Object> params, boolean withStatus) {
         List<String> w = new ArrayList<>();
         if (f.from() != null) {
-            w.add("o.deliveryDate >= :from");
-            params.put("from", f.from());
+            w.add("o.createdAt >= :from");
+            params.put("from", f.from().atStartOfDay());
         }
         if (f.to() != null) {
-            w.add("o.deliveryDate <= :to");
-            params.put("to", f.to());
+            w.add("o.createdAt < :to");
+            params.put("to", f.to().plusDays(1).atStartOfDay());
         }
         if (!f.agents().isEmpty()) {
             w.add("a.id in :agents");

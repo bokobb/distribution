@@ -90,16 +90,17 @@ class ExpeditorDataTest {
     }
 
     @Test
-    void рейсНаПослезавтраЕщёНеВиден() throws Exception {
+    void рейсВиденТолькоСДняОтгрузки() throws Exception {
         World w = data.world("Экспедитор завтра");
         data.stockIn(w, 100);
+        Trip today = data.trip(w, TripStatus.ON_ROAD, data.order(w, data.today(), PaymentMethod.CASH, 1, 100));
         Trip tomorrow = data.trip(w, TripStatus.ON_ROAD, data.order(w, data.today().plusDays(1), PaymentMethod.CASH, 1, 100));
-        Trip later = data.trip(w, TripStatus.ON_ROAD, data.order(w, data.today().plusDays(2), PaymentMethod.CASH, 1, 100));
+        jdbc.update("update trips set trip_date = ? where id = ?", data.today(), today.getId());
         jdbc.update("update trips set trip_date = ? where id = ?", data.today().plusDays(1), tomorrow.getId());
-        jdbc.update("update trips set trip_date = ? where id = ?", data.today().plusDays(2), later.getId());
 
+        // отгрузили на завтра — сегодня экспедитор этот рейс ещё не видит
         expeditorData(w.expeditor()).andExpect(jsonPath("$.trips", hasSize(1)))
-                .andExpect(jsonPath("$.trips[0].id").value(tomorrow.getId()));
+                .andExpect(jsonPath("$.trips[0].id").value(today.getId()));
     }
 
     @Test

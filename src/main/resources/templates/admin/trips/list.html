@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!--/* Рейсы (design/admin/AdmTrips): итоги дня, рейсы с подтверждениями доставки, подготовка на завтра. */-->
+<!--/* Рейсы (design/admin/AdmTrips): итоги дня, рейсы с подтверждениями доставки, заказы, которые ждут отгрузки. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
 <body>
 <th:block th:fragment="content">
@@ -49,13 +49,13 @@
     </table></div>
     <p class="empty" th:if="${trips.isEmpty()}">Рейсов сегодня и отгруженных на следующие дни нет.</p>
 </section>
-<p class="hint">Рейс создаётся из «Заказов»: отметьте заказы и нажмите «Отгрузить». Выдача закрывается только с подписью или фото накладной. Вечером — «Приём кассы».</p>
+<p class="hint">Рейс создаётся из «Заказов»: отметьте заказы, выберите экспедитора и дату и нажмите «Отгрузить» — экспедитор увидит рейс в телефоне в этот день. Выдача закрывается только с подписью или фото накладной. Вечером — «Приём кассы».</p>
 
 <section class="card">
-    <div class="card-h"><div><h2>Подготовка на завтра</h2><p th:text="${@fmt.longDay(tomorrow) + ' · ' + @fmt.plural(nextCount, 'заказ', 'заказа', 'заказов')}"></p></div>
-        <a class="link" href="/admin/orders?day=tomorrow">Заказы</a></div>
+    <div class="card-h"><div><h2>Ждут отгрузки</h2><p th:text="${'новые и собранные за любой день · ' + @fmt.plural(nextCount, 'заказ', 'заказа', 'заказов')}"></p></div>
+        <a class="link" href="/admin/orders?day=all&amp;exp=none">Заказы</a></div>
     <ul class="rows card-b" style="padding-top:0" th:unless="${next.isEmpty()}">
-        <li th:each="e : ${next}" th:with="n=${e.value.size()}, done=${e.value.?[status.name() != 'ACCEPTED' and status.name() != 'NEEDS_APPROVAL'].size()}">
+        <li th:each="e : ${next}" th:with="n=${e.value.size()}, done=${e.value.?[status.name() == 'ASSEMBLED'].size()}">
             <span style="flex:1;min-width:0"><b th:text="${e.key.name}"></b>
                 <span class="sub" th:text="${@fmt.plural(n, 'заказ', 'заказа', 'заказов') + ' · ' + @fmt.money(#aggregates.sum(e.value.![total]))}"></span>
                 <span class="meter" style="margin-top:6px;max-width:320px" th:classappend="${done == n} ? 'meter--ok'"><i th:style="${'width:' + (done * 100 / n) + '%'}"></i></span>
@@ -64,7 +64,7 @@
             <a class="btn btn-soft btn-sm" href="/admin/orders/pick" th:unless="${v.isAll()}">Лист сборки</a>
         </li>
     </ul>
-    <p class="empty" th:if="${next.isEmpty()}">Заказов на завтра пока нет.</p>
+    <p class="empty" th:if="${next.isEmpty()}">Все заказы отгружены.</p>
 </section>
 </th:block>
 </body>

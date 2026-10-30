@@ -75,9 +75,9 @@ public class AdminOrderController {
         OrderSearch.Page p = search.find(f, page, size);
 
         String when = f.from() == null && f.to() == null ? "все даты"
-                : f.from() != null && f.from().equals(f.to()) ? "доставка " + fmt.longDay(f.from())
-                : f.to() == null ? "доставка с " + fmt.date(f.from()) : f.from() == null ? "доставка по " + fmt.date(f.to())
-                : "доставка " + fmt.date(f.from()) + " — " + fmt.date(f.to());
+                : f.from() != null && f.from().equals(f.to()) ? "заказы " + fmt.longDay(f.from())
+                : f.to() == null ? "заказы с " + fmt.date(f.from()) : f.from() == null ? "заказы по " + fmt.date(f.to())
+                : "заказы " + fmt.date(f.from()) + " — " + fmt.date(f.to());
         AdminPage.head(model, "orders", "Заказы", fmt.dot(when, fmt.plural(p.total(), "заказ", "заказа", "заказов") + " на " + fmt.money(p.sum()),
                 v.isAll() ? v.scopeName() : null));
         model.addAttribute("notes", approvals.orderNotes(p.rows()));
@@ -87,7 +87,7 @@ public class AdminOrderController {
         model.addAttribute("to", f.to());
         model.addAttribute("quick", f.from() == null && f.to() == null ? "all"
                 : today.equals(f.from()) && today.equals(f.to()) ? "today"
-                : today.plusDays(1).equals(f.from()) && f.to() == null ? "tomorrow" : "");
+                : today.minusDays(1).equals(f.from()) && today.minusDays(1).equals(f.to()) ? "yesterday" : "");
         model.addAttribute("agents", options(staff.staff(v.companyId(), Role.AGENT), f.agents(), v));
         model.addAttribute("regions", regions.regions().stream()
                 .filter(r -> v.companyId() == null || v.companyId().equals(r.getCompanyId()))
@@ -96,6 +96,8 @@ public class AdminOrderController {
                 f.expeditor() == null ? List.of() : List.of(f.expeditor()), v));
         model.addAttribute("exp", exp == null ? "" : exp);
         model.addAttribute("shipTo", staff.staff(v.companyId(), Role.EXPEDITOR).stream().filter(Employee::isActive).toList());
+        model.addAttribute("shipDay", today);
+        model.addAttribute("shipLast", today.plusDays(TripService.SHIP_DAYS_AHEAD));
         model.addAttribute("status", status);
         model.addAttribute("q", q);
         model.addAttribute("statuses", OrderStatus.values());
@@ -126,21 +128,18 @@ public class AdminOrderController {
     }
 
     /**
-     * Условия списка из адреса. Дата доставки: day = today | tomorrow (завтра и позже) | all — быстрый
-     * выбор, day = range — «с» и «по» из формы; без условий — завтра и позже. Экспедитор: пусто — любой,
-     * none — ещё не отгружены, id — его рейсы.
+     * Условия списка из адреса. Дата заказа (когда пришёл): day = today | yesterday | all — быстрый выбор,
+     * day = range — «с» и «по» из формы; без условий — сегодня. Экспедитор: пусто — любой, none — ещё не
+     * отгружены, id — его рейсы.
      */
     private OrderSearch.Filter filter(String day, LocalDate from, LocalDate to, List<Long> agentIds, List<Long> regionIds,
                                       String exp, OrderStatus status, String q) {
         LocalDate today = LocalDate.now(clock);
         if (!"range".equals(day)) {
-            switch (day == null ? "tomorrow" : day) {
-                case "today" -> from = to = today;
+            switch (day == null ? "today" : day) {
+                case "yesterday" -> from = to = today.minusDays(1);
                 case "all" -> from = to = null;
-                default -> {
-                    from = today.plusDays(1);
-                    to = null;
-                }
+                default -> from = to = today;
             }
         }
         if (from != null && to != null && to.isBefore(from)) {
@@ -176,7 +175,7 @@ public class AdminOrderController {
         String state = d != null && d.getDeliveredAt() != null
                 ? (d.getStatus() == DeliveryStatus.REFUSED ? "отказ " : "доставлен ") + fmt.when(d.getDeliveredAt())
                 + (o.getStatus() == OrderStatus.PARTIAL ? ", частично" : "")
-                : "доставка " + fmt.day(o.getDeliveryDate());
+                : o.getTrip() != null ? "отгрузка " + fmt.day(o.getTrip().getDate()) : "ждёт отгрузки";
         AdminPage.head(model, "orders", "Заказ " + o.getNumber(), fmt.dot(o.getOutlet().getName(), o.getOutlet().getAddress(), state));
         model.addAttribute("o", o);
         List<Payment> paid = payments.findByOutletOrderByAtDesc(o.getOutlet()).stream()
@@ -195,12 +194,12 @@ public class AdminOrderController {
         return "admin/orders/view";
     }
 
-    /** Лист сборки на завтра: всё, что принято и ещё не загружено, сложено по товарам. */
+    /** Лист сборки: всё новое и собранное, ещё не отгруженное, сложено по товарам. */
     @GetMapping("/admin/orders/pick")
     public String pick(Model model, HttpSession session) {
         Viewer v = ctx.viewer(session);
         List<Order> list = orders.toPick();
-        AdminPage.head(model, "orders", "Лист сборки на завтра", v.scopeName() + " · " + fmt.plural(list.size(), "заказ", "заказа", "заказов"));
+        AdminPage.head(model, "orders", "Лист сборки", v.scopeName() + " · " + fmt.plural(list.size(), "заказ", "заказа", "заказов"));
         model.addAttribute("orders", list);
         model.addAttribute("rows", OrderService.pickList(list));
         return "admin/orders/pick";
@@ -210,24 +209,43 @@ public class AdminOrderController {
     public record Notice(String kind, String title, List<String> lines) implements java.io.Serializable {
     }
 
-    /** Отмеченные галочками заказы — экспедитору (см. TripService.ship); возврат в тот же список. */
+    /** Отмеченные галочками новые заказы — «Собран»; возврат в тот же список. */
+    @PostMapping("/admin/orders/assemble")
+    public String assemble(@RequestParam(name = "ids", required = false) List<Long> ids,
+                           @RequestParam(required = false) String back,
+                           HttpSession session, RedirectAttributes ra) {
+        try {
+            int n = orders.assemble(ids, ctx.viewer(session).actor());
+            int skipped = ids.size() - n;
+            ra.addFlashAttribute("notice", n == 0
+                    ? new Notice("al--bad", "Ничего не отмечено собранным", List.of("«Собран» ставится только новым заказам"))
+                    : new Notice("al--info", "Собрано: " + fmt.plural(n, "заказ", "заказа", "заказов"),
+                    skipped == 0 ? List.of() : List.of("Не изменены (уже собраны, отгружены или ждут разрешения): " + skipped)));
+        } catch (FormException e) {
+            ra.addFlashAttribute("notice", new Notice("al--bad", e.getMessage(), List.of()));
+        }
+        return "redirect:" + AdminPage.back(back, "/admin/orders");
+    }
+
+    /** Отмеченные галочками заказы — экспедитору на выбранный день (см. TripService.ship); возврат в тот же список. */
     @PostMapping("/admin/orders/ship")
     public String ship(@RequestParam(name = "ids", required = false) List<Long> ids,
                        @RequestParam(required = false) Long expeditor,
+                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                        @RequestParam(required = false) String back,
                        HttpSession session, RedirectAttributes ra) {
         String to = AdminPage.back(back, "/admin/orders");
         try {
-            TripService.Shipment s = trips.ship(ids, expeditor, ctx.viewer(session).actor());
+            TripService.Shipment s = trips.ship(ids, expeditor, date, ctx.viewer(session).actor());
             List<String> lines = new java.util.ArrayList<>();
             s.skipped().forEach((why, numbers) -> lines.add("Не отгружены — " + why + ": № " + String.join(", № ", numbers)));
             if (s.shipped() == 0) {
                 ra.addFlashAttribute("notice", new Notice("al--bad", "Ничего не отгружено", lines));
             } else {
-                String tripsText = s.trips().stream().map(t -> t.getNumber() + " (" + fmt.day(t.getDate()) + ")")
-                        .collect(java.util.stream.Collectors.joining(", "));
+                var t = s.trips().get(0);
                 ra.addFlashAttribute("notice", new Notice("al--info", "Отгружено " + fmt.plural(s.shipped(), "заказ", "заказа", "заказов")
-                        + " экспедитору " + s.expeditor().getName() + ": " + (s.trips().size() == 1 ? "рейс " : "рейсы ") + tripsText, lines));
+                        + " экспедитору " + s.expeditor().getName() + " на " + fmt.longDay(t.getDate()) + ", рейс " + t.getNumber()
+                        + " — в телефоне экспедитора с этого дня", lines));
             }
         } catch (FormException e) {
             ra.addFlashAttribute("notice", new Notice("al--bad", e.getMessage(), List.of()));
@@ -237,7 +255,7 @@ public class AdminOrderController {
 
     /**
      * Накладные по отмеченным заказам, страница для печати: kind = shop — на каждый магазин своя
-     * накладная (отдельный лист), total — общая: товар по всем заказам и список магазинов.
+     * накладная (отдельный лист), total — общая (см. OrderService.waybill).
      */
     @PostMapping("/admin/orders/invoices")
     public String invoices(@RequestParam(name = "ids", required = false) List<Long> ids,
@@ -251,24 +269,29 @@ public class AdminOrderController {
     }
 
     private String invoicePage(List<Order> list, String kind, Model model) {
-        boolean total = "total".equals(kind);
-        java.util.Map<com.confectionery.distribution.domain.PaymentMethod, Long> byPayment =
-                new java.util.EnumMap<>(com.confectionery.distribution.domain.PaymentMethod.class);
-        for (Order o : list) byPayment.merge(o.getPayment(), o.getTotal(), Long::sum);
+        invoiceModel(list, "total".equals(kind), model, fmt);
+        return "admin/orders/invoices";
+    }
+
+    /** Данные страницы накладных — и для рейса (AdminTripController). */
+    static void invoiceModel(List<Order> list, boolean total, Model model, Fmt fmt) {
         java.util.Set<LocalDate> days = new java.util.TreeSet<>();
-        list.forEach(o -> days.add(o.getDeliveryDate()));
+        list.forEach(o -> days.add(o.getTrip() != null ? o.getTrip().getDate() : o.getDeliveryDate()));
+        java.util.List<com.confectionery.distribution.domain.Trip> tripList = list.stream().map(Order::getTrip)
+                .filter(java.util.Objects::nonNull).distinct().toList();
         model.addAttribute("total", total);
         model.addAttribute("orders", list);
-        model.addAttribute("rows", OrderService.sumList(list));
-        model.addAttribute("byPayment", byPayment);
         model.addAttribute("sum", list.stream().mapToLong(Order::getTotal).sum());
-        model.addAttribute("qty", list.stream().mapToInt(Order::getQty).sum());
-        model.addAttribute("shops", list.stream().map(Order::getOutlet).distinct().count());
+        model.addAttribute("bill", total ? OrderService.waybill(list) : null);
         model.addAttribute("days", days.stream().map(fmt::date).collect(java.util.stream.Collectors.joining(", ")));
-        model.addAttribute("tripsText", list.stream().map(Order::getTrip).filter(java.util.Objects::nonNull).distinct()
-                .map(t -> t.getNumber() + " — " + t.getExpeditor().getName() + ", " + t.getVehicle().getPlate())
-                .collect(java.util.stream.Collectors.joining("; ")));
-        return "admin/orders/invoices";
+        model.addAttribute("expeditors", tripList.stream().map(t -> t.getExpeditor().getName()).distinct()
+                .collect(java.util.stream.Collectors.joining(", ")));
+        model.addAttribute("cars", tripList.stream().map(t -> t.getVehicle().getPlate()).distinct()
+                .collect(java.util.stream.Collectors.joining(", ")));
+        model.addAttribute("tripsText", tripList.stream().map(com.confectionery.distribution.domain.Trip::getNumber)
+                .collect(java.util.stream.Collectors.joining(", ")));
+        model.addAttribute("agentsText", list.stream().map(Order::getAgent).filter(java.util.Objects::nonNull).map(Employee::getName)
+                .distinct().sorted().collect(java.util.stream.Collectors.joining(", ")));
     }
 
     @PostMapping("/admin/orders/{id}/approve")

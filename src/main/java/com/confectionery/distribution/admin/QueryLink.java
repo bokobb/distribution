@@ -29,7 +29,7 @@ public final class QueryLink {
         return build(p);
     }
 
-    /** Быстрый выбор даты: today, tomorrow, all — вместо введённых «с» и «по». */
+    /** Быстрый выбор даты: today, yesterday, all — вместо введённых «с» и «по». */
     public String day(String day) {
         Map<String, String[]> p = new LinkedHashMap<>(params);
         p.remove("from");

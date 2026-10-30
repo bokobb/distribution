@@ -7,7 +7,7 @@
     <span style="flex:1"></span>
     <button class="btn btn-soft btn-sm" type="button" onclick="window.print()"><th:block th:utext="${i16['print']}"></th:block>Печать</button>
 </div>
-<p class="note">Все принятые заказы на завтра, сложенные по товарам. Заказы «Нужно разрешение» сюда не входят, пока оператор их не разрешит.</p>
+<p class="note">Все новые и собранные заказы, которые ещё не отгружены, сложенные по товарам. Заказы «Нужно разрешение» сюда не входят, пока оператор их не разрешит.</p>
 <div class="grid">
     <section class="card">
         <div class="card-h"><h2>Собрать</h2><p th:text="${@fmt.plural(rows.size(), 'товар', 'товара', 'товаров')}"></p></div>

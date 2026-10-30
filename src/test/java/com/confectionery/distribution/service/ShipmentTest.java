@@ -18,7 +18,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** «Отгрузить экспедитору» из списка заказов: рейс на день доставки, товар в машину, что не ушло — с причиной. */
+/** «Отгрузить экспедитору» из списка заказов: рейс на выбранный день, товар в машину, что не ушло — с причиной. */
 @SpringBootTest
 @Import({TestcontainersConfiguration.class, TestData.class})
 class ShipmentTest {
@@ -42,8 +42,12 @@ class ShipmentTest {
     }
 
     private TripService.Shipment ship(World as, Long expeditorId, Order... list) {
+        return shipOn(tomorrow, as, expeditorId, list);
+    }
+
+    private TripService.Shipment shipOn(LocalDate day, World as, Long expeditorId, Order... list) {
         List<Long> ids = java.util.Arrays.stream(list).map(Order::getId).toList();
-        return TenantContext.call(as.id(), () -> trips.ship(ids, expeditorId, actor));
+        return TenantContext.call(as.id(), () -> trips.ship(ids, expeditorId, day, actor));
     }
 
     private String status(Order o) {
@@ -55,7 +59,7 @@ class ShipmentTest {
     }
 
     @Test
-    void принятыеИСобранныеУходятВРейсНаДеньДоставкиОстальныеСПричиной() {
+    void новыеИСобранныеУходятВРейсНаВыбранныйДеньОстальныеСПричиной() {
         data.stockIn(w, 100);
         Order a = data.order(w, tomorrow, PaymentMethod.CASH, 10, 500);
         Order b = data.order(w, tomorrow, PaymentMethod.CASH, 5, 500);
@@ -82,14 +86,37 @@ class ShipmentTest {
         assertThat(data.balance(w.main(), w.product())).isEqualTo(85);
         assertThat(data.balance(w.car(), w.product())).isEqualTo(15);
         assertThat(jdbc.queryForObject("select trip_id from trip_orders where order_id = ?", Long.class, a.getId())).isEqualTo(t.getId());
-        assertThat(jdbc.queryForObject("select count(*) from order_events where order_id = ? and message like 'Отгрузил экспедитору%'",
+        assertThat(jdbc.queryForObject("select count(*) from order_events where order_id = ? and message like 'Отгрузил на %'",
                 Integer.class, a.getId())).isEqualTo(1);
 
-        // повторная отгрузка тех же — «уже в рейсе», товар не двигается
+        // повторная отгрузка тех же — «уже отгружены», товар не двигается
         TripService.Shipment again = ship(w, w.expeditor().getId(), a);
         assertThat(again.shipped()).isZero();
-        assertThat(again.skipped()).containsEntry("уже в рейсе", List.of(a.getNumber()));
+        assertThat(again.skipped()).containsEntry("уже отгружены", List.of(a.getNumber()));
         assertThat(data.balance(w.main(), w.product())).isEqualTo(85);
+    }
+
+    @Test
+    void деньОтгрузкиВыбираетОператорАНеТорговый() {
+        data.stockIn(w, 100);
+        // заказ «старый» (дата — день заказа), отгружают через несколько дней — рейс и дата доставки = день отгрузки
+        Order old = data.order(w, data.today().minusDays(4), PaymentMethod.CASH, 1, 100);
+        Order other = data.order(w, data.today(), PaymentMethod.CASH, 1, 100);
+        LocalDate day = data.today().plusDays(3);
+        TripService.Shipment s = shipOn(day, w, w.expeditor().getId(), old, other);
+        assertThat(s.trips()).hasSize(1);
+        assertThat(s.trips().get(0).getDate()).isEqualTo(day);
+        assertThat(jdbc.queryForList("select delivery_date from orders where id in (?, ?)", LocalDate.class, old.getId(), other.getId()))
+                .containsOnly(day);
+
+        Order c = data.order(w, data.today(), PaymentMethod.CASH, 1, 100);
+        assertThatThrownBy(() -> shipOn(data.today().minusDays(1), w, w.expeditor().getId(), c))
+                .isInstanceOf(FormException.class).hasMessageContaining("уже прошла");
+        assertThatThrownBy(() -> shipOn(data.today().plusDays(TripService.SHIP_DAYS_AHEAD + 1), w, w.expeditor().getId(), c))
+                .isInstanceOf(FormException.class).hasMessageContaining("не дальше");
+        assertThatThrownBy(() -> shipOn(null, w, w.expeditor().getId(), c))
+                .isInstanceOf(FormException.class).hasMessageContaining("дату отгрузки");
+        assertThat(status(c)).isEqualTo("ACCEPTED");
     }
 
     @Test
@@ -97,14 +124,16 @@ class ShipmentTest {
         data.stockIn(w, 100);
         Order first = data.order(w, tomorrow, PaymentMethod.CASH, 1, 100);
         Order second = data.order(w, tomorrow, PaymentMethod.CASH, 1, 100);
-        Order later = data.order(w, tomorrow.plusDays(1), PaymentMethod.CASH, 1, 100);
+        Order later = data.order(w, tomorrow, PaymentMethod.CASH, 1, 100);
         Trip t1 = ship(w, w.expeditor().getId(), first).trips().get(0);
-        TripService.Shipment s = ship(w, w.expeditor().getId(), second, later);
-        assertThat(s.trips()).hasSize(2);
+        TripService.Shipment s = ship(w, w.expeditor().getId(), second);
+        assertThat(s.trips()).hasSize(1);
         assertThat(s.trips().get(0).getId()).isEqualTo(t1.getId());
-        assertThat(s.trips().get(1).getDate()).isEqualTo(tomorrow.plusDays(1));
         assertThat(jdbc.queryForList("select position from trip_orders where trip_id = ? order by position", Integer.class, t1.getId()))
                 .containsExactly(0, 1);
+        Trip t2 = shipOn(tomorrow.plusDays(1), w, w.expeditor().getId(), later).trips().get(0);
+        assertThat(t2.getId()).isNotEqualTo(t1.getId());
+        assertThat(t2.getDate()).isEqualTo(tomorrow.plusDays(1));
 
         // касса принята — рейс закрыт, следующая отгрузка на тот же день — новый рейс
         jdbc.update("update trips set status = 'CLOSED' where id = ?", t1.getId());

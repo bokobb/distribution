@@ -149,7 +149,7 @@ class OrderEditApiTest {
         data.trip(w, TripStatus.ON_ROAD, data.orderByUuid(second));
         cancel(jwt, second, "Клиент передумал").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.endsWith(
-                        "уже «В рейсе» — изменить или отменить его может только оператор")));
+                        "уже «Отгружен» — изменить или отменить его может только оператор")));
         cancel(jwt, UUID.randomUUID(), "Нет такого").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Заказ ещё не дошёл до сервера — попробуйте через минуту"));
     }

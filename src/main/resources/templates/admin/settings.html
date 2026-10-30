@@ -10,8 +10,7 @@
     <section class="card">
         <div class="card-h"><div><h2>Заказы и долги</h2></div></div>
         <div class="card-b set">
-            <label class="set-row"><span><b>Доставка по умолчанию</b></span>
-                <select class="sel inp--sm" name="deliveryDays" style="width:auto"><option value="1" th:selected="${f.deliveryDays == 1}">на следующий день</option><option value="2" th:selected="${f.deliveryDays == 2}">через день</option></select></label>
+            <input type="hidden" name="deliveryDays" th:value="${f.deliveryDays}">
             <label class="set-row"><span><b>Лимит долга нового магазина</b></span>
                 <span class="inline"><input class="inp inp--sm num" name="defaultLimit" inputmode="numeric" th:value="${f.defaultLimit}" style="width:110px">₸</span></label>
             <label class="set-row"><span><b>Разрешать продажу в долг</b></span>

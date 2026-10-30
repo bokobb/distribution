@@ -40,10 +40,10 @@ public class DashboardService {
     private static final DateTimeFormatter DM = DateTimeFormatter.ofPattern("dd.MM");
 
     /**
-     * Главные цифры дня: выдано (заказов на сегодня всего, рейсов в пути), заказы на завтра, не сдано в кассу (из них
+     * Главные цифры дня: выдано (заказов на сегодня всего, рейсов в пути), ждут отгрузки, не сдано в кассу (из них
      * в пути и недостача, ждущая решения), долги (магазинов с просрочкой), возвраты негодного (чаще всего какой товар).
      */
-    public record Summary(long deliveredToday, int deliveredStops, long tomorrowSum, int tomorrowOrders,
+    public record Summary(long deliveredToday, int deliveredStops, long waitingSum, int waitingOrders,
                           long cashOnHands, int openTrips, long debts, long overdue, long returnsToday,
                           int returnsQty, int needsApproval, int pendingOutlets, int todayOrders, int onRoad,
                           long cashOnRoad, long shortage, int overdueOutlets, String topReturn) {
@@ -54,7 +54,7 @@ public class DashboardService {
         }
     }
 
-    /** Торговый за сегодня: заказы (доставка завтра), новые магазины, визиты без заказа; link — связь и рабочий день. */
+    /** Торговый за сегодня: заказы, новые магазины, визиты без заказа; link — связь и рабочий день. */
     public record AgentRow(Employee agent, int orders, long sum, int refusals, int newOutlets, String link) {
         public boolean stale() {
             return agent.isStale();
@@ -105,7 +105,9 @@ public class DashboardService {
     /** Данные дня, загруженные один раз. Методы принимают cid: null — все видимые компании. */
     public class Snapshot {
         private final LocalDate today = LocalDate.now(clock);
-        private final List<Order> upcoming = orders.findByDeliveryDateGreaterThanEqual(today);
+        /** Отгруженные на сегодня и дальше и все ещё не отгруженные (у них дата — день заказа). */
+        private final List<Order> upcoming = java.util.stream.Stream.concat(orders.findByDeliveryDateGreaterThanEqual(today).stream(),
+                orders.findByStatusIn(EnumSet.of(OrderStatus.ACCEPTED, OrderStatus.ASSEMBLED, OrderStatus.NEEDS_APPROVAL)).stream()).distinct().toList();
         private final List<Order> createdToday = orders.findByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 today.atStartOfDay(), today.plusDays(1).atStartOfDay());
         private final List<Trip> tripList = trips.current(null);
@@ -129,7 +131,7 @@ public class DashboardService {
         public Summary summary(Long cid) {
             List<Order> os = of(upcoming, cid);
             List<Order> delivered = os.stream().filter(o -> today.equals(o.getDeliveryDate()) && o.getStatus().delivered()).toList();
-            List<Order> tomorrow = os.stream().filter(o -> o.getDeliveryDate().isAfter(today) && o.getStatus() != OrderStatus.CANCELLED).toList();
+            List<Order> waiting = os.stream().filter(o -> o.getStatus().waiting()).toList();
             List<Trip> open = of(tripList, cid).stream().filter(t -> t.getStatus().cashOnHands()).toList();
             List<ProductReturn> rs = of(returnsToday, cid);
             List<Outlet> ol = of(outletList, cid);
@@ -139,13 +141,13 @@ public class DashboardService {
             String top = byProduct.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
             return new Summary(
                     delivered.stream().mapToLong(Order::getDeliveredTotal).sum(), delivered.size(),
-                    tomorrow.stream().mapToLong(Order::getTotal).sum(), tomorrow.size(),
+                    waiting.stream().mapToLong(Order::getTotal).sum(), waiting.size(),
                     open.stream().mapToLong(Trip::getCash).sum(), open.size(),
                     ol.stream().mapToLong(o -> Math.max(0, o.getDebt())).sum(), ol.stream().mapToLong(Outlet::getOverdue).sum(),
                     rs.stream().mapToLong(ProductReturn::getTotal).sum(), rs.stream().mapToInt(ProductReturn::getQty).sum(),
                     (int) os.stream().filter(o -> o.getStatus() == OrderStatus.NEEDS_APPROVAL).count(),
                     (int) ol.stream().filter(o -> o.getStatus() == OutletStatus.PENDING).count(),
-                    (int) os.stream().filter(o -> today.equals(o.getDeliveryDate()) && o.getStatus() != OrderStatus.CANCELLED).count(),
+                    (int) os.stream().filter(o -> today.equals(o.getDeliveryDate()) && o.getTrip() != null && o.getStatus() != OrderStatus.CANCELLED).count(),
                     (int) ts.stream().filter(t -> t.getStatus() == TripStatus.ON_ROAD).count(),
                     ts.stream().filter(t -> t.getStatus() == TripStatus.ON_ROAD).mapToLong(Trip::getCash).sum(),
                     ts.stream().filter(Trip::isShortageWaiting).mapToLong(t -> -t.getCashDiff()).sum(),

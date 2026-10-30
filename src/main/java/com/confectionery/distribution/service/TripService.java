@@ -15,13 +15,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class TripService {
 
     private static final DateTimeFormatter NUMBER_DATE = DateTimeFormatter.ofPattern("ddMMyy");
+    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final TripRepository trips;
     private final TripOrderRepository tripOrders;
@@ -62,15 +62,24 @@ public class TripService {
     public record Shipment(Employee expeditor, List<Trip> trips, int shipped, Map<String, List<String>> skipped) {
     }
 
+    /** Насколько вперёд можно отгрузить: дальше двух недель — скорее всего ошибка в дате. */
+    public static final int SHIP_DAYS_AHEAD = 14;
+
     /**
-     * Отгрузить заказы экспедитору: каждый день доставки — в его рейс на этот день (незакрытый рейс
-     * дополняется, иначе создаётся новый — сразу «В пути»: отдельной кнопки «В путь» нет), товар — с основного
-     * склада в машину, заказы — «В рейсе». Уходят только принятые и собранные; остальные остаются как были и попадают в skipped. Если
-     * на основном складе чего-то не хватает, не отгружается ничего.
+     * Отгрузить заказы экспедитору на выбранный день: все — в его рейс на этот день (незакрытый рейс дополняется,
+     * иначе создаётся новый — сразу «В пути»: отдельной кнопки «В путь» нет). Рейс экспедитор видит в телефоне
+     * только с этого дня. Товар — с основного склада в машину, заказы — «Отгружен», день отгрузки — их дата
+     * доставки. Уходят только новые и собранные; остальные остаются как были и попадают в skipped. Если на
+     * основном складе чего-то не хватает, не отгружается ничего.
      */
     @Transactional
-    public Shipment ship(Collection<Long> orderIds, Long expeditorId, Actor actor) {
+    public Shipment ship(Collection<Long> orderIds, Long expeditorId, LocalDate day, Actor actor) {
         if (orderIds == null || orderIds.isEmpty()) throw new FormException("Отметьте галочками заказы, которые нужно отгрузить");
+        LocalDate today = LocalDate.now(clock);
+        if (day == null) throw new FormException("Выберите дату отгрузки");
+        if (day.isBefore(today)) throw new FormException("Дата отгрузки уже прошла — выберите сегодня или позже");
+        if (day.isAfter(today.plusDays(SHIP_DAYS_AHEAD)))
+            throw new FormException("Отгрузить можно не дальше чем на " + SHIP_DAYS_AHEAD + " дней вперёд");
         Employee exp = expeditorId == null ? null
                 : employees.findById(expeditorId).filter(e -> e.getRole() == Role.EXPEDITOR).orElse(null);
         if (exp == null) throw new FormException("Выберите экспедитора");
@@ -87,7 +96,7 @@ public class TripService {
                     : switch (o.getStatus()) {
                 case ACCEPTED, ASSEMBLED -> null;
                 case NEEDS_APPROVAL -> "ждут разрешения (долг сверх лимита)";
-                case IN_TRIP -> "уже в рейсе";
+                case IN_TRIP -> "уже отгружены";
                 case CANCELLED -> "отменены";
                 default -> "уже доставлены";
             };
@@ -108,30 +117,23 @@ public class TripService {
         if (!lack.isEmpty())
             throw new FormException("Не хватает товара на основном складе, ничего не отгружено: " + String.join("; ", lack));
 
-        LocalDate today = LocalDate.now(clock);
         LocalDateTime now = LocalDateTime.now(clock);
-        Map<LocalDate, List<Order>> byDay = ok.stream().collect(Collectors.groupingBy(
-                o -> o.getDeliveryDate().isBefore(today) ? today : o.getDeliveryDate(), TreeMap::new, Collectors.toList()));
-        List<Trip> used = new ArrayList<>();
-        byDay.forEach((day, list) -> {
-            Trip t = trips.findFirstByExpeditorAndDateAndStatusInOrderByIdDesc(exp, day, EnumSet.of(TripStatus.LOADING, TripStatus.ON_ROAD))
-                    .orElseGet(() -> newTrip(exp, car, day, now));
-            Warehouse carStock = stock.warehouse(t.getVehicle());
-            int pos = t.getTripOrders().stream().mapToInt(TripOrder::getPosition).max().orElse(-1) + 1;
-            list.sort(Comparator.comparing((Order o) -> o.getOutlet().getRegion() == null ? "" : o.getOutlet().getRegion().getName())
-                    .thenComparing(o -> o.getOutlet().getName()));
-            for (Order o : list) {
-                TripOrder to = new TripOrder().setTrip(t).setOrder(o).setPosition(pos++);
-                to.setCompany(o.getCompany());
-                tripOrders.save(to);
-                for (OrderLine l : o.getLines())
-                    stock.move(l.getProduct(), l.getQty(), main, carStock, MovementReason.LOAD, actor, now, m -> m.setTrip(t).setOrder(o));
-                o.setStatus(OrderStatus.IN_TRIP);
-                o.event(now, actor.entity(), actor.who(), "Отгрузил экспедитору " + exp.getName() + ", рейс " + t.getNumber());
-            }
-            used.add(t);
-        });
-        return new Shipment(exp, used, ok.size(), skipped);
+        Trip t = trips.findFirstByExpeditorAndDateAndStatusInOrderByIdDesc(exp, day, EnumSet.of(TripStatus.LOADING, TripStatus.ON_ROAD))
+                .orElseGet(() -> newTrip(exp, car, day, now));
+        Warehouse carStock = stock.warehouse(t.getVehicle());
+        int pos = t.getTripOrders().stream().mapToInt(TripOrder::getPosition).max().orElse(-1) + 1;
+        ok.sort(Comparator.comparing((Order o) -> o.getOutlet().getRegion() == null ? "" : o.getOutlet().getRegion().getName())
+                .thenComparing(o -> o.getOutlet().getName()));
+        for (Order o : ok) {
+            TripOrder to = new TripOrder().setTrip(t).setOrder(o).setPosition(pos++);
+            to.setCompany(o.getCompany());
+            tripOrders.save(to);
+            for (OrderLine l : o.getLines())
+                stock.move(l.getProduct(), l.getQty(), main, carStock, MovementReason.LOAD, actor, now, m -> m.setTrip(t).setOrder(o));
+            o.setStatus(OrderStatus.IN_TRIP).setDeliveryDate(day);
+            o.event(now, actor.entity(), actor.who(), "Отгрузил на " + day.format(DAY) + " экспедитору " + exp.getName() + ", рейс " + t.getNumber());
+        }
+        return new Shipment(exp, List.of(t), ok.size(), skipped);
     }
 
     private Trip newTrip(Employee exp, Vehicle car, LocalDate day, LocalDateTime now) {

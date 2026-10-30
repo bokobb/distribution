@@ -4,15 +4,16 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>Вход — Дистрибуция</title>
-    <link rel="icon" href="/admin/assets/favicon.svg" type="image/svg+xml">
+    <title>Вход — Юг Доставка</title>
+    <link rel="icon" href="/admin/assets/logo-64.png" type="image/png">
+    <link rel="apple-touch-icon" href="/admin/assets/logo-192.png">
     <link rel="stylesheet" href="/admin/assets/admin.css?v=5">
 </head>
 <body>
 <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px var(--gut)">
     <div style="width:100%;max-width:400px;display:flex;flex-direction:column;gap:16px">
         <div>
-            <h1 style="font-size:24px;line-height:32px">Дистрибуция</h1>
+            <h1 style="font-size:24px;line-height:32px;display:flex;align-items:center;gap:12px"><img src="/admin/assets/logo-64.png" alt="" width="44" height="44">Юг Доставка</h1>
             <p class="muted">Вход для директора, оператора и кладовщика</p>
         </div>
         <p class="note note--bad" role="alert" th:if="${error != null}" th:text="${error}"></p>

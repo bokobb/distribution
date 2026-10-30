@@ -9,7 +9,7 @@
     <input type="hidden" name="size" th:value="${p.size()}">
 
     <div class="field flt-date">
-        <span>Дата доставки</span>
+        <span>Дата заказа</span>
         <div class="flt-row">
             <input class="inp" type="date" name="from" th:value="${from}" aria-label="С какого дня">
             <span class="muted">—</span>
@@ -17,7 +17,7 @@
         </div>
         <div class="chips">
             <a class="chip" th:href="${link.day('today')}" th:attr="aria-current=${quick == 'today'} ? 'true' : null">Сегодня</a>
-            <a class="chip" th:href="${link.day('tomorrow')}" th:attr="aria-current=${quick == 'tomorrow'} ? 'true' : null">Завтра и позже</a>
+            <a class="chip" th:href="${link.day('yesterday')}" th:attr="aria-current=${quick == 'yesterday'} ? 'true' : null">Вчера</a>
             <a class="chip" th:href="${link.day('all')}" th:attr="aria-current=${quick == 'all'} ? 'true' : null">Все</a>
         </div>
     </div>
@@ -74,7 +74,7 @@
         </th:block>
     </div>
     <span style="flex:1"></span>
-    <a class="btn btn-soft btn-sm" href="/admin/orders/pick"><th:block th:utext="${i16['print']}"></th:block>Лист сборки на завтра</a>
+    <a class="btn btn-soft btn-sm" href="/admin/orders/pick"><th:block th:utext="${i16['print']}"></th:block>Лист сборки</a>
 </div>
 
 <details class="card map-box">
@@ -107,7 +107,7 @@
             <td class="c-chk"><input type="checkbox" name="ids" form="bulk-bar" th:value="${o.id}" th:attr="data-sum=${o.total - ret}" th:disabled="${off}"
                                      th:aria-label="${'Выбрать заказ № ' + o.number}" th:title="${off ? 'Этот заказ в рейс не попадёт' : null}"></td>
             <td class="c-ord"><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a>
-                <span class="sub" th:text="${@fmt.dot(oneDay ? @fmt.time(o.createdAt) : 'на ' + @fmt.day(o.deliveryDate), o.trip != null ? o.trip.expeditor.name : null)}"></span></td>
+                <span class="sub" th:text="${@fmt.dot(oneDay ? @fmt.time(o.createdAt) : @fmt.when(o.createdAt), o.trip != null ? 'отгрузка ' + @fmt.day(o.trip.date) + ', ' + o.trip.expeditor.name : null)}"></span></td>
             <td class="c-shop"><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${@fmt.dot(o.outlet.address, o.outlet.region?.name, v.isAll() ? o.company.name : null)}"></span></td>
             <td class="hide-m" th:text="${o.agent?.name}"></td>
             <td class="hide-m" th:text="${o.payment.label}"></td>
@@ -140,16 +140,19 @@
 
 <form class="bulk" id="bulk-bar" th:action="@{/admin/orders/ship}" method="post" th:if="${p.total() > 0}">
     <input type="hidden" name="back" th:value="${here}">
-    <span class="bulk-t" data-sel-none><b>Выберите заказы галочками</b><span class="hint">потом — экспедитора и «Отгрузить»</span></span>
+    <span class="bulk-t" data-sel-none><b>Выберите заказы галочками</b><span class="hint">«Собран» — или экспедитора, дату и «Отгрузить»</span></span>
     <span class="bulk-t" data-sel-some hidden><b>Выбрано <span data-sel-count>0</span> · <span class="num" data-sel-sum>0 ₸</span></b>
         <span class="hint">заказы «Нужно разрешение» и отменённые в рейс не попадут</span></span>
     <span class="bulk-sp"></span>
+    <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/assemble" formnovalidate>Собран</button>
     <select class="sel" name="expeditor" required aria-label="Экспедитор для отгрузки">
         <option value="">Экспедитор…</option>
         <option th:each="e : ${shipTo}" th:value="${e.id}" th:disabled="${e.vehicle == null}"
                 th:text="${@fmt.dot(e.name, e.vehicle != null ? e.vehicle.plate : 'нет машины', v.isAll() ? e.company.name : null)}"></option>
     </select>
-    <button class="btn btn-primary btn-sm" type="submit" data-confirm="Отгрузить отмеченные заказы этому экспедитору? Товар перейдёт с основного склада в его машину.">Отгрузить</button>
+    <input class="inp inp-date" type="date" name="date" required th:value="${shipDay}" th:min="${shipDay}" th:max="${shipLast}"
+           aria-label="Дата отгрузки — в этот день экспедитор увидит заказы в телефоне" title="Дата отгрузки — в этот день экспедитор увидит заказы в телефоне">
+    <button class="btn btn-primary btn-sm" type="submit" data-confirm="Отгрузить отмеченные заказы этому экспедитору на выбранную дату? Товар перейдёт с основного склада в его машину, в телефоне экспедитора заказы появятся в этот день.">Отгрузить</button>
     <span class="bulk-g" role="group" aria-label="Накладные">
         <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/invoices" formtarget="_blank" formnovalidate name="kind" value="shop" th:utext="${i16['print'] + 'По магазинам'}">По магазинам</button>
         <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/invoices" formtarget="_blank" formnovalidate name="kind" value="total" th:utext="${i16['print'] + 'Общая накладная'}">Общая накладная</button>

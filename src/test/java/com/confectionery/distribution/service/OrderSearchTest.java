@@ -36,6 +36,9 @@ class OrderSearchTest {
     Employee agent2;
     Outlet outlet2;
     Region region1, region2;
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     LocalDate today, tomorrow;
     Order o1, o2, o3, o4, foreign;
 
@@ -49,12 +52,19 @@ class OrderSearchTest {
         data.stockIn(a, 100);
         o1 = data.order(a, tomorrow, PaymentMethod.CASH, 2, 1000);                                  // агент 1, регион 1
         o2 = data.order(a, outlet2, agent2, tomorrow, PaymentMethod.CASH, 3, 1000);                // агент 2, регион 2
-        o3 = data.order(a, today, PaymentMethod.CASH, 1, 500);                                       // сегодня
+        o3 = data.order(a, today, PaymentMethod.CASH, 1, 500);                                       // заказан вчера
+        daysAgo(1, o3);
         o4 = data.order(a, outlet2, agent2, tomorrow, PaymentMethod.CASH, 4, 1000);
         data.trip(a, TripStatus.LOADING, o4);                                                        // уже у экспедитора
         foreign = data.order(data.world("Чужая"), tomorrow, PaymentMethod.CASH, 9, 9000);
         region1 = a.region();
         region2 = as(() -> outlets.findById(outlet2.getId()).orElseThrow().getRegion());
+    }
+
+    /** Дата заказа — столько дней назад (список ищет по дню, когда заказ пришёл). */
+    private void daysAgo(int days, Order... list) {
+        for (Order o : list)
+            jdbc.update("update orders set created_at = created_at - make_interval(days => ?) where id = ?", days, o.getId());
     }
 
     private <T> T as(java.util.function.Supplier<T> action) {
@@ -81,10 +91,11 @@ class OrderSearchTest {
     }
 
     @Test
-    void поДатеТорговымИФилиалам() {
-        assertThat(ids(filter(tomorrow, tomorrow, null, null, null, null, null))).containsExactlyInAnyOrder(o1.getId(), o2.getId(), o4.getId());
-        assertThat(ids(filter(today, today, null, null, null, null, null))).containsExactly(o3.getId());
-        assertThat(ids(filter(tomorrow, null, List.of(agent2.getId()), null, null, null, null))).containsExactlyInAnyOrder(o2.getId(), o4.getId());
+    void поДатеЗаказаТорговымИФилиалам() {
+        assertThat(ids(filter(today, today, null, null, null, null, null))).containsExactlyInAnyOrder(o1.getId(), o2.getId(), o4.getId());
+        assertThat(ids(filter(today.minusDays(1), today.minusDays(1), null, null, null, null, null))).containsExactly(o3.getId());
+        assertThat(ids(filter(tomorrow, null, null, null, null, null, null))).isEmpty();
+        assertThat(ids(filter(today, null, List.of(agent2.getId()), null, null, null, null))).containsExactlyInAnyOrder(o2.getId(), o4.getId());
         assertThat(ids(filter(null, null, List.of(a.agent().getId(), agent2.getId()), null, null, null, null))).hasSize(4);
         assertThat(ids(filter(null, null, null, List.of(region2.getId()), null, null, null))).containsExactlyInAnyOrder(o2.getId(), o4.getId());
         assertThat(ids(filter(null, null, null, List.of(region1.getId()), null, null, null))).containsExactlyInAnyOrder(o1.getId(), o3.getId());
@@ -106,8 +117,8 @@ class OrderSearchTest {
 
     @Test
     void страницы() {
-        for (int i = 0; i < 27; i++) data.order(a, tomorrow.plusDays(1), PaymentMethod.KASPI, 1, 100);
-        OrderSearch.Filter f = filter(tomorrow.plusDays(1), null, null, null, null, null, null);
+        for (int i = 0; i < 27; i++) daysAgo(5, data.order(a, today, PaymentMethod.KASPI, 1, 100));
+        OrderSearch.Filter f = filter(today.minusDays(5), today.minusDays(5), null, null, null, null, null);
         OrderSearch.Page first = as(() -> search.find(f, 1, 25));
         assertThat(first.rows()).hasSize(25);
         assertThat(first.pages()).isEqualTo(2);

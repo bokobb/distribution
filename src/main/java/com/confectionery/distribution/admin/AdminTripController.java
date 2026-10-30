@@ -60,16 +60,14 @@ public class AdminTripController {
         model.addAttribute("cash", day.stream().mapToLong(Trip::getCash).sum());
         model.addAttribute("cashIn", day.stream().filter(t -> !t.isOpen()).mapToLong(t -> t.getCashCounted() == null ? t.getCash() : t.getCashCounted()).sum());
         model.addAttribute("cashOut", day.stream().filter(Trip::isOpen).mapToLong(Trip::getCash).sum());
-        LocalDate tomorrow = today.plusDays(1);
+        // ждут отгрузки — новые, собранные и ждущие разрешения за любой день
         Map<Company, List<Order>> next = new java.util.LinkedHashMap<>();
-        orders.byDay("tomorrow").stream()
-                .filter(o -> o.getDeliveryDate().equals(tomorrow) && (v.companyId() == null || v.companyId().equals(o.getCompanyId()))
-                        && o.getStatus() != OrderStatus.CANCELLED && o.getStatus() != OrderStatus.REFUSED)
+        orders.waiting().stream()
+                .filter(o -> v.companyId() == null || v.companyId().equals(o.getCompanyId()))
                 .sorted(java.util.Comparator.comparing(o -> o.getCompany().getName()))
                 .forEach(o -> next.computeIfAbsent(o.getCompany(), k -> new java.util.ArrayList<>()).add(o));
         model.addAttribute("next", next);
         model.addAttribute("nextCount", next.values().stream().mapToInt(List::size).sum());
-        model.addAttribute("tomorrow", tomorrow);
         model.addAttribute("today", today);
         return "admin/trips/list";
     }
@@ -111,6 +109,14 @@ public class AdminTripController {
                 .mapToLong(o -> Math.max(0, o.getDeliveredTotal() - (o.getReturnLines().isEmpty() ? 0 : o.getReturnTotal())
                         - t.getPayments().stream().filter(p -> o.equals(p.getOrder())).mapToLong(com.confectionery.distribution.domain.Payment::getAmount).sum())).sum());
         return "admin/trips/view";
+    }
+
+    /** Общая накладная рейса: отгружено, чистый и испорченный возврат — та же страница, что из «Заказов». */
+    @GetMapping("/admin/trips/{id}/invoice")
+    public String invoice(@PathVariable Long id, Model model) {
+        Trip t = trips.get(id);
+        AdminOrderController.invoiceModel(t.getOrders(), true, model, fmt);
+        return "admin/orders/invoices";
     }
 
     /** Подпись получателя или фото накладной к выдаче — ссылка в точке рейса и в карточке заказа. */

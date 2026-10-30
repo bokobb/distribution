@@ -189,7 +189,7 @@ class CashServiceTest {
             return null;
         });
 
-        TripService.Shipment again = as(() -> trips.ship(java.util.List.of(missed.getId()), w.expeditor().getId(), operator()));
+        TripService.Shipment again = as(() -> trips.ship(java.util.List.of(missed.getId()), w.expeditor().getId(), data.today(), operator()));
         assertThat(again.shipped()).isEqualTo(1);
         assertThat(jdbc.queryForObject("select status from orders where id = ?", String.class, missed.getId())).isEqualTo("IN_TRIP");
         // выданный в первом рейсе заказ из рейса не уходит

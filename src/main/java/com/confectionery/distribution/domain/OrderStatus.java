@@ -1,14 +1,15 @@
 package com.confectionery.distribution.domain;
 
 /**
- * Статусы заказа агента на сервере (черновик живёт только на телефоне, до отправки).
- * badge — класс плашки в админке (st--new, st--warn, ...).
+ * Статусы заказа агента на сервере (черновик живёт только на телефоне, до отправки): «Новый» — пришёл с телефона,
+ * «Собран» — отмечен на складе, «Отгружен» — в рейсе экспедитора на выбранную при отгрузке дату, дальше выдачу
+ * отмечает экспедитор. badge — класс плашки в админке (st--new, st--warn, ...).
  */
 public enum OrderStatus {
-    ACCEPTED("Принят", "new"),
+    ACCEPTED("Новый", "new"),
     NEEDS_APPROVAL("Нужно разрешение", "warn"),
     ASSEMBLED("Собран", "ready"),
-    IN_TRIP("В рейсе", "work"),
+    IN_TRIP("Отгружен", "work"),
     DELIVERED("Доставлен", "done"),
     PARTIAL("Частично", "part"),
     REFUSED("Отказ магазина", "off"),
@@ -32,6 +33,11 @@ public enum OrderStatus {
 
     /** Заказ ещё можно отменить: до загрузки в машину. */
     public boolean cancellable() {
+        return this == ACCEPTED || this == NEEDS_APPROVAL || this == ASSEMBLED;
+    }
+
+    /** Ещё не отгружен экспедитору: ждёт сборки, отгрузки или разрешения. */
+    public boolean waiting() {
         return this == ACCEPTED || this == NEEDS_APPROVAL || this == ASSEMBLED;
     }
 

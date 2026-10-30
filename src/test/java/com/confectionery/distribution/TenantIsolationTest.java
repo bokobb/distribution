@@ -74,11 +74,11 @@ class TenantIsolationTest {
         as(a, () -> {
             assertThat(outlets.list(null)).extracting(Outlet::getId).containsExactly(a.outlet().getId());
             assertThat(orderRepo.findAll()).extracting(Order::getCompanyId).containsOnly(a.id());
-            assertThat(orders.byDay("all")).extracting(Order::getId).containsExactly(orderA.getId());
+            assertThat(orders.waiting()).extracting(Order::getId).containsExactly(orderA.getId());
             assertThat(trips.current(null)).isEmpty();
             assertThat(staff.employees(null)).extracting(Employee::getCompanyId).containsOnly(a.id());
             assertThat(stock.rows(null)).extracting(r -> r.product().getId()).containsExactly(a.product().getId());
-            assertThat(dashboard.snapshot().summary(null).tomorrowOrders()).isEqualTo(1);
+            assertThat(dashboard.snapshot().summary(null).waitingOrders()).isEqualTo(1);
             return null;
         });
     }

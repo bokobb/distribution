@@ -32,11 +32,8 @@ public class MobileOrderService {
 
     /** Время на телефоне может спешить — дальше этого запаса в будущее заказ не принимается. */
     private static final int CLOCK_SKEW_MIN = 10;
-    /** Доставка — не дальше стольких дней от заказа. */
-    static final int MAX_DELIVERY_DAYS = 14;
     private static final int MAX_QTY = 100_000;
     private static final DateTimeFormatter NUMBER_DATE = DateTimeFormatter.ofPattern("ddMMyy");
-    private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd.MM");
 
     private final OrderRepository orders;
     private final EmployeeRepository employees;
@@ -56,8 +53,8 @@ public class MobileOrderService {
     public record ReturnItemIn(Long productId, Integer qty, String reason) {
     }
 
-    /** payment — CASH, KASPI или CREDIT; deliveryDate не задана — через сколько дней по настройкам компании; returns — что
-     * экспедитор заберёт у магазина при доставке (может не быть). */
+    /** payment — CASH, KASPI или CREDIT; deliveryDate — от старых приложений, не читается: день отгрузки выбирает оператор
+     * при «Отгрузить»; returns — что экспедитор заберёт у магазина при доставке (может не быть). */
     public record OrderIn(UUID uuid, UUID visitUuid, Long outletId, LocalDateTime createdAt, LocalDate deliveryDate,
                           String payment, String comment, List<ItemIn> items, List<ReturnItemIn> returns) {
     }
@@ -68,7 +65,7 @@ public class MobileOrderService {
     public record ReturnLineOut(Long productId, String name, int qty, long price, long sum, String reason) {
     }
 
-    /** Правка заказа: всё целиком, как при отправке. */
+    /** Правка заказа: всё целиком, как при отправке (deliveryDate не читается). */
     public record EditIn(LocalDate deliveryDate, String payment, String comment, List<ItemIn> items,
                          List<ReturnItemIn> returns) {
     }
@@ -110,13 +107,13 @@ public class MobileOrderService {
         Order o = new Order().setUuid(in.uuid()).setOutlet(outlet).setAgent(agent).setCreatedAt(at)
                 .setNumber(number(agent.getCompanyId(), at.toLocalDate()));
         o.setCompany(agent.getCompany());
-        terms(o, in.payment(), in.deliveryDate(), in.comment(), st, null);
+        terms(o, in.payment(), in.comment(), st);
         if (in.visitUuid() != null)
             visits.findByUuid(in.visitUuid()).filter(v -> v.getAgent().getId().equals(agentId)).ifPresent(o::setVisit);
         fill(o, in.items(), in.returns());
 
         o.setStatus(OrderStatus.ACCEPTED);
-        o.event(now, agent, who(agent), "Принят с телефона");
+        o.event(now, agent, who(agent), "Новый — пришёл с телефона");
         limit(o, st, now);
         return out(orders.save(o));
     }
@@ -134,12 +131,11 @@ public class MobileOrderService {
         CompanySettings st = settings.of(o.getCompanyId());
         OrderStatus wasStatus = o.getStatus();
         PaymentMethod wasPayment = o.getPayment();
-        LocalDate wasDelivery = o.getDeliveryDate();
         String wasComment = o.getComment(), wasLines = lines(o), wasReturns = returns(o);
         int wasCount = o.getLines().size();
         long wasTotal = o.getTotal(), wasReturnTotal = o.getReturnTotal();
 
-        terms(o, in.payment(), in.deliveryDate(), in.comment(), st, now.toLocalDate());
+        terms(o, in.payment(), in.comment(), st);
         fill(o, in.items(), in.returns());
 
         List<String> changes = new ArrayList<>();
@@ -150,8 +146,6 @@ public class MobileOrderService {
             changes.add("возврат: было " + money(wasReturnTotal) + ", стало " + money(o.getReturnTotal()));
         if (wasPayment != o.getPayment())
             changes.add("оплата: " + wasPayment.getLabel() + " → " + o.getPayment().getLabel());
-        if (!wasDelivery.equals(o.getDeliveryDate()))
-            changes.add("доставка: " + wasDelivery.format(DAY) + " → " + o.getDeliveryDate().format(DAY));
         if (!Objects.equals(wasComment, o.getComment())) changes.add("новый комментарий");
         if (changes.isEmpty()) return out(o);
 
@@ -193,19 +187,15 @@ public class MobileOrderService {
                     + "» — изменить или отменить его может только оператор");
     }
 
-    /** Оплата, день доставки (с дня заказа, не дальше двух недель; при правке — не раньше notBefore) и комментарий. */
-    private void terms(Order o, String payment, LocalDate deliveryDate, String comment, CompanySettings st,
-                       LocalDate notBefore) {
+    /**
+     * Оплата и комментарий. Дата доставки до отгрузки — день заказа: её ставит оператор при «Отгрузить» (день рейса),
+     * торговый дату не выбирает.
+     */
+    private void terms(Order o, String payment, String comment, CompanySettings st) {
         PaymentMethod p = payment(payment, st);
         if (p == PaymentMethod.CREDIT && o.getOutlet().getStatus() == OutletStatus.PENDING && st.isFirstOrderCash())
             throw new FormException("Магазин ещё на проверке — первый заказ без долга: наличные или Kaspi");
-        LocalDate day = o.getCreatedAt().toLocalDate();
-        LocalDate delivery = deliveryDate == null ? day.plusDays(st.getDeliveryDays()) : deliveryDate;
-        if (delivery.isBefore(day) || delivery.isAfter(day.plusDays(MAX_DELIVERY_DAYS)))
-            throw new FormException("Дата доставки — с дня заказа и не дальше " + MAX_DELIVERY_DAYS + " дней");
-        if (notBefore != null && delivery.isBefore(notBefore))
-            throw new FormException("День доставки уже прошёл — выберите сегодня или позже");
-        o.setPayment(p).setDeliveryDate(delivery).setComment(cut(comment, 500));
+        o.setPayment(p).setDeliveryDate(o.getCreatedAt().toLocalDate()).setComment(cut(comment, 500));
     }
 
     /**

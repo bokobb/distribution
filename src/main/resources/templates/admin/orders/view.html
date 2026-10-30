@@ -124,7 +124,7 @@
             <div class="card-h"><div><h2>Заказ</h2></div></div>
             <div class="card-b"><dl class="kv">
                 <dt>Оформлен</dt><dd th:text="${@fmt.when(o.createdAt)}"></dd>
-                <dt>Доставка</dt><dd th:text="${@fmt.day(o.deliveryDate)}"></dd>
+                <dt>Отгрузка</dt><dd th:text="${o.trip != null ? @fmt.day(o.trip.date) + ' · рейс ' + o.trip.number : 'ещё не отгружен'}"></dd>
                 <dt>Оплата</dt><dd th:text="${o.payment.label}"></dd>
                 <dt th:if="${o.comment != null}">Комментарий</dt><dd th:if="${o.comment != null}" th:text="${o.comment}"></dd>
                 <dt th:if="${o.refuseReason != null}">Причина</dt><dd th:if="${o.refuseReason != null}" class="bad" th:text="${o.refuseReason}"></dd>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/* Раздел общей накладной: группы с итогами; пустой — одна строка с пояснением. */-->
+<table th:fragment="waybill(sec, none)" class="wb">
+    <colgroup><col style="width:6%"><col><col style="width:18%"><col style="width:13%"><col style="width:17%"></colgroup>
+    <thead><tr><th class="n">№</th><th>Наименование</th><th class="r">Коробок + шт</th><th class="r">Кол-во, шт</th><th class="r">Сумма, ₸</th></tr></thead>
+    <tbody th:if="${sec.isEmpty()}"><tr><td colspan="5" class="meta" th:text="${none}"></td></tr></tbody>
+    <tbody th:each="g : ${sec.groups()}">
+        <tr class="grp"><td></td><td colspan="4" th:text="${g.name()}"></td></tr>
+        <tr th:each="r, st : ${g.rows()}">
+            <td class="n" th:text="${st.count}"></td>
+            <td th:text="${r.product().name}"></td>
+            <td class="r" th:text="${(r.boxes() > 0 ? r.boxes() + ' кор.' : '') + (r.boxes() > 0 and r.pieces() > 0 ? ' ' : '') + (r.pieces() > 0 ? r.pieces() + ' шт' : '')}"></td>
+            <td class="r" th:text="${@fmt.amount(r.qty())}"></td>
+            <td class="r" th:text="${@fmt.amount(r.sum())}"></td>
+        </tr>
+        <tr class="sub"><td></td><td>Итого</td>
+            <td class="r" th:text="${(g.boxes() > 0 ? g.boxes() + ' кор.' : '') + (g.boxes() > 0 and g.pieces() > 0 ? ' ' : '') + (g.pieces() > 0 ? g.pieces() + ' шт' : '')}"></td>
+            <td class="r" th:text="${@fmt.amount(g.qty())}"></td><td class="r" th:text="${@fmt.amount(g.sum())}"></td></tr>
+    </tbody>
+    <tfoot th:if="${!sec.isEmpty()}"><tr><td></td><td>Всего</td>
+        <td class="r" th:text="${(sec.boxes() > 0 ? sec.boxes() + ' кор.' : '') + (sec.boxes() > 0 and sec.pieces() > 0 ? ' ' : '') + (sec.pieces() > 0 ? sec.pieces() + ' шт' : '')}"></td>
+        <td class="r" th:text="${@fmt.amount(sec.qty())}"></td><td class="r" th:text="${@fmt.amount(sec.sum())}"></td></tr></tfoot>
+</table>
+</body>
+</html>

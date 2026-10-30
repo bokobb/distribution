@@ -11,6 +11,9 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDate;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
@@ -31,6 +34,8 @@ class AdminOrderListTest {
     MockMvc mvc;
     @Autowired
     TestData data;
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private MockHttpSession login(Employee e) throws Exception {
         data.password(e, PASSWORD, false);
@@ -48,15 +53,17 @@ class AdminOrderListTest {
         Order other = data.order(w, outlet2, agent2, data.today().plusDays(1), PaymentMethod.CASH, 3, 1000);
         Order shipped = data.order(w, outlet2, agent2, data.today().plusDays(1), PaymentMethod.CASH, 1, 1000);
         data.trip(w, TripStatus.LOADING, shipped);
-        Order todays = data.order(w, data.today(), PaymentMethod.CASH, 1, 1000);
+        Order old = data.order(w, data.today(), PaymentMethod.CASH, 1, 1000);
+        LocalDate oldDay = data.today().minusDays(2);
+        jdbc.update("update orders set created_at = created_at - interval '2 days' where id = ?", old.getId());
         Order foreign = data.order(data.world("Чужая"), data.today().plusDays(1), PaymentMethod.CASH, 1, 1000);
         MockHttpSession s = login(w.operator());
 
-        // по умолчанию — завтра и позже, все торговые; чужой компании нет
+        // по умолчанию — заказы, пришедшие сегодня, все торговые; чужой компании нет
         mvc.perform(get("/admin/orders").session(s)).andExpect(status().isOk())
                 .andExpect(content().string(containsString(mine.getNumber())))
                 .andExpect(content().string(containsString(other.getNumber())))
-                .andExpect(content().string(not(containsString(todays.getNumber()))))
+                .andExpect(content().string(not(containsString(old.getNumber()))))
                 .andExpect(content().string(not(containsString(foreign.getNumber()))))
                 .andExpect(content().string(containsString("Шамолхон")));
 
@@ -71,17 +78,17 @@ class AdminOrderListTest {
                 .andExpect(content().string(not(containsString(other.getNumber()))));
 
         mvc.perform(get("/admin/orders").session(s).param("day", "range")
-                        .param("from", data.today().toString()).param("to", data.today().toString()))
-                .andExpect(content().string(containsString(todays.getNumber())))
+                        .param("from", oldDay.toString()).param("to", oldDay.toString()))
+                .andExpect(content().string(containsString(old.getNumber())))
                 .andExpect(content().string(not(containsString(mine.getNumber()))));
 
         // ссылки статусов и быстрых дат сохраняют выбранные условия
         mvc.perform(get("/admin/orders").session(s).param("agent", agent2.getId().toString()).param("size", "25"))
                 .andExpect(content().string(containsString("agent=" + agent2.getId() + "&amp;size=25&amp;status=IN_TRIP")))
                 .andExpect(content().string(containsString("agent=" + agent2.getId() + "&amp;size=25&amp;day=today")));
-        mvc.perform(get("/admin/orders").session(s).param("day", "today"))
-                .andExpect(content().string(containsString(todays.getNumber())))
-                .andExpect(content().string(not(containsString(mine.getNumber()))));
+        mvc.perform(get("/admin/orders").session(s).param("day", "all"))
+                .andExpect(content().string(containsString(old.getNumber())))
+                .andExpect(content().string(containsString(mine.getNumber())));
     }
 
     @Test
@@ -95,12 +102,26 @@ class AdminOrderListTest {
 
         mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Экспедитор…")))
                 .andExpect(content().string(containsString(w.vehicle().getPlate())));
+        // «Собран» — только новым
+        mvc.perform(post("/admin/orders/assemble").with(csrf()).session(s).param("ids", a.getId().toString()).param("back", back))
+                .andExpect(redirectedUrl(back));
+        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Собрано: 1 заказ")));
+        assertThat(jdbc.queryForObject("select status from orders where id = ?", String.class, a.getId())).isEqualTo("ASSEMBLED");
+
+        // без даты не отгружается
+        mvc.perform(post("/admin/orders/ship").with(csrf()).session(s).param("ids", a.getId().toString())
+                .param("expeditor", w.expeditor().getId().toString()).param("back", back)).andExpect(redirectedUrl(back));
+        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Выберите дату отгрузки")));
+
+        LocalDate day = data.today().plusDays(2);
         mvc.perform(post("/admin/orders/ship").with(csrf()).session(s)
                         .param("ids", a.getId().toString(), b.getId().toString())
-                        .param("expeditor", w.expeditor().getId().toString()).param("back", back))
+                        .param("expeditor", w.expeditor().getId().toString()).param("date", day.toString()).param("back", back))
                 .andExpect(redirectedUrl(back));
-        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Отгружено 2 заказа экспедитору " + w.expeditor().getName())))
+        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Отгружено 2 заказа экспедитору " + w.expeditor().getName() + " на ")))
                 .andExpect(content().string(not(containsString(a.getNumber()))));
+        assertThat(jdbc.queryForList("select t.trip_date from trips t join trip_orders x on x.trip_id = t.id where x.order_id in (?, ?)",
+                LocalDate.class, a.getId(), b.getId())).containsOnly(day);
 
         // чужой адрес возврата не принимается
         mvc.perform(post("/admin/orders/ship").with(csrf()).session(s).param("back", "https://example.com"))
@@ -126,10 +147,13 @@ class AdminOrderListTest {
 
         mvc.perform(post("/admin/orders/invoices").with(csrf()).session(s).param("kind", "total")
                         .param("ids", a.getId().toString(), b.getId().toString()))
-                .andExpect(content().string(containsString("Общая накладная")))
+                .andExpect(content().string(containsString("Товарно-транспортная накладная")))
                 .andExpect(content().string(containsString(w.product().getName())))
                 .andExpect(content().string(containsString("Три тысячи пятьсот тенге")))
-                .andExpect(content().string(containsString("Kaspi: 1")));
+                .andExpect(content().string(containsString("Чистый возврат")))
+                .andExpect(content().string(containsString("Испорченный возврат")))
+                // второй части «кому сколько» больше нет
+                .andExpect(content().string(not(containsString("Магазин, адрес"))));
 
         mvc.perform(get("/admin/orders/" + a.getId() + "/invoice").session(s))
                 .andExpect(content().string(containsString("Накладная № " + a.getNumber())));

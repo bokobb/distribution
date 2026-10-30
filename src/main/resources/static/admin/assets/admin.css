@@ -50,7 +50,7 @@ a:hover{color:var(--accent)}
 .side{position:sticky;top:0;height:100vh;overflow:auto;background:var(--white);border-right:1px solid var(--line);display:flex;flex-direction:column}
 .side-brand{display:flex;align-items:center;justify-content:space-between;gap:8px;height:64px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
 .side-brand a{display:flex;align-items:center;gap:10px;min-width:0;text-decoration:none;color:var(--ink)}
-.side-logo{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff}
+.side-logo{flex:none;display:block;width:32px;height:32px;border-radius:50%}
 .side-brand b{display:block;font:600 15px/20px var(--body);color:var(--ink)}
 .side-brand span.s{display:block;font-size:12px;line-height:16px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .side-x{display:none}
@@ -231,6 +231,7 @@ a.kpi:hover{border-color:var(--line-hard);color:var(--ink)}
 .bulk-sp{flex:1}
 .bulk-g{display:flex;flex-wrap:wrap;gap:8px}
 .bulk .sel{height:36px;min-height:36px;min-width:0;max-width:100%;flex:0 1 260px}
+.bulk .inp-date{height:36px;min-height:36px;width:auto;flex:0 0 auto}
 .c-ret{color:var(--bad-ink)}
 
 /* ---------- карта ---------- */

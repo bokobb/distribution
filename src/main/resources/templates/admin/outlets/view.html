@@ -47,7 +47,7 @@
                 <thead><tr><th>Заказ</th><th>Дата</th><th class="r">Сумма</th><th>Оплата</th><th>Статус</th></tr></thead>
                 <tbody><tr th:each="x : ${orders}">
                     <td><a class="rl" th:href="${'/admin/orders/' + x.id}" th:text="${x.number}"></a></td>
-                    <td th:text="${@fmt.day(x.deliveryDate)}"></td>
+                    <td th:text="${@fmt.day(x.createdAt.toLocalDate())}"></td>
                     <td class="r num" th:text="${@fmt.money(x.status.delivered() ? x.deliveredTotal : x.total)}"></td>
                     <td th:text="${x.payment.label.toLowerCase()}"></td>
                     <td><span class="st" th:classappend="${'st--' + x.status.badge}" th:text="${x.status.label}"></span>

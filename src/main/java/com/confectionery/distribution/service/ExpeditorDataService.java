@@ -78,8 +78,9 @@ public class ExpeditorDataService {
     @Transactional(readOnly = true)
     public ExpeditorData of(Long expeditorId, Long companyId) {
         LocalDate today = LocalDate.now(clock);
+        // рейс виден с дня отгрузки, выбранного оператором; незакрытые прошлых дней — пока не сдана касса
         List<Trip> mine = trips.findByExpeditorIdAndStatusInOrderByDateAscNumberAsc(expeditorId, OPEN).stream()
-                .filter(t -> !t.getDate().isAfter(today.plusDays(1))).toList();
+                .filter(t -> !t.getDate().isAfter(today)).toList();
         Set<Outlet> outlets = new LinkedHashSet<>();
         mine.forEach(t -> t.getOrders().forEach(o -> outlets.add(o.getOutlet())));
         debts.fill(outlets);

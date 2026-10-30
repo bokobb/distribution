@@ -13,7 +13,8 @@
     <span style="flex:1"></span>
     <form th:action="@{/admin/orders/invoices}" method="post" target="_blank">
         <input type="hidden" name="ids" th:each="x : ${stops}" th:value="${x.o().id}"><input type="hidden" name="kind" value="shop">
-        <button class="btn btn-soft btn-sm" type="submit"><th:block th:utext="${i16['print']}"></th:block>Накладные</button></form>
+        <button class="btn btn-soft btn-sm" type="submit"><th:block th:utext="${i16['print']}"></th:block>По магазинам</button></form>
+    <a class="btn btn-soft btn-sm" th:href="${'/admin/trips/' + t.id + '/invoice'}" target="_blank"><th:block th:utext="${i16['print']}"></th:block>Общая накладная</a>
     <a class="btn btn-primary btn-sm" th:if="${t.open and !t.date.isAfter(today)}" th:href="${'/admin/cash/' + t.id}">Приём кассы</a>
 </div>
 

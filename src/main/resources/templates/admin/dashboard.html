@@ -6,13 +6,13 @@
 <th:block th:fragment="content">
 
 <section class="kpis" aria-label="Главные цифры">
-    <a class="kpi kpi--main" href="/admin/orders?day=today"><span class="kpi-l">Выдано сегодня</span>
+    <a class="kpi kpi--main" href="/admin/trips"><span class="kpi-l">Выдано сегодня</span>
         <span class="kpi-v num" th:text="${@fmt.money(s.deliveredToday())}">0 ₸</span>
         <span class="kpi-s" th:text="${@fmt.dot(s.deliveredStops() + ' из ' + @fmt.plural(s.todayOrders(), 'заказа', 'заказов', 'заказов'),
             s.onRoad() > 0 ? @fmt.plural(s.onRoad(), 'рейс', 'рейса', 'рейсов') + ' в пути' : null)}"></span></a>
-    <a class="kpi" href="/admin/orders"><span class="kpi-l">Заказы на завтра</span>
-        <span class="kpi-v num" th:text="${@fmt.money(s.tomorrowSum())}">0 ₸</span>
-        <span class="kpi-s" th:text="${@fmt.plural(s.tomorrowOrders(), 'заказ', 'заказа', 'заказов')}"></span></a>
+    <a class="kpi" href="/admin/orders?day=all&amp;exp=none"><span class="kpi-l">Ждут отгрузки</span>
+        <span class="kpi-v num" th:text="${@fmt.money(s.waitingSum())}">0 ₸</span>
+        <span class="kpi-s" th:text="${@fmt.plural(s.waitingOrders(), 'заказ', 'заказа', 'заказов')}"></span></a>
     <a class="kpi" th:classappend="${s.shortage() > 0} ? 'kpi--bad'" href="/admin/cash"><span class="kpi-l">Не сдано в кассу</span>
         <span class="kpi-v num" th:text="${@fmt.money(s.cashOnHands())}">0 ₸</span>
         <span class="kpi-s" th:text="${s.openTrips() == 0 ? 'все рейсы закрыты' : @fmt.dot(s.cashOnRoad() > 0 ? 'в пути ' + @fmt.money(s.cashOnRoad()) : null,
@@ -63,12 +63,12 @@
 <section class="card" th:if="${companyRows != null}">
     <div class="card-h"><div><h2>По компаниям</h2><p>видит только владелец</p></div><a class="link" href="/admin/companies">Компании</a></div>
     <div class="tbl-w"><table class="tbl">
-        <thead><tr><th>Компания</th><th class="r">Выдано</th><th class="r">Заказы на завтра</th><th class="r">Не сдано</th><th class="r">Долги</th><th class="r">Просрочено</th><th class="r">Возвраты</th><th>Связь с CRM</th></tr></thead>
+        <thead><tr><th>Компания</th><th class="r">Выдано</th><th class="r">Ждут отгрузки</th><th class="r">Не сдано</th><th class="r">Долги</th><th class="r">Просрочено</th><th class="r">Возвраты</th><th>Связь с CRM</th></tr></thead>
         <tbody><tr th:each="r : ${companyRows}" th:with="m=${r.summary()}">
             <td><a class="rl" th:href="@{/admin/scope(company=${r.company().id},back='/admin/dashboard')}" th:text="${r.company().name}">Компания</a>
                 <span class="sub" th:text="${r.company().director}"></span></td>
             <td class="r num"><th:block th:text="${@fmt.money(m.deliveredToday())}"></th:block><span class="sub" th:text="${m.deliveredStops() + ' из ' + m.todayOrders()}"></span></td>
-            <td class="r num" th:text="${@fmt.money(m.tomorrowSum())}"></td>
+            <td class="r num" th:text="${@fmt.money(m.waitingSum())}"></td>
             <td class="r num"><th:block th:text="${m.cashOnHands() == 0 ? '—' : @fmt.money(m.cashOnHands())}"></th:block>
                 <span class="sub bad" th:if="${m.shortage() > 0}">недостача</span><span class="sub" th:if="${m.shortage() == 0 and m.cashOnRoad() > 0}">в пути</span></td>
             <td class="r num" th:text="${@fmt.money(m.debts())}"></td>
@@ -79,7 +79,7 @@
         </tr></tbody>
         <tfoot th:if="${companyRows.size() > 1}"><tr><td>Итого</td>
             <td class="r num" th:text="${@fmt.money(s.deliveredToday())}"></td>
-            <td class="r num" th:text="${@fmt.money(s.tomorrowSum())}"></td>
+            <td class="r num" th:text="${@fmt.money(s.waitingSum())}"></td>
             <td class="r num" th:text="${@fmt.money(s.cashOnHands())}"></td>
             <td class="r num" th:text="${@fmt.money(s.debts())}"></td>
             <td class="r num" th:text="${@fmt.money(s.overdue())}"></td>
