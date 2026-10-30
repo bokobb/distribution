@@ -94,8 +94,7 @@ public class ExpeditorDataService {
                 company == null ? null : new CompanyDto(company.getName(), company.getPhone()),
                 new Settings(s.isAcceptKaspi(), s.isAllowCredit(), s.getGpsInterval(), s.getWorkStart().toString(),
                         s.getWorkEnd().toString()),
-                active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
-                        p.getBarcode(), p.getWholesale(), p.getRetail())).toList(),
+                active.stream().map(p -> new ProductDto(p, null)).toList(),
                 mine.stream().map(ExpeditorDataService::trip).toList());
     }
 

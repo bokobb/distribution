@@ -171,7 +171,7 @@ class _PickSheetState extends State<_PickSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(children: [
-                ProductAvatar(id: p.id, name: p.name),
+                ProductAvatar(id: p.id, name: p.name, image: p.imageUrl),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

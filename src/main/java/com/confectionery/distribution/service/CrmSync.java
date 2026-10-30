@@ -47,6 +47,8 @@ public class CrmSync {
 
     private final RestClient http;
     private final boolean enabled;
+    /** Сайт CRM: фото товаров приходят путями «/product-images/…», телефон грузит их отсюда. */
+    private final String site;
     private final CompanyRepository companies;
     private final ProductRepository products;
     private final ReceiptRepository receipts;
@@ -64,11 +66,12 @@ public class CrmSync {
                    WarehouseRepository warehouses, SettingsService settings, JdbcTemplate jdbc, TransactionTemplate tx,
                    Clock clock) {
         this.enabled = url != null && !url.isBlank() && key != null && !key.isBlank();
+        this.site = enabled ? url.trim().replaceAll("/+$", "") : "";
         SimpleClientHttpRequestFactory rf = new SimpleClientHttpRequestFactory();
         rf.setConnectTimeout(Duration.ofSeconds(5));
         rf.setReadTimeout(Duration.ofSeconds(20));
         this.http = RestClient.builder().requestFactory(rf)
-                .baseUrl(enabled ? url.replaceAll("/+$", "") + "/api/distribution" : "http://localhost")
+                .baseUrl(enabled ? site + "/api/distribution" : "http://localhost")
                 .defaultHeader("X-Dist-Key", enabled ? key.trim() : "")
                 .build();
         this.companies = companies;
@@ -87,7 +90,8 @@ public class CrmSync {
     record CompanyOut(Long id, String name, Long clientId) {
     }
 
-    record Line(Long productId, String name, String category, String unit, BigDecimal perBox, BigDecimal qty, BigDecimal price) {
+    record Line(Long productId, String name, String category, String unit, BigDecimal perBox, BigDecimal qty, BigDecimal price,
+                String image) {
     }
 
     record Return(Long id, List<Line> lines) {
@@ -210,15 +214,19 @@ public class CrmSync {
         return b.length() > 300 ? b.substring(0, 300) : b.toString();
     }
 
-    /** Товар компании с кодом CRM; нет — заводится из CRM: название, категория, штук в коробке. */
+    /** Товар компании с кодом CRM; нет — заводится из CRM: название, категория, штук в коробке, фото. Фото в CRM сменили — меняется и здесь. */
     private Product product(Company c, Line l) {
         String code = String.valueOf(l.productId());
+        String image = image(l.image());
         List<Long> ids = jdbc.queryForList("select id from products where company_id = ? and crm_code = ?", Long.class, c.getId(), code);
-        if (!ids.isEmpty()) return products.getReferenceById(ids.get(0));
+        if (!ids.isEmpty()) {
+            if (image != null) jdbc.update("update products set image_url = ? where id = ? and image_url is distinct from ?", image, ids.get(0), image);
+            return products.getReferenceById(ids.get(0));
+        }
         Product p = new Product().setName(cut(l.name(), 200)).setCategory(l.category() == null || l.category().isBlank() ? "Из CRM" : cut(l.category(), 100))
                 .setUnit(l.unit() == null || l.unit().isBlank() ? "шт" : cut(l.unit(), 16))
                 .setPerBox(l.perBox() == null || l.perBox().signum() <= 0 ? 1 : Math.max(1, l.perBox().intValue()))
-                .setCrmCode(code);
+                .setCrmCode(code).setImageUrl(image);
         p.setCompany(c);
         return products.save(p);
     }
@@ -249,6 +257,13 @@ public class CrmSync {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** «/product-images/…» → полный адрес на сайте CRM; полный адрес — как есть; пусто — null. */
+    private String image(String s) {
+        if (s == null || s.isBlank()) return null;
+        String url = s.strip().startsWith("http") ? s.strip() : site + (s.strip().startsWith("/") ? "" : "/") + s.strip();
+        return url.length() > 500 ? null : url;
     }
 
     private static String cut(String s, int max) {

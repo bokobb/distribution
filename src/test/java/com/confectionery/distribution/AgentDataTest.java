@@ -54,6 +54,7 @@ class AgentDataTest {
         // магазин другого агента той же компании и выключенный товар агенту не нужны
         Outlet foreign = data.outletInNewRegion(w, data.person(w, "Другой агент", Role.AGENT));
         jdbc.update("insert into products (company_id, name, category, active) values (?, 'Снят с продажи', 'Печенье', false)", w.id());
+        jdbc.update("update products set image_url = 'https://yug-sladosti.kz/product-images/1-s.webp' where id = ?", w.product().getId());
 
         agentData(w.agent()).andExpect(status().isOk())
                 .andExpect(jsonPath("$.date").value(data.today().toString()))
@@ -73,7 +74,8 @@ class AgentDataTest {
                 .andExpect(jsonPath("$.outlets[0].overdue").value(30_000))
                 .andExpect(jsonPath("$.products", hasSize(1)))
                 .andExpect(jsonPath("$.products[0].wholesale").value(500))
-                .andExpect(jsonPath("$.products[0].retail").value(600));
+                .andExpect(jsonPath("$.products[0].retail").value(600))
+                .andExpect(jsonPath("$.products[0].imageUrl").value("https://yug-sladosti.kz/product-images/1-s.webp"));
 
         jdbc.update("update outlets set status = 'CLOSED' where id = ?", w.outlet().getId());
         agentData(w.agent()).andExpect(jsonPath("$.routes", hasSize(0))).andExpect(jsonPath("$.outlets", hasSize(0)));

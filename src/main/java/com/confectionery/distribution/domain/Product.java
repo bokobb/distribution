@@ -25,6 +25,8 @@ public class Product extends CompanyEntity {
     /** Цена CRM за штуку — из последнего выданного заказа CRM; null — ещё не приходил или товар не из CRM. */
     private Long crmPrice;
     private java.time.LocalDateTime crmPriceAt;
+    /** Фото товара — адрес картинки на сайте CRM; null — нет фото. */
+    private String imageUrl;
 
     /** Цены на сегодня (заполняет CatalogService из таблицы prices). */
     @Transient

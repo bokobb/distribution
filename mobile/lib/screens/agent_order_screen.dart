@@ -424,7 +424,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     final over = left != null && qty > left;
     return _card(
       child: Row(children: [
-        ProductAvatar(id: p.id, name: p.name),
+        ProductAvatar(id: p.id, name: p.name, image: p.imageUrl),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -493,7 +493,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     final price = _price(p);
     return _card(
       child: Row(children: [
-        ProductAvatar(id: p.id, name: p.name),
+        ProductAvatar(id: p.id, name: p.name, image: p.imageUrl),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -610,7 +610,7 @@ class _QtyDialogState extends State<_QtyDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(children: [
-              ProductAvatar(id: p.id, name: p.name),
+              ProductAvatar(id: p.id, name: p.name, image: p.imageUrl),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

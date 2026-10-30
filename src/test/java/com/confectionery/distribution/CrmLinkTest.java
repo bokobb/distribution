@@ -114,8 +114,10 @@ class CrmLinkTest {
         String issued = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).minusHours(2).toString();
         shipments = """
                 [{"id": 1184, "clientId": 501, "issuedAt": "%s", "vehicle": "507 ACE 13", "total": 16300,
-                  "lines": [{"productId": 55, "name": "Печенье", "category": "Печенье", "unit": "шт", "perBox": 10, "qty": 10, "price": 1000},
-                            {"productId": 77, "name": "Торт «Медовик»", "category": "Торты", "unit": "шт", "perBox": 4, "qty": 4.0, "price": 1575}],
+                  "lines": [{"productId": 55, "name": "Печенье", "category": "Печенье", "unit": "шт", "perBox": 10, "qty": 10, "price": 1000,
+                             "image": "/product-images/product-55-s.webp"},
+                            {"productId": 77, "name": "Торт «Медовик»", "category": "Торты", "unit": "шт", "perBox": 4, "qty": 4.0, "price": 1575,
+                             "image": "https://cdn.example/77.webp"}],
                   "returns": [{"id": 117, "lines": [{"productId": 55, "name": "Печенье", "qty": 6, "price": 1000}]}]}]""".formatted(issued);
         CALLS.clear();
 
@@ -136,6 +138,11 @@ class CrmLinkTest {
                 select p.crm_code || ' ' || p.crm_price from receipt_items l join products p on p.id = l.product_id
                 where l.receipt_id = ? and p.crm_price_at is not null order by p.crm_code""", String.class, r.get("id")))
                 .containsExactly("55 1000", "77 1575");
+        // фото с сайта CRM — и у нашего товара, и у заведённого из CRM
+        assertThat(jdbc.queryForList("""
+                select p.image_url from receipt_items l join products p on p.id = l.product_id
+                where l.receipt_id = ? order by p.crm_code""", String.class, r.get("id")))
+                .containsExactly("http://127.0.0.1:" + CRM.getAddress().getPort() + "/product-images/product-55-s.webp", "https://cdn.example/77.webp");
 
         // второй обмен — тот же заказ не приходит дважды, в CRM пока сообщать нечего
         CALLS.clear();

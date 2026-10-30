@@ -256,6 +256,7 @@ class Product {
     required this.wholesale,
     required this.retail,
     this.stock,
+    this.imageUrl,
   });
 
   final int id;
@@ -275,6 +276,9 @@ class Product {
   /// сервер не присылает — null, без ограничения.
   final int? stock;
 
+  /// Фото товара с сайта CRM; нет — null.
+  final String? imageUrl;
+
   /// Цена по прайсу магазина: WHOLESALE — опт, RETAIL — розница.
   int priceFor(String priceKind) => priceKind == 'RETAIL' ? retail : wholesale;
 
@@ -288,6 +292,7 @@ class Product {
         wholesale: j['wholesale'] as int,
         retail: j['retail'] as int,
         stock: j['stock'] as int?,
+        imageUrl: j['imageUrl'] as String?,
       );
 }
 

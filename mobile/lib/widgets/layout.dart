@@ -374,10 +374,13 @@ class MoneyInput extends StatelessWidget {
 
 /// Кружок с буквами товара («ПО» — «Печенье овсяное»), цвет — по товару, как в макетах заказа.
 class ProductAvatar extends StatelessWidget {
-  const ProductAvatar({super.key, required this.id, required this.name});
+  const ProductAvatar({super.key, required this.id, required this.name, this.image});
 
   final int id;
   final String name;
+
+  /// Фото товара с сайта CRM; нет фото, нет сети или картинка не загрузилась — кружок с буквами.
+  final String? image;
 
   static const _colors = [
     (Color(0xFFFDE9DA), Color(0xFF9A4B12)),
@@ -400,14 +403,26 @@ class ProductAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg) = _colors[id % _colors.length];
+    final letters = Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      child: Text(initials(name), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg)),
+    );
+    final url = image;
     return ExcludeSemantics(
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-        child: Text(initials(name), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg)),
-      ),
+      child: url == null
+          ? letters
+          : ClipOval(
+              child: Image.network(url,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  cacheWidth: 120,
+                  errorBuilder: (_, _, _) => letters,
+                  loadingBuilder: (_, child, progress) => progress == null ? child : letters),
+            ),
     );
   }
 }

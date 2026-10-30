@@ -46,12 +46,13 @@ public class AgentDataService {
 
     /**
      * stock — свободно для заказа на минуту выгрузки: основной склад минус неотгруженные заказы, не меньше нуля;
-     * экспедитору не нужен — null.
+     * экспедитору не нужен — null. imageUrl — фото товара с сайта CRM; нет — null.
      */
     public record ProductDto(Long id, String name, String category, String unit, int perBox, String barcode,
-                             long wholesale, long retail, Integer stock) {
-        public ProductDto(Long id, String name, String category, String unit, int perBox, String barcode, long wholesale, long retail) {
-            this(id, name, category, unit, perBox, barcode, wholesale, retail, null);
+                             long wholesale, long retail, Integer stock, String imageUrl) {
+        public ProductDto(Product p, Integer stock) {
+            this(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(), p.getBarcode(), p.getWholesale(),
+                    p.getRetail(), stock, p.getImageUrl());
         }
     }
 
@@ -121,8 +122,7 @@ public class AgentDataService {
                 new Settings(s.getVisitRadius(), s.isShelfPhotoRequired(), s.isRefuseReasonRequired(), s.getDeliveryDays(),
                         s.isAllowCredit(), s.isApprovalOverLimit(), s.isAgentDiscount(), s.isAcceptKaspi(), s.getGpsInterval(),
                         s.getWorkStart().toString(), s.getWorkEnd().toString()),
-                active.stream().map(p -> new ProductDto(p.getId(), p.getName(), p.getCategory(), p.getUnit(), p.getPerBox(),
-                        p.getBarcode(), p.getWholesale(), p.getRetail(), Math.max(0, free.getOrDefault(p.getId(), 0)))).toList(),
+                active.stream().map(p -> new ProductDto(p, Math.max(0, free.getOrDefault(p.getId(), 0)))).toList(),
                 routeDtos,
                 outlets.values().stream().map(AgentDataService::outlet).toList(),
                 visits.of(agentId, today), orders.of(agentId, today), others(outlets.keySet()), lastOrders(companyId),
