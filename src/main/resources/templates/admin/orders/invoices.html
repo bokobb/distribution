@@ -107,7 +107,7 @@
         <div><dt>Экспедитор</dt><dd th:text="${#strings.isEmpty(expeditors) ? '—' : expeditors}"></dd></div>
         <div><dt>Автомашина</dt><dd th:text="${#strings.isEmpty(cars) ? '—' : cars}"></dd></div>
         <div th:if="${!#strings.isEmpty(tripsText)}"><dt>Рейс</dt><dd th:text="${tripsText}"></dd></div>
-        <div th:if="${!#strings.isEmpty(agentsText)}"><dt>Торговые</dt><dd><b th:text="${agentsText}"></b></dd></div>
+        <div th:if="${!#strings.isEmpty(agentsText)}"><dt>Торговые</dt><dd style="white-space:pre-line"><b th:text="${agentsText}"></b></dd></div>
     </dl>
 
     <h2>Отгружено</h2>

@@ -273,7 +273,7 @@ public class AdminOrderController {
         model.addAttribute("tripsText", tripList.stream().map(com.confectionery.distribution.domain.Trip::getNumber)
                 .collect(java.util.stream.Collectors.joining(", ")));
         model.addAttribute("agentsText", list.stream().map(Order::getAgent).filter(java.util.Objects::nonNull).distinct()
-                .map(a -> fmt.dot(a.getName(), fmt.phone(a.getPhone()))).sorted().collect(java.util.stream.Collectors.joining(", ")));
+                .map(a -> a.getName() + ", " + fmt.phone(a.getPhone())).sorted().collect(java.util.stream.Collectors.joining("\n")));
     }
 
     @PostMapping("/admin/orders/{id}/approve")
