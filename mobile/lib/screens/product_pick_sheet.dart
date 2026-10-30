@@ -22,7 +22,8 @@ Future<PickedProduct?> pickProduct(BuildContext context,
         required Outlet outlet,
         required bool toReturn,
         required Map<int, int> inOrder,
-        required Map<int, ReturnItem> inReturn}) =>
+        required Map<int, ReturnItem> inReturn,
+        int? Function(Product)? left}) =>
     showModalBottomSheet<PickedProduct>(
       context: context,
       isScrollControlled: true,
@@ -32,19 +33,27 @@ Future<PickedProduct?> pickProduct(BuildContext context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.92,
-        child: _PickSheet(data: data, outlet: outlet, toReturn: toReturn, inOrder: inOrder, inReturn: inReturn),
+        child: _PickSheet(data: data, outlet: outlet, toReturn: toReturn, inOrder: inOrder, inReturn: inReturn, left: left),
       ),
     );
 
 class _PickSheet extends StatefulWidget {
   const _PickSheet(
-      {required this.data, required this.outlet, required this.toReturn, required this.inOrder, required this.inReturn});
+      {required this.data,
+      required this.outlet,
+      required this.toReturn,
+      required this.inOrder,
+      required this.inReturn,
+      this.left});
 
   final AgentData data;
   final Outlet outlet;
   final bool toReturn;
   final Map<int, int> inOrder;
   final Map<int, ReturnItem> inReturn;
+
+  /// Сколько можно в заказ по остатку склада; null — без ограничения.
+  final int? Function(Product)? left;
 
   @override
   State<_PickSheet> createState() => _PickSheetState();
@@ -56,12 +65,17 @@ class _PickSheetState extends State<_PickSheet> {
 
   int _price(Product p) => p.priceFor(widget.outlet.priceKind);
 
+  /// Сколько осталось на складе для заказа; в возврате остаток не важен — null.
+  int? _stock(Product p) => _return ? null : widget.left?.call(p);
+
   String _meta(Product p) {
     final price = _price(p);
     if (price == 0) return 'нет цены';
+    final left = _stock(p);
     return [
       '${money(price)} / ${p.unit}',
       if (p.perBox > 1) '${p.perBox} ${p.unit} в кор',
+      if (left != null) left <= 0 ? 'нет на складе' : 'на складе $left ${p.unit}',
     ].join(' · ');
   }
 
@@ -141,6 +155,9 @@ class _PickSheetState extends State<_PickSheet> {
   Widget _row(Product p) {
     final tag = _tag(p);
     final noPrice = _price(p) == 0;
+    final left = _stock(p);
+    // нет на складе — не выбрать; уже в заказе — можно открыть и уменьшить
+    final out = left != null && left <= 0 && !widget.inOrder.containsKey(p.id);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
@@ -148,7 +165,7 @@ class _PickSheetState extends State<_PickSheet> {
         borderRadius: const BorderRadius.all(Radius.circular(12)),
         child: InkWell(
           borderRadius: const BorderRadius.all(Radius.circular(12)),
-          onTap: noPrice ? null : () => Navigator.pop(context, PickedProduct(product: p, toReturn: _return)),
+          onTap: noPrice || out ? null : () => Navigator.pop(context, PickedProduct(product: p, toReturn: _return)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 62),
             child: Padding(
@@ -163,7 +180,7 @@ class _PickSheetState extends State<_PickSheet> {
                       Text(p.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                       Text(_meta(p),
                           style: TextStyle(
-                              fontSize: 13, color: noPrice ? AppColors.err : AppColors.text2, fontFeatures: tabular)),
+                              fontSize: 13, color: noPrice || out ? AppColors.err : AppColors.text2, fontFeatures: tabular)),
                     ],
                   ),
                 ),

@@ -18,7 +18,8 @@ import 'product_pick_sheet.dart';
 /// доставке, сумма вычтется. Внизу — заказ минус возврат и «Далее» к оформлению. Всё сразу пишется черновиком на
 /// телефон: приложение закрылось — товары на месте. «Без заказа» — закончить визит с причиной. Отправили заказ
 /// или закончили без заказа — возвращает true. С [editing] — правка уже взятого заказа (из «Визитов сегодня» или
-/// «Заказов»): его товары и возврат, без визита и черновика; сохранили — true.
+/// «Заказов»): его товары и возврат, без визита и черновика; сохранили — true. Заказать больше свободного остатка
+/// склада нельзя: в выборе товара, окне количества и строке видно, сколько ещё есть.
 class AgentOrderScreen extends StatefulWidget {
   const AgentOrderScreen({super.key, required this.outlet, required this.data, required this.visits, this.editing});
 
@@ -38,6 +39,9 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
   /// id товара → строка возврата.
   final _ret = <int, ReturnItem>{};
   int _tab = 0;
+
+  /// Взято заказами с телефона, которых сервер ещё не учёл в остатке.
+  late final _taken = widget.visits.takenSince(widget.data.syncedAt, except: widget.editing?.uuid);
 
   @override
   void initState() {
@@ -71,6 +75,19 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
         return sum + (p == null ? 0 : _price(p) * e.value);
       });
 
+  /// Сколько штук товара можно в этот заказ: свободно на складе минус взятое с телефона; у правки отправленного
+  /// заказа — плюс его штуки (сервер их уже вычел). null — сервер остаток не прислал, без ограничения.
+  int? _left(Product p) {
+    final stock = p.stock;
+    if (stock == null) return null;
+    final e = widget.editing;
+    final own = e != null && e.sent && !e.createdAt.isAfter(widget.data.syncedAt) ? e.items[p.id] ?? 0 : 0;
+    return stock - (_taken[p.id] ?? 0) + own;
+  }
+
+  /// «На складе только 5 шт» / «Товара нет на складе».
+  String _noMore(Product p, int left) => left <= 0 ? '«${p.name}» — нет на складе' : 'На складе только $left ${p.unit}';
+
   int get _orderSum => _sum(_qty);
   int get _retSum => _sum({for (final r in _ret.values) r.productId: r.qty});
 
@@ -97,25 +114,33 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
     _changed();
   }
 
-  /// Прошлый заказ магазина — только товары, которые сейчас продаются и с ценой.
+  /// Прошлый заказ магазина — только товары, которые сейчас продаются, с ценой и есть на складе (не больше остатка).
   void _repeat(LastOrder last) {
-    var skipped = 0;
+    var skipped = 0, cut = 0;
     _qty.clear();
     for (final e in last.items.entries) {
       final p = widget.data.product(e.key);
-      if (p == null || _price(p) == 0) {
+      final left = p == null ? null : _left(p);
+      if (p == null || _price(p) == 0 || left != null && left <= 0) {
         skipped++;
+      } else if (left != null && e.value > left) {
+        _qty[e.key] = left;
+        cut++;
       } else {
         _qty[e.key] = e.value;
       }
     }
     _changed();
-    if (skipped > 0) _say('Не добавлено: ${plural(skipped, 'товар', 'товара', 'товаров')} — уже не продаются или нет цены');
+    final text = [
+      if (skipped > 0) 'Не добавлено: ${plural(skipped, 'товар', 'товара', 'товаров')} — не продаются, нет цены или нет на складе',
+      if (cut > 0) 'Уменьшено до остатка: ${plural(cut, 'товар', 'товара', 'товаров')}',
+    ].join('. ');
+    if (text.isNotEmpty) _say(text);
   }
 
   Future<void> _add() async {
     final picked = await pickProduct(context,
-        data: widget.data, outlet: widget.outlet, toReturn: _tab == 1, inOrder: _qty, inReturn: _ret);
+        data: widget.data, outlet: widget.outlet, toReturn: _tab == 1, inOrder: _qty, inReturn: _ret, left: _left);
     if (picked == null || !mounted) return;
     setState(() => _tab = picked.toReturn ? 1 : 0);
     await _enter(picked.product, toReturn: picked.toReturn);
@@ -129,6 +154,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
             product: p,
             price: _price(p),
             qty: toReturn ? _ret[p.id]?.qty ?? 0 : _qty[p.id] ?? 0,
+            max: toReturn ? null : _left(p),
             toReturn: toReturn));
     if (n == null || !mounted) return;
     if (toReturn) {
@@ -151,6 +177,10 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
       return _say(_ret.isEmpty
           ? 'Добавьте товары в заказ'
           : 'Возврат экспедитор заберёт вместе с заказом — добавьте товары в заказ');
+    }
+    for (final e in _qty.entries) {
+      final p = widget.data.product(e.key), left = p == null ? null : _left(p);
+      if (p != null && left != null && e.value > left) return _say('${_noMore(p, left)} — уменьшите «${p.name}»');
     }
     final sent = await Navigator.push<bool>(
       context,
@@ -390,6 +420,8 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
   Widget _orderRow(Product p, int qty) {
     final price = _price(p);
     final last = qty <= 1;
+    final left = _left(p);
+    final over = left != null && qty > left;
     return _card(
       child: Row(children: [
         ProductAvatar(id: p.id, name: p.name),
@@ -407,6 +439,13 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
                   style: const TextStyle(fontSize: 12.5, color: AppColors.text2, fontFeatures: tabular)),
               Text('$qty ${p.unit} · ${money(price * qty)}',
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, fontFeatures: tabular)),
+              if (left != null)
+                Text(over ? 'на складе только ${left < 0 ? 0 : left} ${p.unit}' : 'на складе ещё ${left - qty} ${p.unit}',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: over ? FontWeight.w600 : FontWeight.w400,
+                        color: over ? AppColors.err : AppColors.text2,
+                        fontFeatures: tabular)),
             ],
           ),
         ),
@@ -417,7 +456,7 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
           decLabel: last ? 'Убрать из заказа' : 'Убрать штуку',
           incLabel: 'Добавить штуку',
           onDec: () => _setQty(p.id, qty - 1),
-          onInc: () => _setQty(p.id, qty + 1),
+          onInc: () => left != null && qty + 1 > left ? _say(_noMore(p, left)) : _setQty(p.id, qty + 1),
           onText: () => _enter(p, toReturn: false),
         ),
       ]),
@@ -508,13 +547,15 @@ class _AgentOrderScreenState extends State<AgentOrderScreen> {
 
 /// Количество в штуках числом: товар добавляют из «Добавить позицию» или правят касанием количества в строке.
 /// В заказе — подсказка «+ коробка» и сколько это коробок; в возврате ([toReturn]) — янтарная кнопка. Сумма по прайсу
-/// магазина. Было 0 — кнопка «В заказ» / «В возврат», иначе «Готово» (0 — убрать из списка).
+/// магазина. Было 0 — кнопка «В заказ» / «В возврат», иначе «Готово» (0 — убрать из списка). [max] — сколько
+/// можно в заказ по остатку склада: больше — кнопка не нажимается; null — без ограничения (и в возврате).
 class _QtyDialog extends StatefulWidget {
-  const _QtyDialog({required this.product, required this.price, required this.qty, required this.toReturn});
+  const _QtyDialog({required this.product, required this.price, required this.qty, this.max, required this.toReturn});
 
   final Product product;
   final int price;
   final int qty;
+  final int? max;
   final bool toReturn;
 
   @override
@@ -534,14 +575,17 @@ class _QtyDialogState extends State<_QtyDialog> {
 
   bool get _return => widget.toReturn;
 
-  bool get _ok => _value > 0 || widget.qty > 0;
+  bool get _over => widget.max != null && _value > widget.max!;
+
+  bool get _ok => (_value > 0 || widget.qty > 0) && !_over;
 
   void _done() {
     if (_ok) Navigator.pop(context, _value);
   }
 
   void _box() {
-    _c.text = '${_value + widget.product.perBox}';
+    final n = _value + widget.product.perBox, max = widget.max;
+    _c.text = '${max != null && n > max ? (max < 0 ? 0 : max) : n}';
     _c.selection = TextSelection.collapsed(offset: _c.text.length);
     setState(() {});
   }
@@ -579,6 +623,13 @@ class _QtyDialogState extends State<_QtyDialog> {
                           if (p.perBox > 1) '${p.perBox} ${p.unit} в кор',
                         ].join(' · '),
                         style: const TextStyle(fontSize: 13, color: AppColors.text2, fontFeatures: tabular)),
+                    if (widget.max case final max?)
+                      Text(max <= 0 ? 'Нет на складе' : 'На складе $max ${p.unit}',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: max <= 0 ? AppColors.err : AppColors.ok,
+                              fontFeatures: tabular)),
                   ],
                 ),
               ),
@@ -609,8 +660,17 @@ class _QtyDialogState extends State<_QtyDialog> {
             const SizedBox(height: 12),
             Row(children: [
               Expanded(
-                child: Text(n == 0 && widget.qty > 0 ? (_return ? 'убрать из возврата' : 'убрать из заказа') : _pieces(p, n),
-                    style: const TextStyle(fontSize: 13, color: AppColors.text2, fontFeatures: tabular)),
+                child: Text(
+                    _over
+                        ? 'больше, чем на складе'
+                        : n == 0 && widget.qty > 0
+                            ? (_return ? 'убрать из возврата' : 'убрать из заказа')
+                            : _pieces(p, n),
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: _over ? FontWeight.w600 : FontWeight.w400,
+                        color: _over ? AppColors.err : AppColors.text2,
+                        fontFeatures: tabular)),
               ),
               Text(_return ? '−${money(sum)}' : money(sum),
                   style: TextStyle(

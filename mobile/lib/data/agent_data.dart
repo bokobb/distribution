@@ -255,6 +255,7 @@ class Product {
     this.barcode,
     required this.wholesale,
     required this.retail,
+    this.stock,
   });
 
   final int id;
@@ -270,6 +271,10 @@ class Product {
   final int wholesale;
   final int retail;
 
+  /// Свободно на складе на минуту синхронизации, штук: склад минус заказы, которые ещё не отгрузили. Старый
+  /// сервер не присылает — null, без ограничения.
+  final int? stock;
+
   /// Цена по прайсу магазина: WHOLESALE — опт, RETAIL — розница.
   int priceFor(String priceKind) => priceKind == 'RETAIL' ? retail : wholesale;
 
@@ -282,6 +287,7 @@ class Product {
         barcode: j['barcode'] as String?,
         wholesale: j['wholesale'] as int,
         retail: j['retail'] as int,
+        stock: j['stock'] as int?,
       );
 }
 

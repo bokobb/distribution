@@ -96,6 +96,18 @@ class VisitBook extends ChangeNotifier {
     ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   }
 
+  /// Штук по товарам в заказах с телефона, которых сервер ещё не учёл в остатке на минуту [syncedAt]: не отправлены
+  /// или взяты позже. Отменённые и не принятые сервером не считаются; [except] — заказ, который сейчас правят.
+  Map<int, int> takenSince(DateTime syncedAt, {String? except}) {
+    final out = <int, int>{};
+    for (final o in _localOrders) {
+      if (o.uuid == except || o.error != null || o.status == 'CANCELLED') continue;
+      if (o.sent && !o.createdAt.isAfter(syncedAt)) continue;
+      o.items.forEach((id, n) => out[id] = (out[id] ?? 0) + n);
+    }
+    return out;
+  }
+
   /// Заказ визита, если визит закончился заказом.
   Order? orderOf(Visit v) => todayOrders.where((o) => o.visitUuid == v.uuid).firstOrNull;
 

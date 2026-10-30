@@ -634,6 +634,63 @@ void main() {
     expect(sent['visitUuid'], server.visits.keys.single);
   });
 
+  testWidgets('остаток склада: «Как прошлый» до остатка, больше не заказать, чего нет — не выбрать', (t) async {
+    final server = FakeServer();
+    // копия: список товаров общий для всех тестов
+    final products = [for (final p in server.agentData['products'] as List) <String, dynamic>{...p as Map<String, dynamic>}];
+    server.agentData['products'] = products;
+    products[0]['stock'] = 30; // печенье
+    products[1]['stock'] = 0; // вафли кончились
+    await t.pumpWidget(DistributionApp(
+        location: FakeLocation(), camera: FakeCamera(), local: MemoryStore(), api: ApiClient(baseUrl: 'http://s', client: server.client), store: SessionStore()));
+    await logIn(t);
+    await tapVisible(t, find.text('Начать рабочий день'));
+    await t.pumpAndSettle();
+    await tapVisible(t, find.text('Создать заказ'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Заказ здесь'));
+    await t.pumpAndSettle();
+
+    // прошлый заказ: 24 печенья и 40 вафель — вафель на складе нет
+    await t.tap(find.text('Как 21 октября'));
+    await t.pumpAndSettle();
+    expect(find.text('1 товар в заказе\nна сумму ${money(12000)}'), findsOneWidget);
+    expect(find.textContaining('Не добавлено: 1 товар'), findsOneWidget);
+    expect(find.text('на складе ещё 6 шт'), findsOneWidget);
+
+    // больше остатка в окне — кнопка не нажимается
+    await t.tap(find.text('24 шт'));
+    await t.pumpAndSettle();
+    expect(inDialog(find.text('На складе 30 шт')), findsOneWidget);
+    await t.enterText(inDialog(find.byType(TextField)), '31');
+    await t.pump();
+    expect(find.text('больше, чем на складе'), findsOneWidget);
+    expect(t.widget<FilledButton>(find.widgetWithText(FilledButton, 'Готово')).onPressed, isNull);
+    await t.enterText(inDialog(find.byType(TextField)), '30');
+    await t.pump();
+    await t.tap(find.text('Готово'));
+    await t.pumpAndSettle();
+    expect(find.text('на складе ещё 0 шт'), findsOneWidget);
+    await t.tap(find.byTooltip('Добавить штуку'));
+    await t.pumpAndSettle(); // прежнее сообщение уходит, новое показывается следом
+    expect(find.text('На складе только 30 шт'), findsOneWidget);
+    expect(find.text('30 шт · ${money(15000)}'), findsOneWidget);
+
+    // «Добавить позицию»: вафель нет на складе — не выбрать; в возврат — можно
+    await tapVisible(t, find.text('Добавить позицию'));
+    await t.pumpAndSettle();
+    expect(inSheet(find.textContaining('нет на складе')), findsOneWidget);
+    await t.tap(inSheet(find.text('Вафли сливочные')));
+    await t.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    await t.tap(inSheet(find.text('В возврат')));
+    await t.pump();
+    expect(inSheet(find.textContaining('нет на складе')), findsNothing);
+    await t.tap(inSheet(find.text('Вафли сливочные')));
+    await t.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+  });
+
   testWidgets('заказ в магазине другого торгового: без долгов, по его прайсу; идёт визит — «Продолжить заказ»',
       (t) async {
     final gps = FakeLocation()..here = Fix(at: DateTime(2026, 10, 28, 10), lat: 42.31, lng: 69.61, accuracy: 5);
