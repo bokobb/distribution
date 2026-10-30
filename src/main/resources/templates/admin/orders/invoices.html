@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--/* Накладные для печати (A4), без меню админки. total = false — на каждый заказ своя накладная на
-     отдельном листе; total = true — общая (товарно-транспортная): отгружено по группам товаров, ниже чистый и
-     испорченный возврат (OrderService.waybill). */-->
+     отдельном листе; total = true — общая (товарно-транспортная): отгружено по группам товаров, ниже испорченный и
+     чистый возврат — каждый, только если он есть (OrderService.waybill). */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8">
@@ -67,8 +67,7 @@
 <th:block th:if="${!total}">
 <section class="sheet" th:each="o : ${orders}" th:with="disc=${!o.lines.?[discount != null and discount > 0].isEmpty()}">
     <h1 th:text="${'Накладная № ' + o.number + ' от ' + @fmt.date(o.deliveryDate)}">Накладная</h1>
-    <p class="meta" th:text="${@fmt.dot('Оплата: ' + o.payment.label, o.agent != null ? 'торговый: ' + o.agent.name : null,
-            o.trip != null ? 'экспедитор: ' + o.trip.expeditor.name + ', рейс ' + o.trip.number : null)}"></p>
+    <p class="meta" th:text="${@fmt.dot('Оплата: ' + o.payment.label, o.trip != null ? 'рейс ' + o.trip.number : null)}"></p>
     <dl class="parties">
         <div><dt>Поставщик</dt>
             <dd><b th:text="${o.company.name}"></b><br><span th:if="${o.company.phone != null}" th:text="${'тел. ' + o.company.phone}"></span></dd></div>
@@ -77,6 +76,11 @@
                 <span th:if="${o.outlet.legal != null and !#strings.isEmpty(o.outlet.legal)}" th:text="${'(' + o.outlet.name + ')'}"></span>
                 <br th:if="${o.outlet.bin != null and !#strings.isEmpty(o.outlet.bin)}"><span th:if="${o.outlet.bin != null and !#strings.isEmpty(o.outlet.bin)}" th:text="${'БИН/ИИН ' + o.outlet.bin}"></span>
                 <br><span th:text="${@fmt.dot(o.outlet.address, o.outlet.phone)}"></span></dd></div>
+        <div th:if="${o.agent != null}"><dt>Торговый</dt>
+            <dd><b th:text="${o.agent.name}"></b><br><span class="num" th:text="${'тел. ' + @fmt.phone(o.agent.phone)}"></span></dd></div>
+        <div th:if="${o.trip != null}"><dt>Экспедитор</dt>
+            <dd><b th:text="${o.trip.expeditor.name}"></b><br><span class="num" th:text="${'тел. ' + @fmt.phone(o.trip.expeditor.phone)}"></span>
+                <br><span th:text="${'авто ' + @fmt.car(o.trip.vehicle)}"></span></dd></div>
     </dl>
     <table>
         <thead><tr><th class="n">№</th><th>Товар</th><th>Ед.</th><th class="r">Кол-во</th><th class="r">Цена, ₸</th><th class="r" th:if="${disc}">Скидка, ₸</th><th class="r">Сумма, ₸</th></tr></thead>
@@ -103,21 +107,23 @@
         <div><dt>Экспедитор</dt><dd th:text="${#strings.isEmpty(expeditors) ? '—' : expeditors}"></dd></div>
         <div><dt>Автомашина</dt><dd th:text="${#strings.isEmpty(cars) ? '—' : cars}"></dd></div>
         <div th:if="${!#strings.isEmpty(tripsText)}"><dt>Рейс</dt><dd th:text="${tripsText}"></dd></div>
+        <div th:if="${!#strings.isEmpty(agentsText)}"><dt>Торговые</dt><dd><b th:text="${agentsText}"></b></dd></div>
     </dl>
 
     <h2>Отгружено</h2>
     <table th:replace="~{admin/orders/waybill :: waybill(${bill.shipped()}, 'Ничего не отгружено')}"></table>
-    <p class="words" th:text="${'Всего на сумму: ' + @fmt.words(bill.shipped().sum())}"></p>
 
-    <h2>Чистый возврат <span class="meta">— магазин закрыт или не взял, товар вернулся целым</span></h2>
-    <table th:replace="~{admin/orders/waybill :: waybill(${bill.clean()}, 'Нет — всё выдано или рейс ещё не закончен')}"></table>
-
+    <th:block th:if="${!bill.spoiled().isEmpty()}">
     <h2>Испорченный возврат <span class="meta">— негодный товар от магазинов</span></h2>
-    <p class="meta" th:if="${bill.planned() > 0}" th:text="${'В том числе ещё не забрано — записали торговые: ' + bill.planned() + ' шт'}"></p>
     <table th:replace="~{admin/orders/waybill :: waybill(${bill.spoiled()}, 'Нет')}"></table>
+    </th:block>
+
+    <th:block th:if="${!bill.clean().isEmpty()}">
+    <h2>Чистый возврат <span class="meta">— магазин закрыт или не взял, товар вернулся целым</span></h2>
+    <table th:replace="~{admin/orders/waybill :: waybill(${bill.clean()}, 'Нет')}"></table>
+    </th:block>
 
     <div class="sign"><div>Сдал зав. складом (подпись, ФИО)</div><div>Принял экспедитор (подпись, ФИО)</div></div>
-    <p class="meta foot" th:if="${!#strings.isEmpty(agentsText)}" th:text="${'Торговые: ' + agentsText}"></p>
     <p class="meta foot" th:text="${'Заказы: ' + #strings.listJoin(orders.![number], ', ')}"></p>
 </section>
 

@@ -144,16 +144,15 @@ class ShipmentTest {
     }
 
     @Test
-    void неХватаетТовара_ничегоНеОтгружено() {
+    void неХватаетТовара_отгружаетсяОсновнойСкладВМинус() {
         data.stockIn(w, 12);
         Order a = data.order(w, tomorrow, PaymentMethod.CASH, 10, 100);
         Order b = data.order(w, tomorrow, PaymentMethod.CASH, 5, 100);
-        assertThatThrownBy(() -> ship(w, w.expeditor().getId(), a, b))
-                .isInstanceOf(FormException.class).hasMessageContaining("есть 12, нужно 15");
-        assertThat(status(a)).isEqualTo("ACCEPTED");
-        assertThat(status(b)).isEqualTo("ACCEPTED");
-        assertThat(data.balance(w.main(), w.product())).isEqualTo(12);
-        assertThat(jdbc.queryForObject("select count(*) from trips where company_id = ?", Integer.class, w.id())).isZero();
+        assertThat(ship(w, w.expeditor().getId(), a, b).shipped()).isEqualTo(2);
+        assertThat(status(a)).isEqualTo("IN_TRIP");
+        assertThat(status(b)).isEqualTo("IN_TRIP");
+        assertThat(data.balance(w.main(), w.product())).isEqualTo(-3);
+        assertThat(data.balance(w.car(), w.product())).isEqualTo(15);
     }
 
     @Test

@@ -69,8 +69,8 @@ public class TripService {
      * Отгрузить заказы экспедитору на выбранный день: все — в его рейс на этот день (незакрытый рейс дополняется,
      * иначе создаётся новый — сразу «В пути»: отдельной кнопки «В путь» нет). Рейс экспедитор видит в телефоне
      * только с этого дня. Товар — с основного склада в машину, заказы — «Отгружен», день отгрузки — их дата
-     * доставки. Уходят только новые и собранные; остальные остаются как были и попадают в skipped. Если на
-     * основном складе чего-то не хватает, не отгружается ничего.
+     * доставки. Уходят только новые (и собранные — так их отмечали раньше); остальные остаются как были и попадают
+     * в skipped. Остаток склада не проверяется: чего не хватает, уходит в минус до прихода.
      */
     @Transactional
     public Shipment ship(Collection<Long> orderIds, Long expeditorId, LocalDate day, Actor actor) {
@@ -105,18 +105,7 @@ public class TripService {
         }
         if (ok.isEmpty()) return new Shipment(exp, List.of(), 0, skipped);
 
-        // сначала проверка всего товара разом: отгрузка не должна остановиться на середине
         Warehouse main = stock.warehouse(exp.getCompany(), WarehouseType.MAIN);
-        Map<Product, Integer> need = new TreeMap<>(Comparator.comparing(Product::getName).thenComparing(Product::getId));
-        for (Order o : ok) for (OrderLine l : o.getLines()) need.merge(l.getProduct(), l.getQty(), Integer::sum);
-        List<String> lack = new ArrayList<>();
-        need.forEach((p, q) -> {
-            int have = stock.qty(main, p);
-            if (have < q) lack.add("«" + p.getName() + "» — есть " + have + ", нужно " + q);
-        });
-        if (!lack.isEmpty())
-            throw new FormException("Не хватает товара на основном складе, ничего не отгружено: " + String.join("; ", lack));
-
         LocalDateTime now = LocalDateTime.now(clock);
         Trip t = trips.findFirstByExpeditorAndDateAndStatusInOrderByIdDesc(exp, day, EnumSet.of(TripStatus.LOADING, TripStatus.ON_ROAD))
                 .orElseGet(() -> newTrip(exp, car, day, now));

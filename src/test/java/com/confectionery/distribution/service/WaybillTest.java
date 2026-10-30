@@ -6,8 +6,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
-/** Общая накладная: отгружено по группам, чистый возврат — невыданное, испорченный — негодный от магазинов. */
+/** Общая накладная: отгружено по группам, испорченный — негодный от магазинов, чистый возврат — невыданное. */
 class WaybillTest {
 
     private static Product product(String name, String group, int perBox) {
@@ -47,6 +48,7 @@ class WaybillTest {
         OrderService.SumGroup buns = w.shipped().groups().get(0);
         assertThat(buns.qty()).isEqualTo(36);
         assertThat(buns.rows().get(0).boxes()).isEqualTo(3);
+        assertThat(buns.rows().get(0).price()).isEqualTo(400);
         assertThat(w.shipped().sum()).isEqualTo(36 * 400 + 20 * 500 + 12 * 420);
 
         // чистый: 6 булочек закрытого магазина и 5 кексов, которые не взяли
@@ -54,7 +56,17 @@ class WaybillTest {
         assertThat(w.clean().sum()).isEqualTo(6 * 400 + 5 * 500);
         // испорченный: пока не выдан — записанное торговым
         assertThat(w.spoiled().qty()).isEqualTo(3);
-        assertThat(w.planned()).isEqualTo(3);
+        assertThat(w.spoiled().sum()).isEqualTo(3 * 420);
+    }
+
+    @Test
+    void одинТоварПоРазнойЦенеРазнымиСтроками() {
+        Product bun = product("Булочки", "Булочки", 12);
+        OrderService.Waybill w = OrderService.waybill(List.of(order(OrderStatus.IN_TRIP, bun, 5, 400),
+                order(OrderStatus.IN_TRIP, bun, 7, 450), order(OrderStatus.IN_TRIP, bun, 2, 400)));
+        assertThat(w.shipped().groups().get(0).rows()).extracting(OrderService.SumRow::price, OrderService.SumRow::qty)
+                .containsExactly(tuple(400L, 7), tuple(450L, 7));
+        assertThat(w.shipped().sum()).isEqualTo(7 * 400 + 7 * 450);
     }
 
     @Test

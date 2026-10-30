@@ -100,7 +100,7 @@
     <div class="tbl-w"><table class="tbl tbl--cards tbl--sel">
         <thead><tr>
             <th class="c-chk"><input type="checkbox" data-check-all="ids" aria-label="Выбрать все заказы на странице"></th>
-            <th>Заказ</th><th>Магазин</th><th class="hide-m">Торговый</th><th class="hide-m">Оплата</th><th class="r hide-m">Возврат</th><th class="r">К оплате</th><th>Статус</th>
+            <th>Заказ</th><th>Магазин</th><th class="c-agent">Торговый</th><th class="hide-m">Оплата</th><th class="r hide-m">Возврат</th><th class="r">К оплате</th><th>Статус</th>
         </tr></thead>
         <tbody><tr th:each="o : ${p.rows()}" th:with="ret=${o.returnTotal}, off=${o.status.name() == 'NEEDS_APPROVAL' or o.status.name() == 'CANCELLED' or o.status.name() == 'REFUSED'}"
                    th:classappend="${o.status.name() == 'CANCELLED' or o.status.name() == 'REFUSED'} ? 'is-off'">
@@ -109,7 +109,7 @@
             <td class="c-ord"><a class="rl" th:href="${'/admin/orders/' + o.id}" th:text="${'№ ' + o.number}">№</a>
                 <span class="sub" th:text="${@fmt.dot(oneDay ? @fmt.time(o.createdAt) : @fmt.when(o.createdAt), o.trip != null ? 'отгрузка ' + @fmt.day(o.trip.date) + ', ' + o.trip.expeditor.name : null)}"></span></td>
             <td class="c-shop"><b th:text="${o.outlet.name}"></b><span class="sub" th:text="${@fmt.dot(o.outlet.address, o.outlet.region?.name, v.isAll() ? o.company.name : null)}"></span></td>
-            <td class="hide-m" th:text="${o.agent?.name}"></td>
+            <td class="c-agent"><th:block th:if="${o.agent != null}"><b th:text="${o.agent.name}"></b><span class="sub num" th:text="${@fmt.phone(o.agent.phone)}"></span></th:block></td>
             <td class="hide-m" th:text="${o.payment.label}"></td>
             <td class="r num hide-m"><th:block th:if="${ret == 0}">—</th:block>
                 <th:block th:if="${ret > 0}"><span class="c-ret" th:text="${'−' + @fmt.money(ret)}"></span><span class="sub" th:text="${#aggregates.sum(o.returnLines.![qty]) + ' шт'}"></span></th:block></td>
@@ -140,11 +140,10 @@
 
 <form class="bulk" id="bulk-bar" th:action="@{/admin/orders/ship}" method="post" th:if="${p.total() > 0}">
     <input type="hidden" name="back" th:value="${here}">
-    <span class="bulk-t" data-sel-none><b>Выберите заказы галочками</b><span class="hint">«Собран» — или экспедитора, дату и «Отгрузить»</span></span>
+    <span class="bulk-t" data-sel-none><b>Выберите заказы галочками</b><span class="hint">затем экспедитора, дату и «Отгрузить»</span></span>
     <span class="bulk-t" data-sel-some hidden><b>Выбрано <span data-sel-count>0</span> · <span class="num" data-sel-sum>0 ₸</span></b>
         <span class="hint">заказы «Нужно разрешение» и отменённые в рейс не попадут</span></span>
     <span class="bulk-sp"></span>
-    <button class="btn btn-soft btn-sm" type="submit" formaction="/admin/orders/assemble" formnovalidate>Собран</button>
     <select class="sel" name="expeditor" required aria-label="Экспедитор для отгрузки">
         <option value="">Экспедитор…</option>
         <option th:each="e : ${shipTo}" th:value="${e.id}" th:disabled="${e.vehicle == null}"

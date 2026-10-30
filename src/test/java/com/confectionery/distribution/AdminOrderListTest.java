@@ -102,11 +102,8 @@ class AdminOrderListTest {
 
         mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Экспедитор…")))
                 .andExpect(content().string(containsString(w.vehicle().getPlate())));
-        // «Собран» — только новым
-        mvc.perform(post("/admin/orders/assemble").with(csrf()).session(s).param("ids", a.getId().toString()).param("back", back))
-                .andExpect(redirectedUrl(back));
-        mvc.perform(get(back).session(s)).andExpect(content().string(containsString("Собрано: 1 заказ")));
-        assertThat(jdbc.queryForObject("select status from orders where id = ?", String.class, a.getId())).isEqualTo("ASSEMBLED");
+        // кнопки «Собран» нет: новый заказ сразу отгружают
+        mvc.perform(get(back).session(s)).andExpect(content().string(not(containsString("/admin/orders/assemble"))));
 
         // без даты не отгружается
         mvc.perform(post("/admin/orders/ship").with(csrf()).session(s).param("ids", a.getId().toString())
@@ -149,10 +146,12 @@ class AdminOrderListTest {
                         .param("ids", a.getId().toString(), b.getId().toString()))
                 .andExpect(content().string(containsString("Товарно-транспортная накладная")))
                 .andExpect(content().string(containsString(w.product().getName())))
-                .andExpect(content().string(containsString("Три тысячи пятьсот тенге")))
-                .andExpect(content().string(containsString("Чистый возврат")))
-                .andExpect(content().string(containsString("Испорченный возврат")))
-                // второй части «кому сколько» больше нет
+                .andExpect(content().string(containsString("Блок")))
+                .andExpect(content().string(containsString(w.agent().getName())))
+                // без суммы прописью; возвратов ещё нет — их таблиц нет; второй части «кому сколько» нет
+                .andExpect(content().string(not(containsString("Всего на сумму"))))
+                .andExpect(content().string(not(containsString("Чистый возврат"))))
+                .andExpect(content().string(not(containsString("Испорченный возврат"))))
                 .andExpect(content().string(not(containsString("Магазин, адрес"))));
 
         mvc.perform(get("/admin/orders/" + a.getId() + "/invoice").session(s))

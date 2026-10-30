@@ -52,14 +52,12 @@
 <p class="hint">Рейс создаётся из «Заказов»: отметьте заказы, выберите экспедитора и дату и нажмите «Отгрузить» — экспедитор увидит рейс в телефоне в этот день. Выдача закрывается только с подписью или фото накладной. Вечером — «Приём кассы».</p>
 
 <section class="card">
-    <div class="card-h"><div><h2>Ждут отгрузки</h2><p th:text="${'новые и собранные за любой день · ' + @fmt.plural(nextCount, 'заказ', 'заказа', 'заказов')}"></p></div>
+    <div class="card-h"><div><h2>Ждут отгрузки</h2><p th:text="${'новые за любой день · ' + @fmt.plural(nextCount, 'заказ', 'заказа', 'заказов')}"></p></div>
         <a class="link" href="/admin/orders?day=all&amp;exp=none">Заказы</a></div>
     <ul class="rows card-b" style="padding-top:0" th:unless="${next.isEmpty()}">
-        <li th:each="e : ${next}" th:with="n=${e.value.size()}, done=${e.value.?[status.name() == 'ASSEMBLED'].size()}">
+        <li th:each="e : ${next}" th:with="n=${e.value.size()}">
             <span style="flex:1;min-width:0"><b th:text="${e.key.name}"></b>
-                <span class="sub" th:text="${@fmt.plural(n, 'заказ', 'заказа', 'заказов') + ' · ' + @fmt.money(#aggregates.sum(e.value.![total]))}"></span>
-                <span class="meter" style="margin-top:6px;max-width:320px" th:classappend="${done == n} ? 'meter--ok'"><i th:style="${'width:' + (done * 100 / n) + '%'}"></i></span>
-                <span class="sub" th:text="${'собрано ' + done + ' из ' + n}"></span></span>
+                <span class="sub" th:text="${@fmt.plural(n, 'заказ', 'заказа', 'заказов') + ' · ' + @fmt.money(#aggregates.sum(e.value.![total]))}"></span></span>
             <a class="btn btn-soft btn-sm" th:href="@{/admin/scope(company=${e.key.id},back='/admin/orders/pick')}" th:if="${v.isAll()}">Лист сборки</a>
             <a class="btn btn-soft btn-sm" href="/admin/orders/pick" th:unless="${v.isAll()}">Лист сборки</a>
         </li>

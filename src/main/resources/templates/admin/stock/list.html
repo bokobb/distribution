@@ -11,12 +11,12 @@
 </nav>
 
 <section class="card" th:if="${tab == 'stock'}">
-    <div class="card-h"><div><h2>Остатки</h2><p>резерв — заказы на завтра, ещё не загруженные в машины</p></div></div>
+    <div class="card-h"><div><h2>Остатки</h2><p>резерв — заказы, ещё не отгруженные экспедиторам · минус — отгружено больше, чем пришло, закроется приходом</p></div></div>
     <div class="tbl-w"><table class="tbl tbl--cards">
-        <thead><tr><th>Товар</th><th class="r">Основной склад</th><th class="r">Резерв на завтра</th><th class="r">Свободно</th><th class="r">В машинах</th><th class="r">Негодный</th></tr></thead>
+        <thead><tr><th>Товар</th><th class="r">Основной склад</th><th class="r">Резерв</th><th class="r">Свободно</th><th class="r">В машинах</th><th class="r">Негодный</th></tr></thead>
         <tbody><tr th:each="r : ${rows}">
             <td><b th:text="${r.product().name}"></b><span class="sub" th:text="${@fmt.dot(r.product().category, 'кор. ' + r.product().perBox + ' шт', r.product().crmCode == null ? null : 'код CRM ' + r.product().crmCode)}"></span></td>
-            <td class="r num hide-m" th:text="${r.main()}"></td>
+            <td class="r num hide-m" th:classappend="${r.main() < 0} ? 'bad'" th:text="${r.main()}"></td>
             <td class="r num hide-m" th:text="${r.reserved() == 0 ? '—' : r.reserved()}"></td>
             <td class="r num"><b th:classappend="${r.low()} ? 'bad'" th:text="${r.free()}"></b>
                 <span class="sub bad" th:if="${r.free() < 0}">не хватит</span><span class="sub warn" th:if="${r.low() and r.free() >= 0}">мало</span></td>

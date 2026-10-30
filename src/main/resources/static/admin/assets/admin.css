@@ -385,11 +385,14 @@ a.al:hover{background:var(--head);color:var(--ink)}
   .tbl--cards td.r{text-align:right}
   .tbl--cards td.hide-m{display:none}
   .tbl--sel.tbl--cards tr{grid-template-columns:auto 1fr auto;gap:4px 12px}
-  .tbl--sel.tbl--cards td.c-chk{grid-column:1;grid-row:1/span 3;padding-top:2px}
+  .tbl--sel.tbl--cards td.c-chk{grid-column:1;grid-row:1/span 4;padding-top:2px}
   .tbl--sel.tbl--cards td.c-ord{grid-column:2;grid-row:1}
   .tbl--sel.tbl--cards td.c-sum{grid-column:3;grid-row:1}
   .tbl--sel.tbl--cards td.c-shop{grid-column:2/-1;grid-row:2}
-  .tbl--sel.tbl--cards td.c-st{grid-column:2/-1;grid-row:3}
+  .tbl--sel.tbl--cards td.c-agent{grid-column:2/-1;grid-row:3}
+  .tbl--sel.tbl--cards td.c-agent:not(:empty)::before{content:"Торговый: ";color:var(--ink-soft)}
+  .tbl--sel.tbl--cards td.c-agent .sub{display:inline;margin-left:6px}
+  .tbl--sel.tbl--cards td.c-st{grid-column:2/-1;grid-row:4}
   .timeline li{grid-template-columns:1fr}
   .card-h,.card-b{padding-left:16px;padding-right:16px}
 }

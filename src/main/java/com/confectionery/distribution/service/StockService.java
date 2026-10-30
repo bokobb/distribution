@@ -71,7 +71,8 @@ public class StockService {
     }
 
     /**
-     * Переместить товар: from — списать (нельзя уйти в минус), to — добавить. Пустой from — товар
+     * Переместить товар: from — списать (в минус нельзя; только загрузка машины с основного склада —
+     * отгрузка не ждёт прихода, минус закроет приход из CRM), to — добавить. Пустой from — товар
      * пришёл извне, пустой to — ушёл в магазин. refs заполняет документ движения (рейс, заказ…).
      */
     @Transactional
@@ -80,7 +81,8 @@ public class StockService {
         if (qty <= 0) throw new IllegalArgumentException("Количество должно быть больше нуля");
         if (from != null) {
             StockBalance b = balance(from, p);
-            if (b.getQty() < qty)
+            boolean minus = reason == MovementReason.LOAD && from.getType() == WarehouseType.MAIN;
+            if (!minus && b.getQty() < qty)
                 throw new IllegalStateException("Не хватает «" + p.getName() + "» на складе «" + from.getName() + "»: есть " + b.getQty() + ", нужно " + qty);
             b.setQty(b.getQty() - qty);
         }

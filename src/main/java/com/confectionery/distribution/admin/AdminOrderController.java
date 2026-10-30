@@ -209,24 +209,6 @@ public class AdminOrderController {
     public record Notice(String kind, String title, List<String> lines) implements java.io.Serializable {
     }
 
-    /** Отмеченные галочками новые заказы — «Собран»; возврат в тот же список. */
-    @PostMapping("/admin/orders/assemble")
-    public String assemble(@RequestParam(name = "ids", required = false) List<Long> ids,
-                           @RequestParam(required = false) String back,
-                           HttpSession session, RedirectAttributes ra) {
-        try {
-            int n = orders.assemble(ids, ctx.viewer(session).actor());
-            int skipped = ids.size() - n;
-            ra.addFlashAttribute("notice", n == 0
-                    ? new Notice("al--bad", "Ничего не отмечено собранным", List.of("«Собран» ставится только новым заказам"))
-                    : new Notice("al--info", "Собрано: " + fmt.plural(n, "заказ", "заказа", "заказов"),
-                    skipped == 0 ? List.of() : List.of("Не изменены (уже собраны, отгружены или ждут разрешения): " + skipped)));
-        } catch (FormException e) {
-            ra.addFlashAttribute("notice", new Notice("al--bad", e.getMessage(), List.of()));
-        }
-        return "redirect:" + AdminPage.back(back, "/admin/orders");
-    }
-
     /** Отмеченные галочками заказы — экспедитору на выбранный день (см. TripService.ship); возврат в тот же список. */
     @PostMapping("/admin/orders/ship")
     public String ship(@RequestParam(name = "ids", required = false) List<Long> ids,
@@ -286,12 +268,12 @@ public class AdminOrderController {
         model.addAttribute("days", days.stream().map(fmt::date).collect(java.util.stream.Collectors.joining(", ")));
         model.addAttribute("expeditors", tripList.stream().map(t -> t.getExpeditor().getName()).distinct()
                 .collect(java.util.stream.Collectors.joining(", ")));
-        model.addAttribute("cars", tripList.stream().map(t -> t.getVehicle().getPlate()).distinct()
+        model.addAttribute("cars", tripList.stream().map(t -> fmt.car(t.getVehicle())).distinct()
                 .collect(java.util.stream.Collectors.joining(", ")));
         model.addAttribute("tripsText", tripList.stream().map(com.confectionery.distribution.domain.Trip::getNumber)
                 .collect(java.util.stream.Collectors.joining(", ")));
-        model.addAttribute("agentsText", list.stream().map(Order::getAgent).filter(java.util.Objects::nonNull).map(Employee::getName)
-                .distinct().sorted().collect(java.util.stream.Collectors.joining(", ")));
+        model.addAttribute("agentsText", list.stream().map(Order::getAgent).filter(java.util.Objects::nonNull).distinct()
+                .map(a -> fmt.dot(a.getName(), fmt.phone(a.getPhone()))).sorted().collect(java.util.stream.Collectors.joining(", ")));
     }
 
     @PostMapping("/admin/orders/{id}/approve")

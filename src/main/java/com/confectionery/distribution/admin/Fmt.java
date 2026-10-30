@@ -1,5 +1,6 @@
 package com.confectionery.distribution.admin;
 
+import com.confectionery.distribution.domain.Vehicle;
 import com.confectionery.distribution.service.Phones;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -102,6 +103,18 @@ public class Fmt {
             b.append(p);
         }
         return b.toString();
+    }
+
+    /** Машина в накладной: номер и марка — «255 ARO 13 (Hyundai Bongo)». */
+    public String car(Vehicle v) {
+        if (v == null) return "—";
+        return v.getModel() == null || v.getModel().isBlank() ? v.getPlate() : v.getPlate() + " (" + v.getModel().strip() + ")";
+    }
+
+    /** Блоки (коробки) и штуки для накладной: «1 бл. 6 шт.», «2 бл.», «3 шт.». */
+    public String blocks(int boxes, int pieces) {
+        if (boxes == 0) return pieces + " шт.";
+        return pieces == 0 ? boxes + " бл." : boxes + " бл. " + pieces + " шт.";
     }
 
     /** Сумма прописью для накладной: «Сто двенадцать тысяч четыреста сорок тенге». */
