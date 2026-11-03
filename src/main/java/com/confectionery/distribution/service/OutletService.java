@@ -171,6 +171,10 @@ public class OutletService {
         if ((lat == null) != (lng == null)) throw new FormException("Укажите и широту, и долготу — или оставьте обе пустыми");
         PriceType priceType = f.getPriceTypeId() == null ? null : priceTypes.findById(f.getPriceTypeId())
                 .filter(t -> cid.equals(t.getCompanyId())).orElse(null);
+        // поля «Тип цен» в форме нет (цена одна с 04.11.2026): не пришло — прежний тип магазина или «Опт»
+        if (priceType == null && f.getPriceTypeId() == null)
+            priceType = o != null && o.getPriceType() != null ? o.getPriceType()
+                    : priceTypes.findByCompanyIdAndCode(cid, PriceKind.WHOLESALE).orElse(null);
         if (priceType == null) throw new FormException("Выберите тип цен");
         Employee agent = f.getAgentId() == null ? null : employees.findById(f.getAgentId())
                 .filter(e -> cid.equals(e.getCompanyId()) && e.getRole() == Role.AGENT)

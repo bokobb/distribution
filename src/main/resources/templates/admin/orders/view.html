@@ -114,7 +114,6 @@
                 <dt>Магазин</dt><dd><b th:text="${o.outlet.name}"></b></dd>
                 <dt th:if="${o.outlet.owner != null}">Владелец</dt><dd th:if="${o.outlet.owner != null}" th:text="${o.outlet.owner}"></dd>
                 <dt>Торговый</dt><dd th:text="${o.agent == null ? '—' : o.agent.name + (o.outlet.agent != null and o.outlet.agent.id == o.agent.id ? ' · закреплён' : '')}"></dd>
-                <dt>Цены</dt><dd th:text="${o.outlet.priceType?.name}"></dd>
                 <dt>Лимит долга</dt><dd class="num" th:text="${o.outlet.creditLimit == 0 ? 'без долга' : @fmt.money(o.outlet.creditLimit)}"></dd>
                 <dt>Просрочка</dt><dd class="num" th:classappend="${o.outlet.overdue > 0} ? 'bad'" th:text="${o.outlet.overdue == 0 ? 'нет' : @fmt.money(o.outlet.overdue) + ' · ' + o.outlet.overdueDays + ' дн.'}"></dd>
             </dl></div>

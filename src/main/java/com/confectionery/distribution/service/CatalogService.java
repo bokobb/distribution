@@ -7,7 +7,9 @@ import com.confectionery.distribution.domain.Product;
 import com.confectionery.distribution.repository.PriceRepository;
 import com.confectionery.distribution.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -23,6 +25,7 @@ public class CatalogService {
 
     private final ProductRepository products;
     private final PriceRepository prices;
+    private final JdbcTemplate jdbc;
     private final Clock clock;
 
     /** Товары компании с ценами на сегодня; companyId = null — все видимые. */
@@ -51,5 +54,36 @@ public class CatalogService {
             if (pr.getPriceType().getCode() == PriceKind.RETAIL) p.setRetail(pr.getPrice());
             else p.setWholesale(pr.getPrice());
         }
+    }
+
+    /** Цена по наценке над ценой CRM — вверх до 5 ₸: 1000 ₸ + 20 % = 1200, 1013 ₸ + 20 % = 1220. */
+    public static long markupPrice(long crmPrice, int markup) {
+        return (crmPrice * (100 + markup) + 499) / 500 * 5;
+    }
+
+    /**
+     * Цена продажи товара с сегодня. С 04.11.2026 цена одна — пишется в оба типа цен компании (опт и розница),
+     * какой бы ни был у магазина. Сегодня цену уже меняли — сегодняшняя запись переписывается; прошлые дни
+     * не трогаются: заказы и возвраты тех дней считаются по своим ценам.
+     */
+    public void setPrice(long companyId, long productId, long price) {
+        jdbc.update("""
+                insert into prices (company_id, product_id, price_type_id, valid_from, price)
+                select ?, ?, t.id, ?, ? from price_types t where t.company_id = ?
+                on conflict (product_id, price_type_id, valid_from) do update set price = excluded.price""",
+                companyId, productId, LocalDate.now(clock), price, companyId);
+    }
+
+    /** «Товары»: новые цены (id товара → цена) — только товары этой компании и только изменившиеся. Сколько изменилось. */
+    @Transactional
+    public int savePrices(long companyId, Map<Long, Long> changed) {
+        int n = 0;
+        for (Product p : products(companyId)) {
+            Long price = changed.get(p.getId());
+            if (price == null || price == p.getWholesale() && price == p.getRetail()) continue;
+            setPrice(companyId, p.getId(), price);
+            n++;
+        }
+        return n;
     }
 }

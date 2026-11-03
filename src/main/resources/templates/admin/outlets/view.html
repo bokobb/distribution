@@ -104,7 +104,6 @@
                 <dt th:if="${o.landmark != null}">Ориентир</dt><dd th:if="${o.landmark != null}" th:text="${o.landmark}"></dd>
                 <dt>Район</dt><dd th:text="${o.region?.name ?: '—'}"></dd>
                 <dt>Торговый</dt><dd th:text="${o.agent == null ? 'не закреплён' : o.agent.name + ' · закреплён'}"></dd>
-                <dt>Тип цен</dt><dd th:text="${o.priceType?.name}"></dd>
                 <dt>В базе с</dt><dd th:text="${@fmt.dot(@fmt.date(o.createdAt), o.createdBy)}"></dd>
                 <dt th:if="${o.facadePhoto != null}">Фасад</dt><dd th:if="${o.facadePhoto != null}"><a class="link" th:href="${'/admin/outlets/' + o.id + '/photo'}" target="_blank" rel="noopener">Фото фасада</a></dd>
                 <dt th:if="${v.isAll()}">Компания</dt><dd th:if="${v.isAll()}" th:text="${o.company.name}"></dd>

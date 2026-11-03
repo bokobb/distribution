@@ -107,7 +107,6 @@ class _OutletScreenState extends State<OutletScreen> {
           const SizedBox(height: 10),
           Wrap(spacing: 6, runSpacing: 6, children: [
             if (m != null) Tag.brand(facts.here(o) ? 'Вы у магазина' : '${distanceLabel(m)} от вас'),
-            Tag(o.priceLabel),
             if (o.pending) const Tag.brand('На проверке'),
             if (since != null) Tag('В базе с ${monthsOf[since.month - 1]} ${since.year}'),
           ]),

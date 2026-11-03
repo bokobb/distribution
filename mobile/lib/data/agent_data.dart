@@ -381,7 +381,6 @@ class Outlet {
 
   bool get pending => status == 'PENDING';
   bool get overLimit => creditLimit > 0 && debt > creditLimit;
-  String get priceLabel => priceKind == 'RETAIL' ? 'Розница' : 'Опт';
 
   factory Outlet.fromJson(Map<String, dynamic> j) => Outlet(
         id: j['id'] as int,

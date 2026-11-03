@@ -34,7 +34,12 @@ public class Product extends CompanyEntity {
     @Transient
     private long retail;
 
-    /** Наценка опта над ценой CRM, %; null — цены CRM нет. */
+    /** Цена продажи на сегодня — с 04.11.2026 одна для опта и розницы; 0 — цены нет. */
+    public long getPrice() {
+        return wholesale;
+    }
+
+    /** Наценка над ценой CRM, %; null — цены CRM или цены продажи нет. */
     public Integer getMarkup() {
         return crmPrice == null || crmPrice == 0 || wholesale == 0 ? null : (int) Math.round((wholesale - crmPrice) * 100.0 / crmPrice);
     }

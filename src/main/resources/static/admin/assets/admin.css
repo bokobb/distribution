@@ -457,3 +457,22 @@ a.al:hover{background:var(--head);color:var(--ink)}
 .who{display:flex;align-items:center;gap:10px;min-width:0}
 .who .sub{white-space:nowrap}
 .al .btn{flex:none}
+/* «Товары»: цена и наценка в таблице (04.11.2026) */
+.markup-all{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);font-weight:500}
+.pct{display:inline-flex;align-items:center;gap:4px}
+.pct i{font-style:normal;color:var(--ink-soft)}
+.inp--num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl--prices .js-price{width:104px}
+.tbl--prices .js-pct,.markup-all .inp{width:60px}
+.tbl--prices .js-pct:disabled{background:var(--seg);border-color:transparent;color:var(--ink-mute)}
+.inp.bad{color:var(--bad)}
+.tbl--prices tr.is-changed td{background:#F7F7FF}
+.tbl--prices tr.is-changed .js-price{border-color:var(--accent)}
+.m-lbl{display:none}
+@media (max-width:640px){
+  .tbl--prices.tbl--cards tr{grid-template-columns:1fr 1fr 1fr;gap:6px 10px}
+  .tbl--prices.tbl--cards td:first-child{grid-column:1/-1}
+  .tbl--prices.tbl--cards td.r{text-align:left}
+  .tbl--prices .m-lbl{display:block;font-size:12px;line-height:16px;color:var(--ink-soft);font-weight:400;margin-bottom:2px}
+  .tbl--prices .js-price{width:100%;max-width:120px}
+}

@@ -138,6 +138,11 @@ class CrmLinkTest {
                 select p.crm_code || ' ' || p.crm_price from receipt_items l join products p on p.id = l.product_id
                 where l.receipt_id = ? and p.crm_price_at is not null order by p.crm_code""", String.class, r.get("id")))
                 .containsExactly("55 1000", "77 1575");
+        // цены продажи ещё не было — поставилась сама: цена CRM + 20 % (наценка по умолчанию), вверх до 5 ₸, и в опт, и в розницу
+        assertThat(jdbc.queryForList("""
+                select p.crm_code || ' ' || t.code || ' ' || pr.price from prices pr join products p on p.id = pr.product_id
+                join price_types t on t.id = pr.price_type_id where p.company_id = ? order by p.crm_code, t.code""", String.class, w.id()))
+                .containsExactly("55 RETAIL 1200", "55 WHOLESALE 1200", "77 RETAIL 1890", "77 WHOLESALE 1890");
         // фото с сайта CRM — и у нашего товара, и у заведённого из CRM
         assertThat(jdbc.queryForList("""
                 select p.image_url from receipt_items l join products p on p.id = l.product_id

@@ -1,38 +1,128 @@
 <!DOCTYPE html>
-<!--/* Товары и прайс (design/admin/AdmProducts): коды и цены CRM, опт и розница, наценка опта над ценой CRM.
+<!--/* Товары и прайс (design/admin/AdmProducts): цена CRM, наша цена продажи и наценка над ценой CRM.
+     С 04.11.2026 цена одна — опт и розницу не различаем. Директор и владелец меняют цену или наценку прямо
+     в таблице (одно пересчитывает другое), «Поставить всем» — цены по общей наценке; оператор только смотрит.
      Акций нет — решили не делать. */-->
-<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{})}">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
 <body>
 <th:block th:fragment="content">
 <div class="note note--new" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px">
     <span style="flex:1 1 360px" th:text="${@fmt.dot(
         !crmOn ? 'Связь с CRM не настроена' : (crmAt == null ? 'С CRM ещё не обменивались' : 'Обмен с CRM ' + @fmt.when(crmAt)),
         'товаров CRM: ' + fromCrm) + '. Их приход создаётся сам после выдачи заказа в CRM, цена CRM — из последнего такого заказа.'
+        + ' Новый товар из CRM получает цену сам — цена CRM + ' + markup + ' %.'
         + (notCrm.isEmpty() ? '' : ' Не из CRM: ' + #strings.listJoin(notCrm.size() > 3 ? notCrm.subList(0, 3) : notCrm, ', ') + (notCrm.size() > 3 ? ' и ещё ' + (notCrm.size() - 3) : '') + ' — их возврат уходит поставщику.')}"></span>
     <a class="link" href="/admin/settings" th:if="${crmOn}">Обменяться сейчас</a>
 </div>
 
+<form id="prices" method="post" th:action="@{/admin/products/prices}">
 <section class="card">
-    <div class="card-h"><div><h2>Товары</h2><p th:text="${@fmt.plural(products.size(), 'товар', 'товара', 'товаров') + ' · прайс у каждой компании свой'}"></p></div></div>
-    <div class="tbl-w"><table class="tbl tbl--cards">
+    <div class="card-h">
+        <div><h2>Товары</h2><p th:text="${@fmt.plural(products.size(), 'товар', 'товара', 'товаров')
+            + (noPrice > 0 ? ' · без цены: ' + noPrice : '')
+            + (canEdit ? ' · цена одна для всех магазинов, новая действует с сегодня' : ' · цены меняют директор и владелец')}"></p></div>
+        <div class="markup-all" th:if="${canEdit}">
+            <label for="markup">Наценка</label>
+            <span class="pct"><input class="inp inp--sm inp--num" id="markup" name="markup" inputmode="numeric" maxlength="3" required
+                                     th:value="${markup}" th:data-was="${markup}" aria-label="Наценка над ценой CRM, %"><i>%</i></span>
+            <button class="btn btn-soft btn-sm" type="button" id="apply-markup">Поставить всем</button>
+        </div>
+    </div>
+    <div class="tbl-w"><table class="tbl tbl--cards tbl--prices">
         <thead><tr><th>Товар</th><th class="hide-m">Штрихкод</th><th class="r hide-m">В коробке</th><th class="hide-m">Код CRM</th><th class="r">Цена CRM</th>
-            <th class="r">Опт</th><th class="r hide-m">Розница</th><th class="r">Наценка опт</th></tr></thead>
-        <tbody><tr th:each="p : ${products}" th:classappend="${!p.active} ? 'is-off'">
+            <th class="r">Цена</th><th class="r">Наценка</th></tr></thead>
+        <tbody><tr th:each="p : ${products}" th:classappend="${!p.active} ? 'is-off'" th:data-id="${p.id}" th:data-crm="${p.crmPrice}">
             <td><span class="prod"><img class="prod-img" th:if="${p.imageUrl != null}" th:src="${p.imageUrl}" alt="" width="40" height="40" loading="lazy">
                 <span class="prod-img prod-img--none" th:unless="${p.imageUrl != null}" aria-hidden="true"></span>
                 <span><b th:text="${p.name}"></b><span class="sub" th:text="${p.category}"></span></span></span></td>
             <td class="num muted hide-m" th:text="${p.barcode ?: '—'}"></td>
             <td class="r num hide-m" th:text="${p.perBox}"></td>
             <td class="hide-m"><span class="tag" th:classappend="${p.crmCode != null} ? 'tag--crm'" th:text="${p.crmCode ?: 'не из CRM'}"></span></td>
-            <td class="r num"><th:block th:text="${p.crmPrice == null ? '—' : @fmt.money(p.crmPrice)}"></th:block>
+            <td class="r num"><span class="m-lbl">Цена CRM</span><th:block th:text="${p.crmPrice == null ? '—' : @fmt.money(p.crmPrice)}"></th:block>
                 <span class="sub" th:if="${p.crmPriceAt != null}" th:text="${@fmt.day(p.crmPriceAt.toLocalDate())}"></span></td>
-            <td class="r num"><b th:text="${@fmt.money(p.wholesale)}"></b></td>
-            <td class="r num hide-m" th:text="${@fmt.money(p.retail)}"></td>
-            <td class="r num" th:classappend="${p.markup != null and p.markup < 0} ? 'bad'" th:text="${p.markup == null ? '—' : (p.markup > 0 ? '+' : '') + p.markup + '%'}"></td>
+            <td class="r num" th:if="${canEdit}"><span class="m-lbl">Цена, ₸</span>
+                <input class="inp inp--sm inp--num js-price" th:name="'price_' + ${p.id}" inputmode="numeric" maxlength="11"
+                       th:value="${p.price > 0 ? p.price : ''}" th:data-was="${p.price > 0 ? p.price : ''}" placeholder="нет цены"
+                       th:aria-label="'Цена: ' + ${p.name}"></td>
+            <td class="r num" th:unless="${canEdit}"><span class="m-lbl">Цена</span>
+                <b th:if="${p.price > 0}" th:text="${@fmt.money(p.price)}"></b><span class="bad" th:if="${p.price == 0}">нет цены</span></td>
+            <td class="r num" th:if="${canEdit}"><span class="m-lbl">Наценка</span>
+                <span class="pct"><input class="inp inp--sm inp--num js-pct" inputmode="numeric" maxlength="3"
+                       th:value="${p.markup}" th:classappend="${p.markup != null and p.markup < 0} ? 'bad'"
+                       th:disabled="${p.crmPrice == null or p.crmPrice == 0}" th:aria-label="'Наценка, %: ' + ${p.name}"><i>%</i></span></td>
+            <td class="r num" th:unless="${canEdit}" th:classappend="${p.markup != null and p.markup < 0} ? 'bad'"><span class="m-lbl">Наценка</span>
+                <th:block th:text="${p.markup == null ? '—' : (p.markup > 0 ? '+' : '') + p.markup + ' %'}"></th:block></td>
         </tr></tbody>
     </table></div>
     <p class="empty" th:if="${products.isEmpty()}">Товаров пока нет — они заводятся сами с первым приходом из CRM.</p>
 </section>
+<div class="savebar" id="prices-bar" th:if="${canEdit and !products.isEmpty()}">
+    <span id="prices-state">Изменений нет · меняйте цену или наценку — второе посчитается само</span>
+    <button class="btn btn-primary" type="submit">Сохранить</button>
+</div>
+</form>
+</th:block>
+<th:block th:fragment="scripts">
+<script>
+(function () {
+    // Цена ↔ наценка над ценой CRM; цена по наценке — вверх до 5 ₸, как на сервере (CatalogService.markupPrice).
+    var form = document.getElementById('prices'), bar = document.getElementById('prices-bar');
+    if (!form || !bar) return;
+    var state = document.getElementById('prices-state'), markup = document.getElementById('markup'), saving = false, dirty = false;
+    function num(s) { s = String(s == null ? '' : s).replace(/\D/g, ''); return s ? parseInt(s, 10) : null; }
+    function byMarkup(crm, pct) { return Math.ceil(crm * (100 + pct) / 500) * 5; }
+    function pctOf(crm, price) { return Math.round((price - crm) * 100 / crm); }
+    function rows() { return form.querySelectorAll('tr[data-id]'); }
+    function showPct(tr, crm, price) {
+        var pct = tr.querySelector('.js-pct');
+        if (!pct || !crm) return;
+        var v = price === null ? null : pctOf(crm, price);
+        pct.value = v === null ? '' : v;
+        pct.classList.toggle('bad', v !== null && v < 0);
+    }
+    function refresh() {
+        var n = 0;
+        rows().forEach(function (tr) {
+            var inp = tr.querySelector('.js-price'), now = num(inp.value), changed = now !== null && now !== num(inp.dataset.was);
+            tr.classList.toggle('is-changed', changed);
+            if (changed) n++;
+        });
+        var m = num(markup.value) !== num(markup.dataset.was);
+        dirty = n > 0 || m;
+        bar.classList.toggle('savebar--dirty', dirty);
+        state.textContent = !dirty ? 'Изменений нет · меняйте цену или наценку — второе посчитается само'
+            : (n > 0 ? 'Изменено цен: ' + n : 'Цены не менялись') + (m ? ' · наценка для новых товаров: ' + (num(markup.value) || 0) + ' %' : '') + ' — сохранить?';
+    }
+    form.addEventListener('input', function (e) {
+        var tr = e.target.closest('tr[data-id]');
+        if (tr) {
+            var crm = num(tr.dataset.crm), price = tr.querySelector('.js-price');
+            if (e.target === price) showPct(tr, crm, num(price.value));
+            else if (e.target.classList.contains('js-pct') && crm) {
+                var p = num(e.target.value);
+                if (p !== null) price.value = byMarkup(crm, p);
+            }
+        }
+        refresh();
+    });
+    document.getElementById('apply-markup').addEventListener('click', function () {
+        var m = num(markup.value);
+        if (m === null) { markup.focus(); return; }
+        rows().forEach(function (tr) {
+            var crm = num(tr.dataset.crm);
+            if (!crm) return;
+            var price = byMarkup(crm, m);
+            tr.querySelector('.js-price').value = price;
+            showPct(tr, crm, price);
+        });
+        refresh();
+    });
+    form.addEventListener('submit', function () { saving = true; });
+    window.addEventListener('beforeunload', function (e) {
+        if (dirty && !saving) { e.preventDefault(); e.returnValue = ''; }
+    });
+})();
+</script>
 </th:block>
 </body>
 </html>

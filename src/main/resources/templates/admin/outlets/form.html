@@ -24,10 +24,8 @@
                 <option value="">без района</option>
                 <option th:each="r : ${regions}" th:value="${r.id}" th:text="${r.name}" th:selected="${r.id == f.regionId}"></option>
             </select></label>
-        <label class="field">Тип цен
-            <select class="sel" name="priceTypeId" required>
-                <option th:each="t : ${priceTypes}" th:value="${t.id}" th:text="${t.name}" th:selected="${t.id == f.priceTypeId}"></option>
-            </select></label>
+        <!--/* «Тип цен» не показываем: с 04.11.2026 цена одна для всех магазинов (опт = розница) */-->
+        <input type="hidden" name="priceTypeId" th:value="${f.priceTypeId}">
         <label class="field">Лимит долга, ₸<input class="inp" name="creditLimit" inputmode="numeric" th:value="${f.creditLimit}"></label>
         <label class="field">Отсрочка, дней<input class="inp" name="paymentDays" inputmode="numeric" th:value="${f.paymentDays}"></label>
         <label class="field">Широта<input class="inp" name="lat" inputmode="decimal" th:value="${f.lat}"><span class="hint">агент ставит точку с телефона</span></label>

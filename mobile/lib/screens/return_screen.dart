@@ -102,7 +102,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Возврат', style: TextStyle(fontWeight: FontWeight.w700)),
-            Text('${o.name} · ${o.priceLabel.toLowerCase()}',
+            Text(o.name,
                 style: TextStyle(fontSize: 13, color: AppColors.text2)),
           ],
         ),

@@ -52,4 +52,18 @@ public class SettingsService {
         settings.save(st);
         return st;
     }
+
+    /** Наценка над ценой CRM, % — из «Товаров». */
+    @Transactional
+    public void saveMarkup(Long companyId, int markup) {
+        if (companyId == null) throw new FormException("Выберите компанию в шапке");
+        if (markup < 0 || markup > 500) throw new FormException("Наценка — от 0 до 500 %");
+        CompanySettings st = settings.findByCompanyId(companyId).orElseGet(() -> {
+            CompanySettings s = new CompanySettings();
+            s.setCompany(companies.getReferenceById(companyId));
+            return s;
+        });
+        if (st.getId() != null && st.getPriceMarkup() == markup) return;
+        settings.save(st.setPriceMarkup(markup));
+    }
 }

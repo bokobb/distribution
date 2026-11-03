@@ -55,6 +55,8 @@ public class CompanySettings extends CompanyEntity {
     /** Рабочее время: открыл приложение в это время — день начинается сам, в workEnd — заканчивается сам. */
     private LocalTime workStart = LocalTime.of(8, 0);
     private LocalTime workEnd = LocalTime.of(20, 0);
+    /** Наценка над ценой CRM, %: «Поставить всем» в «Товарах» и цена нового товара из CRM. */
+    private int priceMarkup = 20;
 
     /** Магазин закрыт по просрочке — заказ ждёт разрешения. Долг магазина уже посчитан (DebtService.fill). */
     public boolean blocks(Outlet o) {

@@ -54,6 +54,7 @@ public class CrmSync {
     private final ReceiptRepository receipts;
     private final WarehouseRepository warehouses;
     private final SettingsService settings;
+    private final CatalogService catalog;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final Clock clock;
@@ -63,7 +64,7 @@ public class CrmSync {
 
     public CrmSync(@Value("${distribution.crm.url:}") String url, @Value("${distribution.crm.key:}") String key,
                    CompanyRepository companies, ProductRepository products, ReceiptRepository receipts,
-                   WarehouseRepository warehouses, SettingsService settings, JdbcTemplate jdbc, TransactionTemplate tx,
+                   WarehouseRepository warehouses, SettingsService settings, CatalogService catalog, JdbcTemplate jdbc, TransactionTemplate tx,
                    Clock clock) {
         this.enabled = url != null && !url.isBlank() && key != null && !key.isBlank();
         this.site = enabled ? url.trim().replaceAll("/+$", "") : "";
@@ -79,6 +80,7 @@ public class CrmSync {
         this.receipts = receipts;
         this.warehouses = warehouses;
         this.settings = settings;
+        this.catalog = catalog;
         this.jdbc = jdbc;
         this.tx = tx;
         this.clock = clock;
@@ -200,6 +202,13 @@ public class CrmSync {
         price.forEach((id, pr) -> jdbc.update("""
                 update products set crm_price = ?, crm_price_at = ? where id = ? and (crm_price_at is null or crm_price_at <= ?)""",
                 pr.setScale(0, RoundingMode.HALF_UP).longValue(), sh.issuedAt(), id, sh.issuedAt()));
+        // товар ещё без цены продажи (новый из CRM) — цена сама: цена CRM + наценка компании; раньше торговый видел 0 ₸
+        int markup = settings.of(c.getId()).getPriceMarkup();
+        price.forEach((id, pr) -> {
+            long crmPrice = pr.setScale(0, RoundingMode.HALF_UP).longValue();
+            Integer has = jdbc.queryForObject("select count(*) from prices where product_id = ?", Integer.class, id);
+            if (crmPrice > 0 && has != null && has == 0) catalog.setPrice(c.getId(), id, CatalogService.markupPrice(crmPrice, markup));
+        });
         return true;
     }
 
