@@ -79,6 +79,33 @@ class AdminSecurityTest {
         login(login.toUpperCase(), PASSWORD);
     }
 
+    /** Аудит 03.11.2026: раздел берётся из сопоставленного адреса, «%73taff» = «staff» оператору не открывается. */
+    @Test
+    void закрытыйРазделНеОткрываетсяЗакодированнымАдресом() throws Exception {
+        World w = data.world("Код");
+        MockHttpSession s = login(w.operator());
+        mvc.perform(get("/admin/staff").session(s)).andExpect(redirectedUrl("/admin/dashboard"));
+        mvc.perform(get(java.net.URI.create("/admin/%73taff")).session(s)).andExpect(redirectedUrl("/admin/dashboard"));
+        mvc.perform(get(java.net.URI.create("/admin/%73ettings")).session(s)).andExpect(redirectedUrl("/admin/dashboard"));
+        mvc.perform(post(java.net.URI.create("/admin/%73taff/save")).session(s).with(csrf()).param("name", "Чужой"))
+                .andExpect(redirectedUrl("/admin/dashboard"));
+        mvc.perform(get("/admin/dashboard").session(s)).andExpect(status().isOk());
+    }
+
+    /** Пять неверных паролей подряд — пауза и в вебе; счёт общий для «8 7…» и «+7 7…». */
+    @Test
+    void подборПароляВВебе_паузаПослеПятиОшибок() throws Exception {
+        World w = data.world("Пауза");
+        data.password(w.operator(), PASSWORD, false);
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(formLogin("/login").user(w.operator().getPhone()).password("не тот " + i)).andExpect(redirectedUrl("/login?error"));
+        }
+        MvcResult r = mvc.perform(formLogin("/login").user(typed(w.operator().getPhone())).password(PASSWORD)).andReturn();
+        assertThat(r.getResponse().getRedirectedUrl()).startsWith("/login?wait=");
+        mvc.perform(get(r.getResponse().getRedirectedUrl()))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Много неверных попыток входа")));
+    }
+
     @Test
     void агентИОтключённыйВВебНеВходят() throws Exception {
         World w = data.world("Закрыто");

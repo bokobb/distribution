@@ -215,6 +215,6 @@ class MobileAuthTest {
         for (int i = 0; i < 5; i++) login(w.agent().getPhone(), "не тот " + i).andExpect(status().isUnauthorized());
 
         login(w.agent().getPhone(), PASSWORD).andExpect(status().isTooManyRequests())
-                .andExpect(jsonPath("$.message", containsString("подождите")));
+                .andExpect(jsonPath("$.message", containsString("попробуйте через")));
     }
 }

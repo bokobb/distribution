@@ -31,13 +31,16 @@ public class LoginController {
     @GetMapping("/login")
     public String login(@RequestParam(required = false) String error, @RequestParam(required = false) String logout,
                         @RequestParam(required = false) String closed, @RequestParam(required = false) String expired,
-                        @RequestParam(required = false) String pass, Authentication auth, Model model) {
+                        @RequestParam(required = false) String pass, @RequestParam(required = false) Long wait,
+                        Authentication auth, Model model) {
         if (auth != null && auth.getPrincipal() instanceof AdminUser) return "redirect:/admin";
         if (error != null) model.addAttribute("error", "Не удалось войти: проверьте телефон (или логин) и пароль. "
                 + "Торговые агенты и экспедиторы работают в приложении на телефоне.");
         if (closed != null) model.addAttribute("error", "Вход закрыт — обратитесь к директору.");
         if (expired != null) model.addAttribute("info", "Страница входа устарела (сервер перезапускался или вы долго не входили). Введите телефон и пароль ещё раз.");
         if (logout != null) model.addAttribute("info", "Вы вышли из админки.");
+        if (wait != null && wait > 0) model.addAttribute("error", "Много неверных попыток входа — попробуйте "
+                + LoginAttempts.waitText(wait) + ". Забыли пароль — попросите директора выдать новый.");
         if (pass != null) model.addAttribute("error", "Пропуск из CRM не подошёл: он действует минуту и только один раз. "
                 + "Откройте админку Дистрибуции из CRM ещё раз.");
         return "login";

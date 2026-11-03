@@ -3,6 +3,8 @@ package com.confectionery.distribution.config;
 import com.confectionery.distribution.security.AdminUserService;
 import com.confectionery.distribution.security.ApiErrors;
 import com.confectionery.distribution.security.JwtService;
+import com.confectionery.distribution.security.LoginAttempts;
+import com.confectionery.distribution.security.LoginPauseFilter;
 import com.confectionery.distribution.security.MobileAccounts;
 import com.confectionery.distribution.security.MobileAuthFilter;
 import com.confectionery.distribution.security.StalePageHandler;
@@ -11,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AccountStatusException;
 import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,6 +23,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Вход в веб-админку: страница /login, телефон или логин + пароль (BCrypt), сессия. Без входа открыты
@@ -75,12 +80,25 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain web(HttpSecurity http, StalePageHandler stalePage) throws Exception {
+    public SecurityFilterChain web(HttpSecurity http, StalePageHandler stalePage, LoginAttempts attempts) throws Exception {
+        SavedRequestAwareAuthenticationSuccessHandler toAdmin = new SavedRequestAwareAuthenticationSuccessHandler();
+        toAdmin.setDefaultTargetUrl("/admin");
         http.authorizeHttpRequests(a -> a
                         .requestMatchers("/login", "/crm-pass", "/admin/assets/**", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/**").denyAll()
                         .anyRequest().authenticated())
-                .formLogin(f -> f.loginPage("/login").defaultSuccessUrl("/admin", false).failureUrl("/login?error"))
+                // Неверный пароль считается в LoginAttempts (общий счёт с приложением): после пяти подряд — пауза,
+                // её держит LoginPauseFilter. Верный пароль у отключённого сотрудника или агента — не подбор, не считаем.
+                .formLogin(f -> f.loginPage("/login")
+                        .successHandler((req, res, auth) -> {
+                            attempts.succeeded(LoginAttempts.key(req.getParameter("username")));
+                            toAdmin.onAuthenticationSuccess(req, res, auth);
+                        })
+                        .failureHandler((req, res, ex) -> {
+                            if (!(ex instanceof AccountStatusException)) attempts.failed(LoginAttempts.key(req.getParameter("username")));
+                            res.sendRedirect(req.getContextPath() + "/login?error");
+                        }))
+                .addFilterBefore(new LoginPauseFilter(attempts), UsernamePasswordAuthenticationFilter.class)
                 .logout(l -> l.logoutUrl("/logout").logoutSuccessUrl("/login?logout"))
                 .exceptionHandling(e -> e.accessDeniedHandler(stalePage));
         return http.build();

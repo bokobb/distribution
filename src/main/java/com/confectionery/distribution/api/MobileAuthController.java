@@ -7,7 +7,6 @@ import com.confectionery.distribution.security.MobileAccounts.Account;
 import com.confectionery.distribution.security.MobileUser;
 import com.confectionery.distribution.security.JwtService;
 import com.confectionery.distribution.security.PasswordRules;
-import com.confectionery.distribution.service.Phones;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -61,9 +59,9 @@ public class MobileAuthController {
 
     @PostMapping("/api/mobile/auth/login")
     public LoginResponse login(@RequestBody LoginRequest req) {
-        String key = attemptKey(req.login());
+        String key = LoginAttempts.key(req.login());
         long wait = attempts.secondsLeft(key);
-        if (wait > 0) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Много неверных попыток — подождите " + wait + " сек.");
+        if (wait > 0) throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Много неверных попыток — попробуйте " + LoginAttempts.waitText(wait));
         Optional<Account> found = accounts.byLogin(req.login());
         String password = req.password() == null ? "" : req.password();
         String hash = found.map(Account::passwordHash).orElse(null);
@@ -125,11 +123,5 @@ public class MobileAuthController {
     private synchronized String dummyHash() {
         if (dummyHash == null) dummyHash = encoder.encode("нет такого сотрудника");
         return dummyHash;
-    }
-
-    private static String attemptKey(String login) {
-        if (login == null) return "";
-        String phone = Phones.normalize(login);
-        return phone != null ? phone : login.strip().toLowerCase(Locale.ROOT);
     }
 }

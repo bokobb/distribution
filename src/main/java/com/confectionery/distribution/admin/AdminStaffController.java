@@ -80,7 +80,7 @@ public class AdminStaffController {
     /** Новый сотрудник — на список с временным паролем; правка — обратно на его страницу. */
     @PostMapping("/admin/staff/save")
     public String save(@ModelAttribute("f") EmployeeForm f, Model model, HttpSession session, RedirectAttributes ra) {
-        Viewer v = ctx.viewer(session);
+        Viewer v = ctx.require(session, "staff");
         try {
             if (f.getId() == null) {
                 IssuedPassword issued = staff.create(f, v.companyId());
@@ -100,6 +100,7 @@ public class AdminStaffController {
 
     @PostMapping("/admin/staff/{id}/password")
     public String resetPassword(@PathVariable Long id, HttpSession session, RedirectAttributes ra) {
+        ctx.require(session, "staff");
         IssuedPassword issued = staff.resetPassword(id);
         ra.addFlashAttribute("issued", issued);
         ctx.toast(session, "Старый пароль больше не действует");
@@ -108,7 +109,7 @@ public class AdminStaffController {
 
     @PostMapping("/admin/staff/{id}/active")
     public String setActive(@PathVariable Long id, @RequestParam boolean on, HttpSession session) {
-        Viewer v = ctx.viewer(session);
+        Viewer v = ctx.require(session, "staff");
         try {
             Employee e = staff.setActive(id, on, v.me().getId());
             ctx.toast(session, "«" + e.getName() + "»: " + (on ? "вход снова открыт" : "вход закрыт"));
@@ -146,7 +147,7 @@ public class AdminStaffController {
 
     @PostMapping("/admin/staff/vehicles/save")
     public String saveVehicle(@ModelAttribute("f") VehicleForm f, Model model, HttpSession session) {
-        Viewer v = ctx.viewer(session);
+        Viewer v = ctx.require(session, "staff");
         try {
             Vehicle m = staff.saveVehicle(f, v.companyId());
             ctx.toast(session, "Машина " + m.getPlate() + " — сохранено");

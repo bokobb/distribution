@@ -80,6 +80,16 @@ public class AdminContext {
         else session.setAttribute(COMPANY, companyId);
     }
 
+    /**
+     * Действие раздела sectionKey: роль должна видеть раздел, иначе 403 (вторая проверка после AdminAccessInterceptor,
+     * для действий, которые меняют компании, настройки и сотрудников — аудит 03.11.2026).
+     */
+    public Viewer require(HttpSession session, String sectionKey) {
+        Viewer v = viewer(session);
+        if (v == null || !v.can(sectionKey)) throw new org.springframework.security.access.AccessDeniedException("Нет доступа к разделу " + sectionKey);
+        return v;
+    }
+
     public void toast(HttpSession session, String text) {
         session.setAttribute(TOAST, text);
     }

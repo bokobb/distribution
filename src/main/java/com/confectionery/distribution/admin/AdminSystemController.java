@@ -53,6 +53,7 @@ public class AdminSystemController {
     /** ЗАГЛУШКА: файл не читается — сразу показываем пример предпросмотра. */
     @PostMapping("/admin/import")
     public String upload(@RequestParam(required = false) MultipartFile file, HttpSession session) {
+        ctx.require(session, "import");
         String name = file == null || file.isEmpty() ? "пример" : file.getOriginalFilename();
         ctx.toast(session, "Файл «" + name + "» принят. Разбор появится, когда пришлёте выгрузку — пока показан пример");
         return "redirect:/admin/import?step=2";
@@ -79,6 +80,7 @@ public class AdminSystemController {
     /** Новая компания с директором: его временный пароль показывается один раз, на следующей странице. */
     @PostMapping("/admin/companies")
     public String createCompany(@ModelAttribute("f") CompanyForm f, Model model, HttpSession session, RedirectAttributes ra) {
+        ctx.require(session, "companies");
         try {
             if (f.getCrmClientId() != null) f.setCrmClient(crmName(f.getCrmClientId()));
             IssuedPassword issued = companies.create(f);
@@ -94,6 +96,7 @@ public class AdminSystemController {
     /** Директор компании — клиент CRM: выбор из списка CRM; пусто — связь снята. */
     @PostMapping("/admin/companies/{id}/crm")
     public String linkCrm(@PathVariable Long id, @RequestParam(required = false) Long clientId, HttpSession session) {
+        ctx.require(session, "companies");
         try {
             Company c = companies.linkCrm(id, clientId, clientId == null ? null : crmName(clientId));
             ctx.toast(session, clientId == null ? "«" + c.getName() + "»: связь с CRM снята"
@@ -133,7 +136,7 @@ public class AdminSystemController {
 
     @PostMapping("/admin/settings")
     public String saveSettings(@ModelAttribute("f") SettingsForm f, Model model, HttpSession session) {
-        Viewer v = ctx.viewer(session);
+        Viewer v = ctx.require(session, "settings");
         try {
             settings.save(v.companyId(), f);
             ctx.toast(session, "Настройки сохранены");
