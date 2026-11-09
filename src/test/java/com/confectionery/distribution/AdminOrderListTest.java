@@ -140,6 +140,8 @@ class AdminOrderListTest {
                 .andExpect(content().string(containsString("Накладная № " + a.getNumber())))
                 .andExpect(content().string(containsString("Накладная № " + b.getNumber())))
                 .andExpect(content().string(containsString("Две тысячи тенге")))
+                .andExpect(content().string(containsString("Покупатель")))
+                .andExpect(content().string(not(containsString("Поставщик")))) // убран 09.11.2026
                 .andExpect(content().string(not(containsString(foreign.getNumber()))));
 
         mvc.perform(post("/admin/orders/invoices").with(csrf()).session(s).param("kind", "total")

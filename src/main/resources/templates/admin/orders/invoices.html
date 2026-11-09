@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--/* Накладные для печати (A4), без меню админки. total = false — на каждый заказ своя накладная на
      отдельном листе; total = true — общая (товарно-транспортная): отгружено по группам товаров, ниже испорченный и
-     чистый возврат — каждый, только если он есть (OrderService.waybill). */-->
+     чистый возврат — каждый, только если он есть (OrderService.waybill). С 09.11.2026 в накладной магазина нет «Поставщика». */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8">
@@ -69,8 +69,6 @@
     <h1 th:text="${'Накладная № ' + o.number + ' от ' + @fmt.date(o.deliveryDate)}">Накладная</h1>
     <p class="meta" th:text="${@fmt.dot('Оплата: ' + o.payment.label, o.trip != null ? 'рейс ' + o.trip.number : null)}"></p>
     <dl class="parties">
-        <div><dt>Поставщик</dt>
-            <dd><b th:text="${o.company.name}"></b><br><span th:if="${o.company.phone != null}" th:text="${'тел. ' + o.company.phone}"></span></dd></div>
         <div><dt>Покупатель</dt>
             <dd><b th:text="${o.outlet.legal != null and !#strings.isEmpty(o.outlet.legal) ? o.outlet.legal : o.outlet.name}"></b>
                 <span th:if="${o.outlet.legal != null and !#strings.isEmpty(o.outlet.legal)}" th:text="${'(' + o.outlet.name + ')'}"></span>
