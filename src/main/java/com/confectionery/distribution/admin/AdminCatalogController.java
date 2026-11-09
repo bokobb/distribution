@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  * «Товары и прайс». С 04.11.2026 у товара одна цена продажи (опт = розница) рядом с ценой CRM и наценкой, %:
  * директор и владелец меняют цену или наценку прямо в таблице, «Поставить всем» считает цены по общей наценке
  * (с ней же новый товар из CRM получает цену сам). Оператор только смотрит.
- * С 09.11.2026 «Скачать прайс» — Excel для магазинов, его скачивает каждый, кто видит раздел.
+ * С 09.11.2026 «Скачать прайс» — Excel: цена CRM, цена продажи и наценка; скачивает каждый, кто видит раздел.
  */
 @Controller
 @RequiredArgsConstructor
@@ -78,7 +78,7 @@ public class AdminCatalogController {
         return "admin/products/list";
     }
 
-    /** Прайс для магазинов в Excel: цены на сегодня той же компании, что на странице («Все компании» — первая). */
+    /** Прайс в Excel: цены на сегодня той же компании, что на странице («Все компании» — первая). */
     @GetMapping("/admin/products/price.xlsx")
     public ResponseEntity<byte[]> priceList(HttpSession session) {
         Viewer v = ctx.require(session, "products");
@@ -86,7 +86,7 @@ public class AdminCatalogController {
         List<Product> list = c == null ? List.of() : catalog.products(c.getId());
         LocalDate today = LocalDate.now(clock);
         String name = c == null ? "" : c.getName();
-        byte[] file = priceList.write(name, c == null ? null : c.getPhone(), today, list);
+        byte[] file = priceList.write(name, today, list);
         String fileName = ("Прайс " + name + " " + PriceListXlsx.DAY.format(today)).replaceAll("[\\\\/:*?\"<>|]", " ")
                 .replaceAll("\\s+", " ").trim() + ".xlsx";
         return ResponseEntity.ok()

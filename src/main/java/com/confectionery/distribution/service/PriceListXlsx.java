@@ -28,23 +28,22 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
- * «Скачать прайс» в «Товарах» (09.11.2026): прайс для магазинов в Excel — компания и дата, товары по группам,
- * штук в коробке, цена за штуку и за коробку. Только активные товары с ценой; цена CRM и наценка в файл не идут —
- * это внутреннее.
+ * «Скачать прайс» в «Товарах» (09.11.2026): компания и дата, активные товары по группам — цена CRM, цена продажи
+ * и наценка, как в таблице на странице. Нет цены — ячейка пустая.
  */
 @Component
 public class PriceListXlsx {
 
     public static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-    private static final String[] HEAD = {"№", "Товар", "В коробке, шт", "Цена за шт, ₸", "Цена за коробку, ₸"};
+    private static final String[] HEAD = {"Товар", "Цена CRM, ₸", "Цена продажи, ₸", "Наценка"};
 
-    /** Товары, которые попадут в прайс: активные, с ценой, по группам и названию. */
+    /** Товары, которые попадут в прайс: активные, по группам и названию. */
     public static List<Product> rows(List<Product> products) {
-        return products.stream().filter(p -> p.isActive() && p.getPrice() > 0)
+        return products.stream().filter(Product::isActive)
                 .sorted(Comparator.comparing(Product::getCategory).thenComparing(Product::getName)).toList();
     }
 
-    public byte[] write(String company, String phone, LocalDate day, List<Product> products) {
+    public byte[] write(String company, LocalDate day, List<Product> products) {
         Map<String, List<Product>> byCat = rows(products).stream()
                 .collect(Collectors.groupingBy(Product::getCategory, TreeMap::new, Collectors.toList()));
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -60,17 +59,18 @@ public class PriceListXlsx {
             head.setWrapText(true);
             CellStyle group = box(wb, IndexedColors.GREY_25_PERCENT, bold, HorizontalAlignment.LEFT);
             CellStyle text = box(wb, null, plain, HorizontalAlignment.LEFT);
-            CellStyle num = box(wb, null, plain, HorizontalAlignment.CENTER);
             CellStyle money = box(wb, null, plain, HorizontalAlignment.RIGHT);
             money.setDataFormat(wb.createDataFormat().getFormat("# ##0"));
+            CellStyle pct = box(wb, null, plain, HorizontalAlignment.RIGHT);
+            pct.setDataFormat(wb.createDataFormat().getFormat("0%;[Red]-0%")); // в минусе — красным, как на странице
             int last = HEAD.length - 1;
 
             Row r0 = ws.createRow(0);
             Cell c0 = r0.createCell(0);
-            c0.setCellValue("Прайс-лист — " + company);
+            c0.setCellValue("Прайс — " + company);
             c0.setCellStyle(title);
             ws.addMergedRegion(new CellRangeAddress(0, 0, 0, last));
-            put(ws.createRow(1), 0, "Цены на " + DAY.format(day) + (phone == null || phone.isBlank() ? "" : " · тел. " + phone), sub);
+            put(ws.createRow(1), 0, "Цены на " + DAY.format(day), sub);
 
             Row h = ws.createRow(3);
             for (int i = 0; i < HEAD.length; i++) {
@@ -87,17 +87,17 @@ public class PriceListXlsx {
                 ri++;
                 for (Product p : cat.getValue()) {
                     Row x = ws.createRow(ri++);
-                    put(x, 0, ++n, num);
-                    put(x, 1, p.getName(), text);
-                    put(x, 2, p.getPerBox(), num);
-                    put(x, 3, p.getPrice(), money);
-                    put(x, 4, p.getPrice() * Math.max(1, p.getPerBox()), money);
+                    n++;
+                    put(x, 0, p.getName(), text);
+                    put(x, 1, p.getCrmPrice() == null || p.getCrmPrice() == 0 ? null : p.getCrmPrice(), money);
+                    put(x, 2, p.getPrice() == 0 ? null : p.getPrice(), money);
+                    put(x, 3, p.getMarkup() == null ? null : p.getMarkup() / 100.0, pct);
                 }
             }
-            if (n == 0) put(ws.createRow(ri++), 0, "Товаров с ценой пока нет", sub);
-            put(ws.createRow(ri + 1), 0, "Цены в тенге, за штуку и за целую коробку.", sub);
+            if (n == 0) put(ws.createRow(ri++), 0, "Товаров пока нет", sub);
+            put(ws.createRow(ri + 1), 0, "Цены в тенге за штуку, наценка — над ценой CRM. Пусто — цены нет.", sub);
 
-            int[] widths = {6, 46, 13, 15, 18};
+            int[] widths = {46, 14, 16, 11};
             for (int i = 0; i < widths.length; i++) ws.setColumnWidth(i, widths[i] * 256);
             ws.createFreezePane(0, 4);
             ws.setRepeatingRows(new CellRangeAddress(3, 3, 0, last));

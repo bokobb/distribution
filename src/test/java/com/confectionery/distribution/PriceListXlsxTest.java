@@ -43,34 +43,35 @@ class PriceListXlsxTest {
     }
 
     @Test
-    void группыПоПорядку_нумерацияСквозная_безЦеныИВыключенныхНет() throws Exception {
+    void ценаCrm_ценаПродажи_наценка_выключенныхНет() throws Exception {
+        Product noCrm = product("Медовик", "Вафли", 1, 3500, true).setCrmPrice(null);
         List<Product> list = List.of(
-                product("Шоколадное", "Печенье", 10, 1250, true),
-                product("Овсяное", "Печенье", 12, 900, true),
-                product("Вафли без цены", "Вафли", 6, 0, true),
-                product("Медовик", "Вафли", 1, 3500, true),
+                product("Шоколадное", "Печенье", 10, 1250, true).setCrmPrice(1000L),
+                product("Овсяное", "Печенье", 12, 900, true).setCrmPrice(950L),
+                product("Вафли без цены", "Вафли", 6, 0, true).setCrmPrice(400L),
+                noCrm,
                 product("Старый торт", "Торты", 1, 5000, false));
 
-        List<List<String>> rows = sheet(new PriceListXlsx().write("Олимжон", "+77010000000", LocalDate.of(2026, 11, 9), list));
+        List<List<String>> rows = sheet(new PriceListXlsx().write("Олимжон", LocalDate.of(2026, 11, 9), list));
 
-        assertThat(rows.get(0).get(0)).isEqualTo("Прайс-лист — Олимжон");
-        assertThat(rows.get(1).get(0)).isEqualTo("Цены на 09.11.2026 · тел. +77010000000");
-        assertThat(rows.get(3)).containsExactly("№", "Товар", "В коробке, шт", "Цена за шт, ₸", "Цена за коробку, ₸");
-        assertThat(rows.subList(4, 9)).containsExactly(
-                List.of("Вафли", "", "", "", ""),
-                List.of("1", "Медовик", "1", "3 500", "3 500"),
-                List.of("Печенье", "", "", "", ""),
-                List.of("2", "Овсяное", "12", "900", "10 800"),
-                List.of("3", "Шоколадное", "10", "1 250", "12 500"));
-        String all = rows.toString();
-        assertThat(all).doesNotContain("777").doesNotContain("Вафли без цены").doesNotContain("Старый торт");
-        assertThat(PriceListXlsx.rows(list)).hasSize(3);
+        assertThat(rows.get(0).get(0)).isEqualTo("Прайс — Олимжон");
+        assertThat(rows.get(1)).containsExactly("Цены на 09.11.2026");
+        assertThat(rows.get(3)).containsExactly("Товар", "Цена CRM, ₸", "Цена продажи, ₸", "Наценка");
+        assertThat(rows.subList(4, 10)).containsExactly(
+                List.of("Вафли", "", "", ""),
+                List.of("Вафли без цены", "400", "", ""),
+                List.of("Медовик", "", "3 500", ""),
+                List.of("Печенье", "", "", ""),
+                List.of("Овсяное", "950", "900", "-5%"),
+                List.of("Шоколадное", "1 000", "1 250", "25%"));
+        assertThat(rows.toString()).doesNotContain("Старый торт").doesNotContain("коробк");
+        assertThat(PriceListXlsx.rows(list)).hasSize(4);
     }
 
     @Test
-    void пустойПрайс_безТелефона() throws Exception {
-        List<List<String>> rows = sheet(new PriceListXlsx().write("Олимжон", null, LocalDate.of(2026, 11, 9), List.of()));
-        assertThat(rows.get(1).get(0)).isEqualTo("Цены на 09.11.2026");
-        assertThat(rows.toString()).contains("Товаров с ценой пока нет");
+    void пустойПрайс() throws Exception {
+        List<List<String>> rows = sheet(new PriceListXlsx().write("Олимжон", LocalDate.of(2026, 11, 9), List.of()));
+        assertThat(rows.get(1)).containsExactly("Цены на 09.11.2026");
+        assertThat(rows.toString()).contains("Товаров пока нет");
     }
 }

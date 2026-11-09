@@ -2,7 +2,7 @@
 <!--/* Товары и прайс (design/admin/AdmProducts): цена CRM, наша цена продажи и наценка над ценой CRM.
      С 04.11.2026 цена одна — опт и розницу не различаем. Директор и владелец меняют цену или наценку прямо
      в таблице (одно пересчитывает другое), «Поставить всем» — цены по общей наценке; оператор только смотрит.
-     «Скачать прайс» (09.11.2026) — Excel для магазинов, видят все, кто видит раздел. Акций нет — решили не делать. */-->
+     «Скачать прайс» (09.11.2026) — Excel: цена CRM, цена продажи, наценка; видят все, кто видит раздел. Акций нет — решили не делать. */-->
 <html lang="ru" xmlns:th="http://www.thymeleaf.org" th:replace="~{admin/layout :: layout(~{::content}, ~{::scripts})}">
 <body>
 <th:block th:fragment="content">
@@ -22,7 +22,7 @@
             + (noPrice > 0 ? ' · без цены: ' + noPrice : '')
             + (canEdit ? ' · цена одна для всех магазинов, новая действует с сегодня' : ' · цены меняют директор и владелец')}"></p></div>
         <a class="btn btn-soft btn-sm" href="/admin/products/price.xlsx" download th:if="${inPriceList > 0}"
-           th:title="${'Excel для магазинов: ' + @fmt.plural(inPriceList, 'товар', 'товара', 'товаров') + ' с ценой на сегодня, без цены CRM и наценки'}"><th:block th:utext="${i16['download']}"></th:block>Скачать прайс</a>
+           th:title="${'Excel: ' + @fmt.plural(inPriceList, 'товар', 'товара', 'товаров') + ' — цена CRM, цена продажи и наценка на сегодня'}"><th:block th:utext="${i16['download']}"></th:block>Скачать прайс</a>
         <div class="markup-all" th:if="${canEdit}">
             <label for="markup">Наценка</label>
             <span class="pct"><input class="inp inp--sm inp--num" id="markup" name="markup" inputmode="numeric" maxlength="3" required

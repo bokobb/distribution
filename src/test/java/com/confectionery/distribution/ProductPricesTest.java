@@ -125,13 +125,13 @@ class ProductPricesTest {
     }
 
     @Test
-    void прайсВExcel_активныеСЦеной_безЦеныCrm() throws Exception {
+    void прайсВExcel_ценаCrm_ценаПродажи_наценка() throws Exception {
         World w = data.world("Прайс");
         jdbc.update("update products set crm_price = 777 where id = ?", w.product().getId());
         jdbc.update("""
                 insert into prices (company_id, product_id, price_type_id, valid_from, price)
                 select ?, ?, id, ?, 1250 from price_types where company_id = ?""", w.id(), w.product().getId(), data.today(), w.id());
-        // без цены и выключенный — в прайс не идут
+        // без цены — пустая ячейка, выключенный — не идёт
         jdbc.update("""
                 insert into products (company_id, name, category, unit, per_box, active)
                 values (?, 'Вафли без цены', 'Вафли', 'шт', 6, true), (?, 'Старый торт', 'Торты', 'шт', 1, false)""", w.id(), w.id());
@@ -145,11 +145,12 @@ class ProductPricesTest {
         assertThat(r.getResponse().getContentType()).startsWith("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         List<List<String>> rows = PriceListXlsxTest.sheet(r.getResponse().getContentAsByteArray());
         String all = rows.toString();
-        assertThat(rows.get(0).get(0)).isEqualTo("Прайс-лист — " + w.company().getName());
-        assertThat(rows.get(1).get(0)).startsWith("Цены на " + PriceListXlsx.DAY.format(data.today()));
-        assertThat(rows).contains(List.of("Печенье", "", "", "", ""));
-        assertThat(rows).anySatisfy(x -> assertThat(x).containsExactly("1", w.product().getName(), "10", "1 250", "12 500"));
-        assertThat(all).doesNotContain("777").doesNotContain("Вафли без цены").doesNotContain("Старый торт");
+        assertThat(rows.get(0).get(0)).isEqualTo("Прайс — " + w.company().getName());
+        assertThat(rows.get(1)).containsExactly("Цены на " + PriceListXlsx.DAY.format(data.today()));
+        assertThat(rows).contains(List.of("Печенье", "", "", ""));
+        assertThat(rows).contains(List.of(w.product().getName(), "777", "1 250", "61%"));
+        assertThat(rows).contains(List.of("Вафли без цены", "", "", ""));
+        assertThat(all).doesNotContain("Старый торт");
 
         // оператор не меняет цены, но прайс скачивает
         MockHttpSession op = login(w.operator());
