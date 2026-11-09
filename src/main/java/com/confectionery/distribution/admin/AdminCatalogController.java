@@ -7,9 +7,14 @@ import com.confectionery.distribution.service.CatalogService;
 import com.confectionery.distribution.service.CompanyService;
 import com.confectionery.distribution.service.FormException;
 import com.confectionery.distribution.service.Forms;
+import com.confectionery.distribution.service.PriceListXlsx;
 import com.confectionery.distribution.service.SettingsService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,6 +22,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +37,7 @@ import java.util.stream.Collectors;
  * «Товары и прайс». С 04.11.2026 у товара одна цена продажи (опт = розница) рядом с ценой CRM и наценкой, %:
  * директор и владелец меняют цену или наценку прямо в таблице, «Поставить всем» считает цены по общей наценке
  * (с ней же новый товар из CRM получает цену сам). Оператор только смотрит.
+ * С 09.11.2026 «Скачать прайс» — Excel для магазинов, его скачивает каждый, кто видит раздел.
  */
 @Controller
 @RequiredArgsConstructor
@@ -42,6 +51,8 @@ public class AdminCatalogController {
     private final Fmt fmt;
     private final com.confectionery.distribution.service.CrmSync crm;
     private final SettingsService settings;
+    private final PriceListXlsx priceList;
+    private final Clock clock;
 
     @GetMapping("/admin/products")
     public String products(Model model, HttpSession session) {
@@ -63,7 +74,26 @@ public class AdminCatalogController {
         model.addAttribute("canEdit", canEdit(v));
         model.addAttribute("markup", settings.of(v.isAll() ? (first == null ? null : first.getId()) : v.companyId()).getPriceMarkup());
         model.addAttribute("noPrice", list.stream().filter(p -> p.isActive() && p.getPrice() == 0).count());
+        model.addAttribute("inPriceList", PriceListXlsx.rows(list).size());
         return "admin/products/list";
+    }
+
+    /** Прайс для магазинов в Excel: цены на сегодня той же компании, что на странице («Все компании» — первая). */
+    @GetMapping("/admin/products/price.xlsx")
+    public ResponseEntity<byte[]> priceList(HttpSession session) {
+        Viewer v = ctx.require(session, "products");
+        Company c = v.isAll() ? companies.first() : v.company();
+        List<Product> list = c == null ? List.of() : catalog.products(c.getId());
+        LocalDate today = LocalDate.now(clock);
+        String name = c == null ? "" : c.getName();
+        byte[] file = priceList.write(name, c == null ? null : c.getPhone(), today, list);
+        String fileName = ("Прайс " + name + " " + PriceListXlsx.DAY.format(today)).replaceAll("[\\\\/:*?\"<>|]", " ")
+                .replaceAll("\\s+", " ").trim() + ".xlsx";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(fileName, StandardCharsets.UTF_8).build().toString())
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(file);
     }
 
     /** Цены (поля price_{id}, пустое — без изменений) и общая наценка. Неверное число — ничего не сохраняется. */

@@ -4,6 +4,7 @@ import com.confectionery.distribution.TestData.World;
 import com.confectionery.distribution.domain.Employee;
 import com.confectionery.distribution.domain.Role;
 import com.confectionery.distribution.service.CatalogService;
+import com.confectionery.distribution.service.PriceListXlsx;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -24,12 +26,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * «Товары» с 04.11.2026: одна цена продажи (пишется и в опт, и в розницу) рядом с ценой CRM и наценкой;
  * меняют директор и владелец, оператор только смотрит; новая цена — с сегодня, прошлые дни не трогаются.
+ * С 09.11.2026 «Скачать прайс» — Excel для магазинов.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -118,5 +122,37 @@ class ProductPricesTest {
         mvc.perform(post("/admin/products/prices").with(csrf()).session(s).param("markup", "20").param("price_" + w.product().getId(), "999"))
                 .andExpect(status().isForbidden());
         assertThat(prices(w, data.today())).isEmpty();
+    }
+
+    @Test
+    void прайсВExcel_активныеСЦеной_безЦеныCrm() throws Exception {
+        World w = data.world("Прайс");
+        jdbc.update("update products set crm_price = 777 where id = ?", w.product().getId());
+        jdbc.update("""
+                insert into prices (company_id, product_id, price_type_id, valid_from, price)
+                select ?, ?, id, ?, 1250 from price_types where company_id = ?""", w.id(), w.product().getId(), data.today(), w.id());
+        // без цены и выключенный — в прайс не идут
+        jdbc.update("""
+                insert into products (company_id, name, category, unit, per_box, active)
+                values (?, 'Вафли без цены', 'Вафли', 'шт', 6, true), (?, 'Старый торт', 'Торты', 'шт', 1, false)""", w.id(), w.id());
+        MockHttpSession s = login(data.person(w, "Директор Прайс", Role.DIRECTOR));
+
+        mvc.perform(get("/admin/products").session(s)).andExpect(content().string(containsString("Скачать прайс")));
+        MvcResult r = mvc.perform(get("/admin/products/price.xlsx").session(s)).andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("attachment")))
+                .andExpect(header().string("Content-Disposition", containsString(".xlsx")))
+                .andReturn();
+        assertThat(r.getResponse().getContentType()).startsWith("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        List<List<String>> rows = PriceListXlsxTest.sheet(r.getResponse().getContentAsByteArray());
+        String all = rows.toString();
+        assertThat(rows.get(0).get(0)).isEqualTo("Прайс-лист — " + w.company().getName());
+        assertThat(rows.get(1).get(0)).startsWith("Цены на " + PriceListXlsx.DAY.format(data.today()));
+        assertThat(rows).contains(List.of("Печенье", "", "", "", ""));
+        assertThat(rows).anySatisfy(x -> assertThat(x).containsExactly("1", w.product().getName(), "10", "1 250", "12 500"));
+        assertThat(all).doesNotContain("777").doesNotContain("Вафли без цены").doesNotContain("Старый торт");
+
+        // оператор не меняет цены, но прайс скачивает
+        MockHttpSession op = login(w.operator());
+        mvc.perform(get("/admin/products/price.xlsx").session(op)).andExpect(status().isOk());
     }
 }
